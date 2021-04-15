@@ -11,7 +11,9 @@ const SCHEDULER_UPDATE_SECOND = 5.0
 const JOB_QUEUE = Vector{Job}()
 JOB_QUEUE_LOCK = false
 const JOB_QUEUE_OK = Vector{Job}()  # jobs not queueing
-const JOB_QUEUE_OK_LENGTH_LIMIT = 1000
+const JOB_QUEUE_MAX_LENGTH = 10000
+
+const SCHEDULER_BACKUP_FILE = ""
 
 const QUEUEING = :queueing
 const RUNNING = :running
@@ -36,13 +38,18 @@ function submit!(job::Job)
     global JOB_QUEUE_LOCK
     global QUEUEING
 
-    # check task state
-    if job.task.state in (:failed, :done)
-        @error "Cannot submit done/failed/canceled job!" job
+    if scheduler_status(verbose=false) == :not_running
+        @error "Scheduler is not running. Please start scheduler by using scheduler_start()"
         return job
     end
 
-    job.state = QUEUEING
+    # check task state
+    if istaskstarted(job.task) || job.state !== QUEUEING
+        @error "Cannot submit running/done/failed/canceled job!" job
+        return job
+    end
+
+    # job.state = QUEUEING
     if job.create_time == DateTime(0)
         job.create_time = now()
     end
@@ -57,15 +64,32 @@ function submit!(job::Job)
 end
 
 """
-    unsafe_run!(job::Job)
+    unsafe_run!(job::Job) :: Bool
 
-Jump the queue and run `job` immediately, no matter what other jobs are running or waiting.
+Jump the queue and run `job` immediately, no matter what other jobs are running or waiting. If successful initiating to run, return `true`, else `false`.
 """
-function unsafe_run!(job::Job)
+function unsafe_run!(job::Job) :: Bool
     global RUNNING
-    schedule(job.task)
-    job.start_time = now()
-    job.state = RUNNING
+    global FAILED
+    global DONE
+    global CANCELLED
+    if istaskfailed(job.task)
+        if job.state !== CANCELLED
+            job.state = FAILED
+        end
+        false
+    elseif istaskdone(job.task)
+        job.state = DONE
+        false
+    elseif istaskstarted(job.task)
+        job.state = RUNNING
+        false
+    else
+        schedule(job.task)
+        job.start_time = now()
+        job.state = RUNNING
+        true
+    end
 end
 
 """
@@ -109,41 +133,6 @@ function unsafe_cancel!(job::Job)
         end
         job.state
     end
-end
-
-
-
-### Scheduler settings
-
-"""
-    set_scheduler_update_second(s::Float64 = 5.0)
-
-Set the update interval of scheduler.
-"""
-function set_scheduler_update_second(s::Float64 = 5.0)
-    s <= 0.001 && error("schedular update interval cannot be less than 0.001.")
-    global SCHEDULER_UPDATE_SECOND = s
-end
-set_scheduler_update_second(s) = set_scheduler_update_second(convert(Float64, s))
-
-"""
-    set_scheduler_max_cpu(ncpu::Int = Sys.CPU_THREADS)
-
-Set the maximum CPU (thread) the scheduler can use.
-"""
-function set_scheduler_max_cpu(ncpu::Int = Sys.CPU_THREADS)
-    ncpu < 1 && error("number of CPU cannot be less than 1.")
-    global SCHEDULER_MAX_CPU = ncpu
-end
-
-"""
-    set_scheduler_max_cpu(ncpu::Int = Sys.CPU_THREADS)
-
-Set the maximum CPU (thread) the scheduler can use.
-"""
-function set_scheduler_max_mem(mem::Int = round(Int, Sys.total_memory() * 0.9))
-    mem < 1 && error("number of memory cannot be less than 1.")
-    global SCHEDULER_MAX_MEM = mem
 end
 
 
@@ -241,7 +230,7 @@ function migrate_finished_jobs!()
     global JOB_QUEUE
     global JOB_QUEUE_LOCK
     global JOB_QUEUE_OK
-    global JOB_QUEUE_OK_LENGTH_LIMIT
+    global JOB_QUEUE_MAX_LENGTH
     wait_for_job_queue()
     @debug "migrate_finished_jobs start" JOB_QUEUE_LOCK
     JOB_QUEUE_LOCK = true
@@ -252,7 +241,7 @@ function migrate_finished_jobs!()
     @debug "migrate_finished_jobs end" JOB_QUEUE_LOCK
 
     # delete JOB_QUEUE_OK if too many
-    n_delete = length(JOB_QUEUE_OK) - JOB_QUEUE_OK_LENGTH_LIMIT
+    n_delete = length(JOB_QUEUE_OK) - JOB_QUEUE_MAX_LENGTH
     n_delete > 0 && deleteat!(JOB_QUEUE_OK, 1:n_delete)
     return
 end
@@ -302,14 +291,13 @@ function run_queueing_jobs(ncpu_available::Int, mem_available::Int)
             ncpu_available < 1 && break
             mem_available  < 1 && break
             if job.state === QUEUEING && job.schedule_time < now() && job.ncpu <= ncpu_available && job.mem <= mem_available
-                unsafe_run!(job)
-                ncpu_available -= job.ncpu
-                mem_available  -= job.mem
+                if unsafe_run!(job)
+                    ncpu_available -= job.ncpu
+                    mem_available  -= job.mem
+                end
             end
         end
     JOB_QUEUE_LOCK = false
     @debug "run_queueing_jobs end" JOB_QUEUE_LOCK
     return ncpu_available, mem_available
 end
-
-SCHEDULER_TASK = @async scheduler()

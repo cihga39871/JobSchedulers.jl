@@ -2,6 +2,16 @@ include("../src/JobSchedulers.jl")
 
 using .JobSchedulers
 
+scheduler_start()
+scheduler_status()
+
+scheduler_stop()
+scheduler_status()
+
+scheduler_start()
+scheduler_status()
+
+
 job = Job(@task(begin; sleep(2); println("highpriority"); end), name="high_priority", priority = 0)
 submit!(job)
 job2 = Job(@task(begin; sleep(2); println("lowpriority"); end), name="low_priority", priority = 20)
