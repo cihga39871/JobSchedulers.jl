@@ -23,4 +23,8 @@ set_scheduler_max_cpu,
 set_scheduler_max_mem,
 set_scheduler_max_job
 
+include("backup.jl")
+export set_scheduler_backup, backup
+
+
 end

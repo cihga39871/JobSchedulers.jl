@@ -4,16 +4,16 @@ const MB = 1024KB
 const GB = 1024MB
 const TB = 1024GB
 
-const SCHEDULER_MAX_CPU = Sys.CPU_THREADS
-const SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
-const SCHEDULER_UPDATE_SECOND = 5.0
+SCHEDULER_MAX_CPU = Sys.CPU_THREADS
+SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
+SCHEDULER_UPDATE_SECOND = 5.0
 
 const JOB_QUEUE = Vector{Job}()
 JOB_QUEUE_LOCK = false
 const JOB_QUEUE_OK = Vector{Job}()  # jobs not queueing
-const JOB_QUEUE_MAX_LENGTH = 10000
+JOB_QUEUE_MAX_LENGTH = 10000
 
-const SCHEDULER_BACKUP_FILE = ""
+SCHEDULER_BACKUP_FILE = ""
 
 const QUEUEING = :queueing
 const RUNNING = :running
@@ -21,8 +21,15 @@ const DONE = :done
 const FAILED = :failed
 const CANCELLED = :cancelled
 
+function force_free_lock()
+    global JOB_QUEUE_LOCK = false
+end
+
 function wait_for_job_queue()
     global JOB_QUEUE_LOCK
+    while JOB_QUEUE_LOCK
+        sleep(0.05)
+    end
     while JOB_QUEUE_LOCK
         sleep(0.05)
     end

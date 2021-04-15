@@ -32,7 +32,7 @@ end
  - `priority::Int = 20`: lower means higher priority.
 """
 mutable struct Job
-    id::Int
+    id::Int64
     name::String
     user::String
     ncpu::Int64
@@ -44,18 +44,18 @@ mutable struct Job
     wall_time::Period
     state::Symbol
     priority::Int
-    task::Task
+    task::Union{Task,Nothing}
     stdout_file::String
     stderr_file::String
 
-    function Job(id::Int, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::DateTime, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, task::Task, stdout_file::String, stderr_file::String)
+    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::DateTime, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String)
         if !(typeof(wall_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
             error("Job.wall_time is not one of Union{Millisecond,Second,Minute,Hour,Day,Week}")
         end
         new(id, name, user, ncpu, mem, schedule_time, create_time, start_time, stop_time, wall_time, state, priority, task, stdout_file, stderr_file)
     end
 
-    function Job(id::Int, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::Period, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, task::Task, stdout_file::String, stderr_file::String)
+    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::Period, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String)
         if !(typeof(wall_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
             error("Job.wall_time is not one of Union{Millisecond,Second,Minute,Hour,Day,Week}")
         end
