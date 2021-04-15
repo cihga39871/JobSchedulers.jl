@@ -23,3 +23,5 @@ function job_query_by_id(id::Int64)
     JOB_QUEUE_LOCK = false
     return nothing # not found
 end # function
+
+job_query = job_query_by_id

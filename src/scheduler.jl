@@ -1,5 +1,11 @@
+const B = 1
+const KB = 1024
+const MB = 1024KB
+const GB = 1024MB
+const TB = 1024GB
 
 const SCHEDULER_MAX_CPU = Sys.CPU_THREADS
+const SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
 const SCHEDULER_UPDATE_SECOND = 5.0
 
 const JOB_QUEUE = Vector{Job}()
@@ -97,7 +103,7 @@ function unsafe_cancel!(job::Job)
         job.stop_time = now()
         job.state = CANCELLED
     catch e
-        update_state!(job)
+        unsafe_update_state!(job)
         if job.state === RUNNING
             @error "unsafe_cancel!(job): cannot cancel a job." job
         end
@@ -107,7 +113,8 @@ end
 
 
 
-### Schedular
+### Scheduler settings
+
 """
     set_scheduler_update_second(s::Float64 = 5.0)
 
@@ -129,6 +136,19 @@ function set_scheduler_max_cpu(ncpu::Int = Sys.CPU_THREADS)
     global SCHEDULER_MAX_CPU = ncpu
 end
 
+"""
+    set_scheduler_max_cpu(ncpu::Int = Sys.CPU_THREADS)
+
+Set the maximum CPU (thread) the scheduler can use.
+"""
+function set_scheduler_max_mem(mem::Int = round(Int, Sys.total_memory() * 0.9))
+    mem < 1 && error("number of memory cannot be less than 1.")
+    global SCHEDULER_MAX_MEM = mem
+end
+
+
+### Scheduler main
+
 function scheduler()
     global SCHEDULER_UPDATE_SECOND
     while true
@@ -145,12 +165,14 @@ function update_queue!()
     update_state!()
     # step 2: migrate finished jobs to JOB_QUEUE_OK from JOB_QUEUE
     migrate_finished_jobs!()
-    # step 3: compute current CPU usage
-    ncpu_available = SCHEDULER_MAX_CPU - current_cpu_usage()
+    # step 3: compute current CPU/MEM usage
+    used_ncpu, used_mem = current_usage()
+    ncpu_available = SCHEDULER_MAX_CPU - used_ncpu
+    mem_available = SCHEDULER_MAX_MEM - used_mem
     # step 4: sort by priority
     update_queue_priority!()
     # step 5: run queueing jobs
-    run_queueing_jobs(ncpu_available)
+    run_queueing_jobs(ncpu_available, mem_available)
 end
 
 function cancel_jobs_reaching_wall_time!()
@@ -235,22 +257,24 @@ function migrate_finished_jobs!()
     return
 end
 
-function current_cpu_usage()::Int
+function current_usage()
     global JOB_QUEUE
     global RUNNING
     global JOB_QUEUE_LOCK
     cpu_usage = 0
+    mem_usage = 0
     wait_for_job_queue()
     @debug "current_cpu_usage start" JOB_QUEUE_LOCK
     JOB_QUEUE_LOCK = true
         for job in JOB_QUEUE
             if job.state === RUNNING
                 cpu_usage += job.ncpu
+                mem_usage += job.mem
             end
         end
     JOB_QUEUE_LOCK = false
     @debug "current_cpu_usage end" JOB_QUEUE_LOCK
-    return cpu_usage
+    return cpu_usage, mem_usage
 end
 
 function update_queue_priority!()
@@ -267,7 +291,7 @@ end
 get_priority(job::Job) = job.priority
 
 
-function run_queueing_jobs(ncpu_available::Int)
+function run_queueing_jobs(ncpu_available::Int, mem_available::Int)
     global JOB_QUEUE
     global QUEUEING
     global JOB_QUEUE_LOCK
@@ -276,14 +300,16 @@ function run_queueing_jobs(ncpu_available::Int)
     JOB_QUEUE_LOCK = true
         for job in JOB_QUEUE
             ncpu_available < 1 && break
-            if job.state === QUEUEING && job.ncpu <= ncpu_available
+            mem_available  < 1 && break
+            if job.state === QUEUEING && job.schedule_time < now() && job.ncpu <= ncpu_available && job.mem <= mem_available
                 unsafe_run!(job)
                 ncpu_available -= job.ncpu
+                mem_available  -= job.mem
             end
         end
     JOB_QUEUE_LOCK = false
     @debug "run_queueing_jobs end" JOB_QUEUE_LOCK
-    return ncpu_available
+    return ncpu_available, mem_available
 end
 
 SCHEDULER_TASK = @async scheduler()
