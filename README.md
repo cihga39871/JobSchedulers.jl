@@ -55,7 +55,7 @@ scheduler_status()
 
 ### Job Controls
 
-A `Job` is the wrapper of `AbstractCmd` or `Cmd`:
+A `Job` is the wrapper of `AbstractCmd` or `Task`:
 
 ```julia
 command_job = Job(
