@@ -137,7 +137,7 @@ Set backup file:
 ```julia
 set_scheduler_backup("/path/to/backup/file")
 ```
-> When Julia exits, write to the backup file automatically.
+> JobSchedulers writes to the backup file at exit.
 > If the file exists, scheduler settings and job queue will be recovered from it automatically.
 
 Stop backup and delete the old backup file:
