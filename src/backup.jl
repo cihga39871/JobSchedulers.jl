@@ -137,6 +137,10 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
         return
     end
 
+    if !is_valid_backup_file(filepath)
+        @error "Cannot recover backup from an invalid file: $(filepath)"
+        return
+    end
 
     @load filepath scheduler_max_cpu scheduler_max_mem scheduler_update_second job_queue_max_length job_queue_ok
 
@@ -215,4 +219,11 @@ function has_job_in(jobs_dict::Dict{Int64, Vector{Job}}, job)
     else
         false
     end
+end
+
+function is_valid_backup_file(filepath::AbstractString)
+    REQUIRED_FILE_HEADER = "HDF5-based Julia Data Format, version "
+    io = open(filepath, "r")
+    headermsg = String(read!(io, Vector{UInt8}(undef, length(REQUIRED_FILE_HEADER))))
+    headermsg == REQUIRED_FILE_HEADER
 end

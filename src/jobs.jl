@@ -28,8 +28,9 @@ end
  - `ncpu::Int64 = 1`: number of CPU this job is about to use.
  - `mem::Int64 = 0`: number of memory this job is about to use (supports TB, GB, MB, KB, B=1).
  - `schedule_time::Union{DateTime,Period} = DateTime(0)`: The expected time to run.
- - `wall_time::Period = Week(1)`: the type is one of `Union{Millisecond,Second,Minute,Hour,Day,Week}`
+ - `wall_time::Period = Week(1)`: wall clock time limit.
  - `priority::Int = 20`: lower means higher priority.
+ - `dependency::Vector{Pair{Symbol,Int64}}`: defer job until specified jobs reach specified state (QUEUEING, RUNNING, DONE, FAILED, CANCELLED).
 """
 mutable struct Job
     id::Int64
@@ -44,25 +45,26 @@ mutable struct Job
     wall_time::Period
     state::Symbol
     priority::Int
+    dependency::Vector{Pair{Symbol,Int64}}
     task::Union{Task,Nothing}
     stdout_file::String
     stderr_file::String
 
-    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::DateTime, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String)
+    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::DateTime, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, dependency::Vector{Pair{Symbol,Int64}}, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String)
         if !(typeof(wall_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
             error("Job.wall_time is not one of Union{Millisecond,Second,Minute,Hour,Day,Week}")
         end
-        new(id, name, user, ncpu, mem, schedule_time, create_time, start_time, stop_time, wall_time, state, priority, task, stdout_file, stderr_file)
+        new(id, name, user, ncpu, mem, schedule_time, create_time, start_time, stop_time, wall_time, state, priority, dependency, task, stdout_file, stderr_file)
     end
 
-    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::Period, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String)
+    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::Period, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, dependency::Vector{Pair{Symbol,Int64}}, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String)
         if !(typeof(wall_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
             error("Job.wall_time is not one of Union{Millisecond,Second,Minute,Hour,Day,Week}")
         end
         if !(typeof(schedule_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
             error("Job.schedule_time is not one of Union{DateTime,Millisecond,Second,Minute,Hour,Day,Week}")
         end
-        new(id, name, user, ncpu, mem, now() + schedule_time, create_time, start_time, stop_time, wall_time, state, priority, task, stdout_file, stderr_file)
+        new(id, name, user, ncpu, mem, now() + schedule_time, create_time, start_time, stop_time, wall_time, state, priority, dependency, task, stdout_file, stderr_file)
     end
 end
 
@@ -76,9 +78,10 @@ function Job(task::Task;
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Week(1),
-    priority::Int = 20
+    priority::Int = 20,
+    dependency::Vector{Pair{Symbol,Int64}} = Vector{Pair{Symbol,Int64}}()
 )
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUEING, priority, task, "", "")
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUEING, priority, dependency, task, "", "")
 end
 
 function Job(command::Base.AbstractCmd;
@@ -89,10 +92,11 @@ function Job(command::Base.AbstractCmd;
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Week(1),
-    priority::Int = 20
+    priority::Int = 20,
+    dependency::Vector{Pair{Symbol,Int64}} = Vector{Pair{Symbol,Int64}}()
 )
     task = @task run(pipeline(command, stdout=stdout, stderr=stderr, append=append))
     stdout_file = isnothing(stdout) ? "" : stdout
     stderr_file = isnothing(stderr) ? "" : stderr
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUEING, priority, task, stdout_file, stderr_file)
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUEING, priority, dependency, task, stdout_file, stderr_file)
 end

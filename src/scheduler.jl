@@ -50,19 +50,40 @@ function submit!(job::Job)
         return job
     end
 
+    # cannot run a backup task
+    if isnothing(job.task)
+        if job.state in (RUNNING, QUEUEING)
+            job.state = CANCELLED
+        end
+        @error "Cannot submit a job recovered from backup!" job
+        return job
+    end
+
     # check task state
     if istaskstarted(job.task) || job.state !== QUEUEING
         @error "Cannot submit running/done/failed/canceled job!" job
         return job
     end
 
-    # job.state = QUEUEING
-    if job.create_time == DateTime(0)
-        job.create_time = now()
-    end
     wait_for_job_queue()
     @debug "submit start" JOB_QUEUE_LOCK
     JOB_QUEUE_LOCK = true
+
+        # check duplicate submission (queueing)
+        for existing_job in JOB_QUEUE
+            if existing_job === job
+                @error "Cannot re-submit the same job!" job
+                @debug "submit end" JOB_QUEUE_LOCK
+                JOB_QUEUE_LOCK = false
+                return job
+            end
+        end
+
+        # job.state = QUEUEING
+        if job.create_time == DateTime(0)
+            job.create_time = now()
+        end
+
         push!(JOB_QUEUE, job)
     JOB_QUEUE_LOCK = false
     @debug "submit end" JOB_QUEUE_LOCK
@@ -76,26 +97,43 @@ end
 Jump the queue and run `job` immediately, no matter what other jobs are running or waiting. If successful initiating to run, return `true`, else `false`.
 """
 function unsafe_run!(job::Job) :: Bool
+    global QUEUEING
     global RUNNING
     global FAILED
     global DONE
     global CANCELLED
-    if istaskfailed(job.task)
-        if job.state !== CANCELLED
-            job.state = FAILED
+
+    # cannot run a backup task
+    if isnothing(job.task)
+        @error "Cannot run a job recovered from backup!" job
+        if job.state in (RUNNING, QUEUEING)
+            job.state = CANCELLED
         end
-        false
-    elseif istaskdone(job.task)
-        job.state = DONE
-        false
-    elseif istaskstarted(job.task)
-        job.state = RUNNING
-        false
-    else
+        return false
+    end
+
+    try
         schedule(job.task)
         job.start_time = now()
         job.state = RUNNING
         true
+    catch e
+        # check status when fail
+        if istaskfailed(job.task)
+            if job.state !== CANCELLED
+                job.state = FAILED
+            end
+            false
+        elseif istaskdone(job.task)
+            job.state = DONE
+            false
+        elseif istaskstarted(job.task)
+            job.state = RUNNING
+            false
+        else
+            rethrow(e)
+            false
+        end
     end
 end
 
@@ -129,6 +167,28 @@ Caution: it is unsafe and should only be called within lock. Do not call from ot
 function unsafe_cancel!(job::Job)
     global CANCELLED
     global RUNNING
+
+    # cannot cancel a backup task (can never be run)
+    if isnothing(job.task)
+        if job.state in (RUNNING, QUEUEING)
+            job.state = CANCELLED
+        end
+        return job.state
+    end
+
+    # no need to cancel finished ones
+    if istaskfailed(job.task)
+        if job.state !== CANCELLED
+            job.state = FAILED
+        end
+        return job.state
+    elseif istaskdone(job.task)
+        if job.state !== DONE
+            job.state = DONE
+        end
+        return job.state
+    end
+
     try
         schedule(job.task, InterruptException(), error=true)
         job.stop_time = now()
@@ -297,7 +357,7 @@ function run_queueing_jobs(ncpu_available::Int, mem_available::Int)
         for job in JOB_QUEUE
             ncpu_available < 1 && break
             mem_available  < 1 && break
-            if job.state === QUEUEING && job.schedule_time < now() && job.ncpu <= ncpu_available && job.mem <= mem_available
+            if job.state === QUEUEING && job.schedule_time < now() && job.ncpu <= ncpu_available && job.mem <= mem_available && is_dependency_ok(job)
                 if unsafe_run!(job)
                     ncpu_available -= job.ncpu
                     mem_available  -= job.mem
@@ -307,4 +367,36 @@ function run_queueing_jobs(ncpu_available::Int, mem_available::Int)
     JOB_QUEUE_LOCK = false
     @debug "run_queueing_jobs end" JOB_QUEUE_LOCK
     return ncpu_available, mem_available
+end
+
+"""
+Caution: run it within lock only.
+"""
+function is_dependency_ok(job::Job)
+    for dep in job.dependency
+        state = dep.first
+        dep_id = dep.second
+        dep_job = job_query_by_id_no_lock(dep_id)
+
+        if isnothing(dep_job)
+            return false
+        end
+
+        state == dep_job.state && continue
+
+        if dep_job.state in (FAILED, CANCELLED)
+            # change job state to cancelled
+            @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is failed or cancelled."
+            job.state = CANCELLED
+            return false
+        elseif dep_job.state == DONE
+            # change job state to cancelled
+            @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is done, but the required state is $(state)."
+            job.state = CANCELLED
+            return false
+        end
+
+        return false
+    end
+    return true
 end

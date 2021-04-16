@@ -9,6 +9,7 @@ export Job
 include("scheduler.jl")
 export B, KB, MB, GB, TB
 export submit!, cancel!
+export QUEUEING, RUNNING, DONE, FAILED, CANCELLED
 
 include("pretty_print.jl")
 export queue, all_queue, json_queue

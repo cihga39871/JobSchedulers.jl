@@ -15,12 +15,29 @@ function job_query_by_id(id::Int64)
                 return job
             end
         end
+        for job in JOB_QUEUE_OK
+            if job.id == id
+                JOB_QUEUE_LOCK = false
+                return job
+            end
+        end
+    JOB_QUEUE_LOCK = false
+    return nothing # not found
+end # function
+
+job_query = job_query_by_id
+
+function job_query_by_id_no_lock(id::Int64)
+    for job in JOB_QUEUE
+        if job.id == id
+            return job
+        end
+    end
     for job in JOB_QUEUE_OK
         if job.id == id
             return job
         end
     end
-    JOB_QUEUE_LOCK = false
     return nothing # not found
 end # function
 

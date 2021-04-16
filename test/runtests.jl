@@ -1,6 +1,7 @@
 include("../src/JobSchedulers.jl")
 
 using .JobSchedulers
+using Dates
 using Test
 
 scheduler_start()
@@ -33,7 +34,7 @@ submit!(jobx)
 cancel!(jobx)
 
 
-using Dates
+
 job2 = Job(@task(begin
     t = now()
     while true
@@ -47,11 +48,54 @@ submit!(job2)
 cancel!(job2)
 
 submit!(job2) # cannot resubmit
-# submit!(job)
+submit!(job) # cannot resubmit
 submit!(job2)
 
 
-# set backup
+### dependency
+dep1 = Job(@task(begin
+    sleep(10)
+    println("dep1 ok")
+end), name="dep1", priority = 20)
+
+dep2 = Job(@task(begin
+    sleep(15)
+    println("dep2 ok")
+end), name="dep2", priority = 20)
+
+job_with_dep = Job(@task(begin
+    println("job with dep1 and dep2 ok")
+end), name="job_with_dep", priority = 20,
+dependency = [DONE => dep1.id, DONE => dep2.id])
+
+submit!(dep1)
+submit!(dep2)
+submit!(job_with_dep)
+
+
+#
+# dep1 = Job(@task(begin
+#     sleep(10)
+#     println("dep1 ok")
+# end), name="dep1", priority = 20, schedule_time = Hour(1))
+#
+# dep2 = Job(@task(begin
+#     sleep(15)
+#     println("dep2 ok")
+# end), name="dep2", priority = 20)
+#
+# job_with_dep = Job(@task(begin
+#     println("job with dep1 and dep2 ok")
+# end), name="job_with_dep", priority = 20,
+# dependency = [DONE => dep1.id, DONE => dep2.id])
+#
+# submit!(dep1)
+# submit!(dep2)
+# submit!(job_with_dep)
+#
+# JobSchedulers.is_dependency_ok(job_with_dep)
+
+### set backup
 rm("/tmp/jl_job_scheduler_backup", force=true)
 rm("/tmp/jl_job_scheduler_backup2", force=true)
 set_scheduler_backup("/tmp/jl_job_scheduler_backup")
