@@ -2,6 +2,7 @@ module JobSchedulers
 
 using Dates, DataFrames, JSON
 using JLD2
+using Pipelines
 
 include("jobs.jl")
 export Job
@@ -27,5 +28,6 @@ set_scheduler_max_job
 include("backup.jl")
 export set_scheduler_backup, backup
 
+include("compat_pipelines.jl")
 
 end
