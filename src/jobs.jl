@@ -102,5 +102,8 @@ function Job(command::Base.AbstractCmd;
 end
 
 function result(job::Job)
+    if job.state !== DONE
+        @warn "Getting result from a $(job.state) job: returned value might be unexpected."
+    end
     job.task.result
 end
