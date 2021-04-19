@@ -1,3 +1,5 @@
+__precompile__(false)  # Task cannot be serialized 
+
 module JobSchedulers
 
 using Dates, DataFrames, JSON
