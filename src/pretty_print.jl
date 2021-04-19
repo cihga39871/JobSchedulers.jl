@@ -40,6 +40,7 @@ end
     d
 end
 
+#TODO: update new fields. Check compatibility with existing programs
 function JSON.Writer.json(job::Job)
     """
     {"id":$(job.id),"state":"$(job.state)","name":"$(job.name)","user":"$(job.user)","ncpu":$(job.ncpu),"create_time":"$(job.create_time)","start_time":"$(job.start_time)","stop_time":"$(job.stop_time)","wall_time":"$(job.wall_time)","priority":$(job.priority),"stdout_file":"$(job.stdout_file)","stderr_file":"$(job.stderr_file)"}"""

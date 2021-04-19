@@ -57,14 +57,15 @@ function scheduler_status(; verbose=true)
     global SCHEDULER_MAX_MEM
     global SCHEDULER_UPDATE_SECOND
     global JOB_QUEUE_MAX_LENGTH
+    global SCHEDULER_TASK
     if istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK
         :not_running
     elseif istaskstarted(SCHEDULER_TASK)
-        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
+        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK
         :running
     else
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK
         :not_running
     end
 end
@@ -87,7 +88,7 @@ set_scheduler_update_second(s) = set_scheduler_update_second(convert(Float64, s)
 Set the maximum CPU (thread) the scheduler can use.
 
 # Example
-    set_scheduler_max_cpu()     # use maximum CPU
+    set_scheduler_max_cpu()     # use all available CPUs
     set_scheduler_max_cpu(4)    # use 4 CPUs
     set_scheduler_max_cpu(0.5)  # use 50% of CPUs
 """

@@ -2,10 +2,6 @@
 
 *A Julia-based job scheduler and workload manager inspired by Slurm and PBS.*
 
-| **Documentation**                                                               |
-|:-------------------------------------------------------------------------------:|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://cihga39871.github.io/JobSchedulers.jl/stable) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://cihga39871.github.io/JobSchedulers.jl/dev) |
-
 ## Package Features
 
 - Job and task scheduler.
@@ -45,12 +41,49 @@ scheduler_start()
 
 scheduler_status()
 # ┌ Info: Scheduler is running.
-# │   SCHEDULER_MAX_CPU = 16
-# │   SCHEDULER_MAX_MEM = 14900915405
+# │   SCHEDULER_MAX_CPU = 32
+# │   SCHEDULER_MAX_MEM = 121278191616
 # │   SCHEDULER_UPDATE_SECOND = 5.0
-# └   JOB_QUEUE_MAX_LENGTH = 10000
+# │   JOB_QUEUE_MAX_LENGTH = 10000
+# └   SCHEDULER_TASK = Task (runnable) @0x00007fe205052e60
 
 # scheduler_stop()  # NO RUN
+```
+
+### Scheduler Settings
+
+Set the **maximum CPU** that the scheduler can use:
+
+```julia
+set_scheduler_max_cpu()     # use all available CPUs
+set_scheduler_max_cpu(4)    # use 4 CPUs
+set_scheduler_max_cpu(0.5)  # use 50% of CPUs
+```
+
+Set the **maximum RAM** the scheduler can use:
+
+```julia
+set_scheduler_max_mem()             # use 80% of total memory
+
+set_scheduler_max_mem(4GB)          # use 4GB memory
+set_scheduler_max_mem(4096MB)
+set_scheduler_max_mem(4194304KB)
+set_scheduler_max_mem(4294967296B)
+
+set_scheduler_max_mem(0.5)          # use 50% of total memory
+```
+
+Set the update interval of job queue:
+
+```julia
+set_scheduler_update_second(5.0)  # update job queue every 5 seconds
+```
+
+Set the maximum number of finished jobs:
+
+```julia
+set_scheduler_max_job(10000)  # If number of finished jobs > 10000, the oldest ones will be removed.
+                              # It does not affect queuing or running jobs.
 ```
 
 ### Job Controls
@@ -72,12 +105,12 @@ job_with_args = Job(
     user = "me",                # Job owner.
     ncpu = 1,                   # Number of CPU required.
     mem = 1KB,                  # Number of memory required (unit: TB, GB, MB, KB, B).
-    schedule_time = Second(3),  # Run after 3 seconds, can be DateTime or Period.
+    schedule_time = Second(3),  # Run after 3 seconds; can be DateTime or Period.
     wall_time = Hour(1),        # The maximum wall time to run the job.
     priority = 20,              # Lower = higher priority.
     dependency = [              # Defer job until some jobs reach some states.
         DONE => command_job.id,   # Left can be DONE, FAILED, CANCELLED, or even
-        DONE => task_job.id       # QUEUEING, RUNNING.
+        DONE => task_job.id       # QUEUING, RUNNING.
     ]                             # Right is the job id.
 )
 ```
@@ -96,6 +129,12 @@ Cancel or interrupt a job:
 cancel!(command_job)
 ```
 
+Get the returned result:
+
+```julia
+result(job_with_args)
+```
+
 ### Queue
 
 Show queue (all jobs):
@@ -111,7 +150,7 @@ queue(all=true)
 # │ 3   │ 314268353241057 │ job_with_args │ me     │ 1     │ 1024  │ 2021-04-16T12:02:37.511 │
 ```
 
-Show queue (running and queueing jobs only):
+Show queue (running and queuing jobs only):
 
 ```julia
 queue()
@@ -160,8 +199,83 @@ Stop backup and `delete_old` backup:
 set_scheduler_backup(delete_old=true)
 ```
 
-## Documentation
+Backup immediately:
 
+```julia
+backup()
+```
 
-- [**STABLE**](https://cihga39871.github.io/JobSchedulers.jl/stable) &mdash; **documentation of the most recently tagged version.**
-- [**DEVEL**](https://cihga39871.github.io/JobSchedulers.jl/dev) &mdash; *documentation of the in-development version.*
+### Compatibility with Pipelines.jl
+
+[Pipelines.jl]: https://cihga39871.github.io/Pipelines.jl/dev/	"Pipelines.jl: A lightweight Julia package for computational pipelines and workflows."
+
+You can also create a `Job` by using `Program` types from Pipelines.jl:
+
+```julia
+Job(p::Program; kwargs...)
+Job(p::Program, inputs::Dict{String}; kwargs...)
+Job(p::Program, inputs::Dict{String}, outputs::Dict{String}; kwargs...)
+```
+
+`kwargs...` include keyword arguments of `Job(::Union{Base.AbstractCmd,Task}, ...)` and `run(::Program, ...)`. Details can be found by typing
+
+```julia
+julia> using Pipelines, JobSchedulers
+julia> ?Job
+julia> ?run
+```
+
+#### Example
+
+```julia
+using Pipelines, JobSchedulers
+
+scheduler_start()
+
+p = CmdProgram(
+    inputs = ["IN1", "IN2"],
+    outputs = ["OUT"],
+    cmd = pipeline(`echo inputs are: IN1 and IN2` & `echo outputs are: OUT`)
+)
+
+inputs = Dict(
+    "IN1" => `in1`,
+    "IN2" => 2
+)
+
+outputs = Dict(
+    "OUT" => "out"
+)
+
+# native Pipelines.jl method to run the program
+run(p, inputs, outputs;
+    touch_run_id_file = false  # do not create a file which indicates the job is done and avoids re-run.
+)
+```
+
+```
+inputs are: in1 and 2
+outputs are: out
+(true, Dict("OUT" => "out"))
+```
+
+```julia
+# run the program by submitting to JobSchedulers.jl
+program_job = Job(p, inputs, outputs; touch_run_id_file = false)
+submit!(program_job)
+```
+
+```
+inputs are: in1 and 2
+outputs are: out
+```
+
+```julia
+# get the returned result
+result(program_job)
+```
+
+```
+(true, Dict("OUT" => "out"))
+```
+

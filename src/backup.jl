@@ -76,7 +76,7 @@ function backup()
     global JOB_QUEUE_MAX_LENGTH
     global JOB_QUEUE
     global JOB_QUEUE_OK
-    global QUEUEING
+    global QUEUING
     global RUNNING
     global CANCELLED
     global JOB_QUEUE_LOCK
@@ -98,7 +98,7 @@ function backup()
         job_queue = deepcopy(JOB_QUEUE)
         for job in job_queue
             job.task = nothing
-            if job.state in (QUEUEING, RUNNING)
+            if job.state in (QUEUING, RUNNING)
                 job.state = CANCELLED
             end
         end

@@ -15,7 +15,7 @@ JOB_QUEUE_MAX_LENGTH = 10000
 
 SCHEDULER_BACKUP_FILE = ""
 
-const QUEUEING = :queueing
+const QUEUING = :queueing
 const RUNNING = :running
 const DONE = :done
 const FAILED = :failed
@@ -43,7 +43,7 @@ Submit the job. If `job.create_time == 0000-01-01T00:00:00 (default)`, it will c
 function submit!(job::Job)
     global JOB_QUEUE
     global JOB_QUEUE_LOCK
-    global QUEUEING
+    global QUEUING
 
     if scheduler_status(verbose=false) == :not_running
         @error "Scheduler is not running. Please start scheduler by using scheduler_start()"
@@ -52,7 +52,7 @@ function submit!(job::Job)
 
     # cannot run a backup task
     if isnothing(job.task)
-        if job.state in (RUNNING, QUEUEING)
+        if job.state in (RUNNING, QUEUING)
             job.state = CANCELLED
         end
         @error "Cannot submit a job recovered from backup!" job
@@ -60,7 +60,7 @@ function submit!(job::Job)
     end
 
     # check task state
-    if istaskstarted(job.task) || job.state !== QUEUEING
+    if istaskstarted(job.task) || job.state !== QUEUING
         @error "Cannot submit running/done/failed/canceled job!" job
         return job
     end
@@ -79,7 +79,7 @@ function submit!(job::Job)
             end
         end
 
-        # job.state = QUEUEING
+        # job.state = QUEUING
         if job.create_time == DateTime(0)
             job.create_time = now()
         end
@@ -97,7 +97,7 @@ end
 Jump the queue and run `job` immediately, no matter what other jobs are running or waiting. If successful initiating to run, return `true`, else `false`.
 """
 function unsafe_run!(job::Job) :: Bool
-    global QUEUEING
+    global QUEUING
     global RUNNING
     global FAILED
     global DONE
@@ -106,7 +106,7 @@ function unsafe_run!(job::Job) :: Bool
     # cannot run a backup task
     if isnothing(job.task)
         @error "Cannot run a job recovered from backup!" job
-        if job.state in (RUNNING, QUEUEING)
+        if job.state in (RUNNING, QUEUING)
             job.state = CANCELLED
         end
         return false
@@ -170,7 +170,7 @@ function unsafe_cancel!(job::Job)
 
     # cannot cancel a backup task (can never be run)
     if isnothing(job.task)
-        if job.state in (RUNNING, QUEUEING)
+        if job.state in (RUNNING, QUEUING)
             job.state = CANCELLED
         end
         return job.state
@@ -301,7 +301,7 @@ function migrate_finished_jobs!()
     wait_for_job_queue()
     @debug "migrate_finished_jobs start" JOB_QUEUE_LOCK
     JOB_QUEUE_LOCK = true
-        finished_indices = map(j -> !(j.state === QUEUEING || j.state === RUNNING), JOB_QUEUE)
+        finished_indices = map(j -> !(j.state === QUEUING || j.state === RUNNING), JOB_QUEUE)
         append!(JOB_QUEUE_OK, JOB_QUEUE[finished_indices])
         deleteat!(JOB_QUEUE, finished_indices)
     JOB_QUEUE_LOCK = false
@@ -349,7 +349,7 @@ get_priority(job::Job) = job.priority
 
 function run_queueing_jobs(ncpu_available::Int, mem_available::Int)
     global JOB_QUEUE
-    global QUEUEING
+    global QUEUING
     global JOB_QUEUE_LOCK
     wait_for_job_queue()
     @debug "run_queueing_jobs start" JOB_QUEUE_LOCK
@@ -357,7 +357,7 @@ function run_queueing_jobs(ncpu_available::Int, mem_available::Int)
         for job in JOB_QUEUE
             ncpu_available < 1 && break
             mem_available  < 1 && break
-            if job.state === QUEUEING && job.schedule_time < now() && job.ncpu <= ncpu_available && job.mem <= mem_available && is_dependency_ok(job)
+            if job.state === QUEUING && job.schedule_time < now() && job.ncpu <= ncpu_available && job.mem <= mem_available && is_dependency_ok(job)
                 if unsafe_run!(job)
                     ncpu_available -= job.ncpu
                     mem_available  -= job.mem

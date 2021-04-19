@@ -13,7 +13,7 @@ end
     Job(command::Base.AbstractCmd; stdout=nothing, stderr=nothing, append::Bool=false, kwargs...)
     Job(task::Task; kwargs...)
 
-# Special Arguments of `Job(::BaseAbstractCmd; ...)`
+# Special Arguments of `Job(::Base.AbstractCmd; ...)`
 
 - `command::Base.AbstractCmd`: it should not redirect to stdout or stderr. Define stdout and stderr in this function.
 - `stdout=nothing`: redirect stdout to the file.
@@ -30,7 +30,7 @@ end
  - `schedule_time::Union{DateTime,Period} = DateTime(0)`: The expected time to run.
  - `wall_time::Period = Week(1)`: wall clock time limit.
  - `priority::Int = 20`: lower means higher priority.
- - `dependency::Vector{Pair{Symbol,Int64}}`: defer job until specified jobs reach specified state (QUEUEING, RUNNING, DONE, FAILED, CANCELLED).
+ - `dependency::Vector{Pair{Symbol,Int64}}`: defer job until specified jobs reach specified state (QUEUING, RUNNING, DONE, FAILED, CANCELLED).
 """
 mutable struct Job
     id::Int64
@@ -81,7 +81,7 @@ function Job(task::Task;
     priority::Int = 20,
     dependency::Vector{Pair{Symbol,Int64}} = Vector{Pair{Symbol,Int64}}()
 )
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUEING, priority, dependency, task, "", "")
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, "", "")
 end
 
 function Job(command::Base.AbstractCmd;
@@ -98,5 +98,9 @@ function Job(command::Base.AbstractCmd;
     task = @task run(pipeline(command, stdout=stdout, stderr=stderr, append=append))
     stdout_file = isnothing(stdout) ? "" : stdout
     stderr_file = isnothing(stderr) ? "" : stderr
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUEING, priority, dependency, task, stdout_file, stderr_file)
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
+end
+
+function result(job::Job)
+    job.task.result
 end

@@ -5,12 +5,12 @@ using JLD2
 using Pipelines
 
 include("jobs.jl")
-export Job
+export Job, result
 
 include("scheduler.jl")
 export B, KB, MB, GB, TB
 export submit!, cancel!
-export QUEUEING, RUNNING, DONE, FAILED, CANCELLED
+export QUEUING, RUNNING, DONE, FAILED, CANCELLED
 
 include("pretty_print.jl")
 export queue, all_queue, json_queue

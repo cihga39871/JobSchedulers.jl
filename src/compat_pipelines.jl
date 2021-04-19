@@ -27,7 +27,7 @@ function Job(p::Program;
     stdout_file = isnothing(stdout) ? "" : stdout
     stderr_file = isnothing(stderr) ? "" : stderr
 
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUEING, priority, dependency, task, stdout_file, stderr_file)
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
 
 function Job(p::Program, inputs::Dict{String};
@@ -48,7 +48,7 @@ function Job(p::Program, inputs::Dict{String};
     stdout_file = isnothing(stdout) ? "" : stdout
     stderr_file = isnothing(stderr) ? "" : stderr
 
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUEING, priority, dependency, task, stdout_file, stderr_file)
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
 
 function Job(p::Program, inputs::Dict{String}, outputs::Dict{String};
@@ -69,5 +69,5 @@ function Job(p::Program, inputs::Dict{String}, outputs::Dict{String};
     stdout_file = isnothing(stdout) ? "" : stdout
     stderr_file = isnothing(stderr) ? "" : stderr
 
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUEING, priority, dependency, task, stdout_file, stderr_file)
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
