@@ -11,6 +11,11 @@
 - Support deferring a job until specific jobs reach specific states (dependency).
 - Support automatic backup and reload.
 
+## Future development
+
+- Support command-line scheduler by using DaemonMode.jl.
+- Use Documenter.jl for documentation.
+
 ## Installation
 
 JobSchedulers.jl can be installed using the Julia package manager. From the Julia REPL, type ] to enter the Pkg REPL mode and run
