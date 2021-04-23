@@ -22,8 +22,6 @@ JobSchedulers.jl can be installed using the Julia package manager. From the Juli
 
 ```julia
 pkg> add JobSchedulers
-# If it fails, use
-pkg> add https://github.com/cihga39871/JobSchedulers.jl.git
 ```
 
 To use the package, type
@@ -256,31 +254,18 @@ outputs = Dict(
 run(p, inputs, outputs;
     touch_run_id_file = false  # do not create a file which indicates the job is done and avoids re-run.
 )
-```
+# inputs are: in1 and 2
+# outputs are: out
+# (true, Dict("OUT" => "out"))
 
-```
-inputs are: in1 and 2
-outputs are: out
-(true, Dict("OUT" => "out"))
-```
-
-```julia
 # run the program by submitting to JobSchedulers.jl
 program_job = Job(p, inputs, outputs; touch_run_id_file = false)
 submit!(program_job)
-```
+# inputs are: in1 and 2
+# outputs are: out
 
-```
-inputs are: in1 and 2
-outputs are: out
-```
-
-```julia
 # get the returned result
 result(program_job)
-```
-
-```
-(true, Dict("OUT" => "out"))
+# (true, Dict("OUT" => "out"))
 ```
 
