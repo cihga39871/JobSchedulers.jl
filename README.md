@@ -234,7 +234,7 @@ scheduler_start()
 
 p = CmdProgram(
     inputs = ["IN1", "IN2"],
-    outputs = ["OUT"],
+    outputs = "OUT",
     cmd = pipeline(`echo inputs are: IN1 and IN2` & `echo outputs are: OUT`)
 )
 
@@ -243,9 +243,7 @@ inputs = Dict(
     "IN2" => 2
 )
 
-outputs = Dict(
-    "OUT" => "out"
-)
+outputs = "OUT" => "out"
 
 # native Pipelines.jl method to run the program
 run(p, inputs, outputs;
@@ -278,4 +276,3 @@ result(program_job)
 ```
 (true, Dict("OUT" => "out"))
 ```
-

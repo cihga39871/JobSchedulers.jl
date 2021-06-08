@@ -1,8 +1,8 @@
 # using Pipelines
 """
     Job(p::Program; kwargs...)
-    Job(p::Program, inputs::Dict{String}; kwargs...)
-    Job(p::Program, inputs::Dict{String}, outputs::Dict{String}; kwargs...)
+    Job(p::Program, inputs; kwargs...)
+    Job(p::Program, inputs, outputs; kwargs...)
 
 Create `Job` by using `Program` from Pipelines.jl package.
 The 3 methods are a wrapper around `run(::Program, ...)`.
@@ -30,7 +30,7 @@ function Job(p::Program;
     Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
 
-function Job(p::Program, inputs::Dict{String};
+function Job(p::Program, inputs;
     name::AbstractString = p.name,
     user::AbstractString = "",
     ncpu::Int64 = 1,
@@ -51,7 +51,7 @@ function Job(p::Program, inputs::Dict{String};
     Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
 
-function Job(p::Program, inputs::Dict{String}, outputs::Dict{String};
+function Job(p::Program, inputs, outputs;
     name::AbstractString = p.name,
     user::AbstractString = "",
     ncpu::Int64 = 1,
