@@ -216,8 +216,8 @@ You can also create a `Job` by using `Program` types from Pipelines.jl:
 
 ```julia
 Job(p::Program; kwargs...)
-Job(p::Program, inputs::Dict{String}; kwargs...)
-Job(p::Program, inputs::Dict{String}, outputs::Dict{String}; kwargs...)
+Job(p::Program, inputs; kwargs...)
+Job(p::Program, inputs, outputs; kwargs...)
 ```
 
 `kwargs...` include keyword arguments of `Job(::Union{Base.AbstractCmd,Task}, ...)` and `run(::Program, ...)`. Details can be found by typing
