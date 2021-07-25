@@ -24,7 +24,7 @@ submit!(job)
 job = Job(@task(begin; sleep(2); println("midpriority"); end), name="mid_priority", priority = 15)
 submit!(job)
 for i in 1:20
-    job = Job(@task(begin; sleep(2); println(i); end), name="$i", priority = 20)
+    local job = Job(@task(begin; sleep(2); println(i); end), name="$i", priority = 20)
     submit!(job)
 end
 
@@ -36,30 +36,27 @@ cancel!(jobx)
 
 
 job2 = Job(@task(begin
-    t = now()
     while true
-        if (now() - t).value > 1000
-            println(t)
-            t = now()
-        end
+        println(now())
+        sleep(1)
     end
 end), name="to_cancel", priority = 20)
 submit!(job2)
 cancel!(job2)
 
-submit!(job2) # cannot resubmit
-submit!(job) # cannot resubmit
-submit!(job2)
+@test_logs (:error,) submit!(job2) # cannot resubmit
+@test_logs (:error,) submit!(job) # cannot resubmit
+@test_logs (:error,) submit!(job2)
 
 
 ### dependency
 dep1 = Job(@task(begin
-    sleep(10)
+    sleep(2)
     println("dep1 ok")
 end), name="dep1", priority = 20)
 
 dep2 = Job(@task(begin
-    sleep(15)
+    sleep(3)
     println("dep2 ok")
 end), name="dep2", priority = 20)
 
@@ -72,6 +69,7 @@ submit!(dep1)
 submit!(dep2)
 submit!(job_with_dep)
 
+sleep(15)
 
 ### set backup
 rm("/tmp/jl_job_scheduler_backup", force=true)
