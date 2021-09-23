@@ -65,11 +65,19 @@ job_with_dep = Job(@task(begin
 end), name="job_with_dep", priority = 20,
 dependency = [DONE => dep1.id, DONE => dep2.id])
 
+job_with_dep2 = Job(@task(begin
+    println("job with dep2 ok")
+end), name="job_with_dep", priority = 20,
+dependency = DONE => dep2.id)
+
 submit!(dep1)
 submit!(dep2)
 submit!(job_with_dep)
+submit!(job_with_dep2)
 
-sleep(15)
+while JobSchedulers.DataFrames.nrow(queue()) > 0
+    sleep(2)
+end
 
 ### set backup
 rm("/tmp/jl_job_scheduler_backup", force=true)

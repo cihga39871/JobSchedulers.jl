@@ -5,7 +5,7 @@
     for f in fs
         d[!, f] = getfield.(job_queue, f)
     end
-    d
+    select!(d, :state, :id, :name, :user, :ncpu, :mem, :create_time, :)
 end
 
 function queue(;all=false)

@@ -17,15 +17,14 @@ function Job(p::Program;
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Week(1),
     priority::Int = 20,
-    dependency::Vector{Pair{Symbol,Int64}} = Vector{Pair{Symbol,Int64}}(),
+    dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing,
     stderr=nothing,
-    append::Bool=false,
     kwargs...
 )
-    task = @task run(p; stdout=stdout, stderr=stderr, append=append, kwargs...)
-    stdout_file = isnothing(stdout) ? "" : stdout
-    stderr_file = isnothing(stderr) ? "" : stderr
+    task = @task run(p; stdout=stdout, stderr=stderr, kwargs...)
+    stdout_file = format_stdxxx_file(stdout)
+    stderr_file = format_stdxxx_file(stderr)
 
     Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
@@ -38,15 +37,14 @@ function Job(p::Program, inputs;
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Week(1),
     priority::Int = 20,
-    dependency::Vector{Pair{Symbol,Int64}} = Vector{Pair{Symbol,Int64}}(),
+    dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing,
     stderr=nothing,
-    append::Bool=false,
     kwargs...
 )
-    task = @task run(p, inputs; stdout=stdout, stderr=stderr, append=append, kwargs...)
-    stdout_file = isnothing(stdout) ? "" : stdout
-    stderr_file = isnothing(stderr) ? "" : stderr
+    task = @task run(p, inputs; stdout=stdout, stderr=stderr, kwargs...)
+    stdout_file = format_stdxxx_file(stdout)
+    stderr_file = format_stdxxx_file(stderr)
 
     Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
@@ -59,15 +57,14 @@ function Job(p::Program, inputs, outputs;
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Week(1),
     priority::Int = 20,
-    dependency::Vector{Pair{Symbol,Int64}} = Vector{Pair{Symbol,Int64}}(),
+    dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing,
     stderr=nothing,
-    append::Bool=false,
     kwargs...
 )
-    task = @task run(p, inputs, outputs; stdout=stdout, stderr=stderr, append=append, kwargs...)
-    stdout_file = isnothing(stdout) ? "" : stdout
-    stderr_file = isnothing(stderr) ? "" : stderr
+    task = @task run(p, inputs, outputs; stdout=stdout, stderr=stderr, kwargs...)
+    stdout_file = format_stdxxx_file(stdout)
+    stderr_file = format_stdxxx_file(stderr)
 
     Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
