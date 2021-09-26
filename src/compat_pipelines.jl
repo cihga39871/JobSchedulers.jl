@@ -68,3 +68,31 @@ function Job(p::Program, inputs, outputs;
 
     Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
+
+program_close_io = JuliaProgram(
+    name = "Close Julia IO",
+    id_file = ".close-julia-io",
+    inputs = "io" => IO,
+    main = (inputs, outputs) -> begin
+        close(inputs["io"])
+        Dict{String,Any}()
+    end
+)
+
+"""
+    close_in_future(io::IO, job::Job)
+    close_in_future(io::IO, jobs::Vector{Job})
+
+Close `io` after `job` is in PAST status (either DONE/FAILED/CANCELLED). It is userful if jobs uses `::IO` as `stdout` or `stderr`, because the program will not close `::IO` manually!
+"""
+function close_in_future(io::IO, job::Job)
+    close_job = Job(program_close_io, "io" => io, touch_run_id_file=false, dependency = [PAST => job.id])
+    submit!(close_job)
+    close_job
+end
+function close_in_future(io::IO, jobs::Vector{Job})
+    deps = [PAST => x.id for x in jobs]
+    close_job = Job(program_close_io, "io" => io, touch_run_id_file=false, dependency = deps)
+    submit!(close_job)
+    close_job
+end

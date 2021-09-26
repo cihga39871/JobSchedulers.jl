@@ -113,10 +113,16 @@ job_with_args = Job(
     priority = 20,              # Lower = higher priority.
     dependency = [              # Defer job until some jobs reach some states.
         DONE => command_job.id,   # Left can be DONE, FAILED, CANCELLED, or even
-        DONE => task_job.id       # QUEUING, RUNNING.
+        DONE => task_job.id       # QUEUING, RUNNING, PAST.
     ]                             # Right is the job id.
 )
 ```
+
+> `dependency` argument in `Job(...)` controls when to start a job.
+>
+> It is a vector with element `STATUS => job.id`.
+>
+> STATUS is one of `DONE`, `FAILED`, `CANCELLED`, `QUEUING`, `RUNNING`, `PAST`. The first 5 status is the real job status. `PAST` is the super set of `DONE`, `FAILED`, `CANCELLED`, which means the job will not run in the future.
 
 Submit a job to queue:
 

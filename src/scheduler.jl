@@ -21,6 +21,8 @@ const DONE = :done
 const FAILED = :failed
 const CANCELLED = :cancelled
 
+const PAST = :past # super set of DONE, FAILED, CANCELLED
+
 function force_free_lock()
     global JOB_QUEUE_LOCK = false
 end
@@ -383,6 +385,9 @@ function is_dependency_ok(job::Job)
         end
 
         state == dep_job.state && continue
+
+        state == PAST &&
+            dep_job.state in (FAILED, CANCELLED, DONE) && continue
 
         if dep_job.state in (FAILED, CANCELLED)
             # change job state to cancelled
