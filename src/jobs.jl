@@ -12,6 +12,7 @@ end
 format_stdxxx_file(::Nothing) = ""
 format_stdxxx_file(x::String) = x
 format_stdxxx_file(x::AbstractString) = convert(String, x)
+format_stdxxx_file(x::IOStream) = x.name[7:end-1]
 format_stdxxx_file(x) = ""
 
 """
