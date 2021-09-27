@@ -32,14 +32,12 @@ Stop the job scheduler.
 """
 function scheduler_stop(; verbose=true)
     global SCHEDULER_TASK
-    global JOB_QUEUE_LOCK
     if istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
         verbose && @warn "Scheduler is not running."
     elseif istaskstarted(SCHEDULER_TASK) # if done, started is also true
-        wait_for_job_queue()
-        JOB_QUEUE_LOCK = true
+        wait_for_lock()
             schedule(SCHEDULER_TASK, InterruptException; error=true)
-        JOB_QUEUE_LOCK = false
+        release_lock()
         verbose && @info "Scheduler stops."
     else
         verbose && @warn "Scheduler is not running."

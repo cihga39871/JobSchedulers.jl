@@ -139,3 +139,5 @@ submit!(cmdprog_job3)
 
 sleep(8)
 @test cmdprog_job3.state == :failed
+
+@info "Test finished."

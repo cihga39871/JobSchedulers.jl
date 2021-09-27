@@ -2,6 +2,7 @@ __precompile__(false)  # Task cannot be serialized
 
 module JobSchedulers
 
+using Base.Threads
 using Dates, DataFrames, JSON
 using JLD2
 using Pipelines

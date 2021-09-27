@@ -79,7 +79,6 @@ function backup()
     global QUEUING
     global RUNNING
     global CANCELLED
-    global JOB_QUEUE_LOCK
 
     # no backup when file is not exist
     SCHEDULER_BACKUP_FILE == "" && return
@@ -89,8 +88,7 @@ function backup()
     scheduler_update_second = SCHEDULER_UPDATE_SECOND
     job_queue_max_length = JOB_QUEUE_MAX_LENGTH
 
-    wait_for_job_queue()
-    JOB_QUEUE_LOCK = true
+    wait_for_lock()
         # update state of jobs for the last time
         foreach(unsafe_update_state!, JOB_QUEUE)
 
@@ -108,7 +106,7 @@ function backup()
             job.task = nothing
         end
         append!(job_queue_ok, job_queue)
-    JOB_QUEUE_LOCK = false
+    release_lock()
 
     # clean old file
     rm(SCHEDULER_BACKUP_FILE, force=true)
@@ -131,7 +129,6 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
     global JOB_QUEUE_MAX_LENGTH
     global JOB_QUEUE
     global JOB_QUEUE_OK
-    global JOB_QUEUE_LOCK
 
     if !(recover_settings || recover_queue)
         return
@@ -153,8 +150,7 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
     end
 
     if recover_queue
-        wait_for_job_queue()
-        JOB_QUEUE_LOCK = true
+        wait_for_lock()
             current_jobs = Dict{Int64, Vector{Job}}()
             append_jobs_dict!(current_jobs, JOB_QUEUE)
             append_jobs_dict!(current_jobs, JOB_QUEUE_OK)
@@ -168,7 +164,7 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
             end
             @info "$(length(job_indices_to_copy)) jobs recovered from the backup file ($filepath)."
             pushfirst!(JOB_QUEUE_OK, view(job_queue_ok, job_indices_to_copy)...)
-        JOB_QUEUE_LOCK = false
+        release_lock()
     end
 
     nothing

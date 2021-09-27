@@ -6,16 +6,16 @@ const TB = 1024GB
 
 SCHEDULER_MAX_CPU = Sys.CPU_THREADS
 SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
-SCHEDULER_UPDATE_SECOND = 5.0
+SCHEDULER_UPDATE_SECOND = 1
 
 const JOB_QUEUE = Vector{Job}()
-JOB_QUEUE_LOCK = false
-const JOB_QUEUE_OK = Vector{Job}()  # jobs not queueing
+JOB_QUEUE_LOCK = SpinLock()
+const JOB_QUEUE_OK = Vector{Job}()  # jobs not queuing
 JOB_QUEUE_MAX_LENGTH = 10000
 
 SCHEDULER_BACKUP_FILE = ""
 
-const QUEUING = :queueing
+const QUEUING = :queuing
 const RUNNING = :running
 const DONE = :done
 const FAILED = :failed
@@ -23,16 +23,14 @@ const CANCELLED = :cancelled
 
 const PAST = :past # super set of DONE, FAILED, CANCELLED
 
-function force_free_lock()
-    global JOB_QUEUE_LOCK = false
+function release_lock()
+    global JOB_QUEUE_LOCK
+    unlock(JOB_QUEUE_LOCK)
 end
 
-function wait_for_job_queue()
+function wait_for_lock()
     global JOB_QUEUE_LOCK
-    while JOB_QUEUE_LOCK
-        sleep(0.05)
-    end
-    while JOB_QUEUE_LOCK
+    while !trylock(JOB_QUEUE_LOCK)
         sleep(0.05)
     end
 end
@@ -44,7 +42,6 @@ Submit the job. If `job.create_time == 0000-01-01T00:00:00 (default)`, it will c
 """
 function submit!(job::Job)
     global JOB_QUEUE
-    global JOB_QUEUE_LOCK
     global QUEUING
 
     if scheduler_status(verbose=false) == :not_running
@@ -67,16 +64,13 @@ function submit!(job::Job)
         return job
     end
 
-    wait_for_job_queue()
-    @debug "submit start" JOB_QUEUE_LOCK
-    JOB_QUEUE_LOCK = true
+    wait_for_lock()
 
-        # check duplicate submission (queueing)
+        # check duplicate submission (queuing)
         for existing_job in JOB_QUEUE
             if existing_job === job
                 @error "Cannot re-submit the same job!" job
-                @debug "submit end" JOB_QUEUE_LOCK
-                JOB_QUEUE_LOCK = false
+                release_lock()
                 return job
             end
         end
@@ -87,8 +81,8 @@ function submit!(job::Job)
         end
 
         push!(JOB_QUEUE, job)
-    JOB_QUEUE_LOCK = false
-    @debug "submit end" JOB_QUEUE_LOCK
+
+    release_lock()
 
     return job
 end
@@ -115,6 +109,11 @@ function unsafe_run!(job::Job) :: Bool
     end
 
     try
+        @static if :sticky in fieldnames(Task)  # sticky controls wether a job is running in different threads, not found in Julia 1.1, found in julia 1.2 and so on.
+            @static if nthreads() > 1
+                job.task.sticky = false
+            end
+        end
         schedule(job.task)
         job.start_time = now()
         job.state = RUNNING
@@ -124,6 +123,7 @@ function unsafe_run!(job::Job) :: Bool
         if istaskfailed(job.task)
             if job.state !== CANCELLED
                 job.state = FAILED
+                @error "A job has failed: $(job.id)" exception=job.task.result
             end
             false
         elseif istaskdone(job.task)
@@ -142,22 +142,17 @@ end
 """
     cancel!(job::Job)
 
-Cancel `job`, stop queueing or running.
+Cancel `job`, stop queuing or running.
 """
 function cancel!(job::Job)
-    global JOB_QUEUE_LOCK
-    wait_for_job_queue()
-    @debug "cancel start" JOB_QUEUE_LOCK
-    JOB_QUEUE_LOCK = true
+    wait_for_lock()
     try
         res = unsafe_cancel!(job)
-        JOB_QUEUE_LOCK = false
-        @debug "cancel end" JOB_QUEUE_LOCK
+        release_lock()
         return res
     catch e
+        release_lock()
         rethrow(e)
-        JOB_QUEUE_LOCK = false
-        @debug "cancel end" JOB_QUEUE_LOCK
     end
 end
 
@@ -182,6 +177,8 @@ function unsafe_cancel!(job::Job)
     if istaskfailed(job.task)
         if job.state !== CANCELLED
             job.state = FAILED
+            # job.task.result isa Exception, notify errors
+            @error "A job has failed: $(job.id)" exception=job.task.result
         end
         return job.state
     elseif istaskdone(job.task)
@@ -229,28 +226,24 @@ function update_queue!()
     mem_available = SCHEDULER_MAX_MEM - used_mem
     # step 4: sort by priority
     update_queue_priority!()
-    # step 5: run queueing jobs
-    run_queueing_jobs(ncpu_available, mem_available)
+    # step 5: run queuing jobs
+    run_queuing_jobs(ncpu_available, mem_available)
 end
 
 function cancel_jobs_reaching_wall_time!()
     global JOB_QUEUE
     global RUNNING
-    global JOB_QUEUE_LOCK
-    wait_for_job_queue()
-    @debug "cancel_jobs_reaching_wall_time start" JOB_QUEUE_LOCK
-    JOB_QUEUE_LOCK = true
+    wait_for_lock()
         for job in JOB_QUEUE
             if job.state === RUNNING
                 elapsed_time =  now() - job.start_time
                 remaining_time = Millisecond(job.wall_time) - elapsed_time
                 if remaining_time.value < 0
-                    unsafe_cancel!(job)  # cannot call cancel! because JOB_QUEUE_LOCK is on
+                    unsafe_cancel!(job)  # cannot call cancel! because lock is on
                 end
             end
         end
-    JOB_QUEUE_LOCK = false
-    @debug "cancel_jobs_reaching_wall_time end" JOB_QUEUE_LOCK
+    release_lock()
 end
 
 """
@@ -272,6 +265,7 @@ function unsafe_update_state!(job::Job)
         elseif task_state === FAILED
             job.stop_time = now()
             job.state = FAILED
+            @error "A job has failed: $(job.id)" exception=job.task.result
         end
     else
         job.state
@@ -285,29 +279,21 @@ Update the state of each `job` in JOB_QUEUE from `job.task` when `job.state === 
 """
 function update_state!()
     global JOB_QUEUE
-    global JOB_QUEUE_LOCK
-    wait_for_job_queue()
-    @debug "update_state start" JOB_QUEUE_LOCK
-    JOB_QUEUE_LOCK = true
+    wait_for_lock()
         foreach(unsafe_update_state!, JOB_QUEUE)
-    JOB_QUEUE_LOCK = false
-    @debug "update_state end" JOB_QUEUE_LOCK
+    release_lock()
     return
 end
 
 function migrate_finished_jobs!()
     global JOB_QUEUE
-    global JOB_QUEUE_LOCK
     global JOB_QUEUE_OK
     global JOB_QUEUE_MAX_LENGTH
-    wait_for_job_queue()
-    @debug "migrate_finished_jobs start" JOB_QUEUE_LOCK
-    JOB_QUEUE_LOCK = true
+    wait_for_lock()
         finished_indices = map(j -> !(j.state === QUEUING || j.state === RUNNING), JOB_QUEUE)
         append!(JOB_QUEUE_OK, JOB_QUEUE[finished_indices])
         deleteat!(JOB_QUEUE, finished_indices)
-    JOB_QUEUE_LOCK = false
-    @debug "migrate_finished_jobs end" JOB_QUEUE_LOCK
+    release_lock()
 
     # delete JOB_QUEUE_OK if too many
     n_delete = length(JOB_QUEUE_OK) - JOB_QUEUE_MAX_LENGTH
@@ -318,44 +304,33 @@ end
 function current_usage()
     global JOB_QUEUE
     global RUNNING
-    global JOB_QUEUE_LOCK
     cpu_usage = 0
     mem_usage = 0
-    wait_for_job_queue()
-    @debug "current_cpu_usage start" JOB_QUEUE_LOCK
-    JOB_QUEUE_LOCK = true
+    wait_for_lock()
         for job in JOB_QUEUE
             if job.state === RUNNING
                 cpu_usage += job.ncpu
                 mem_usage += job.mem
             end
         end
-    JOB_QUEUE_LOCK = false
-    @debug "current_cpu_usage end" JOB_QUEUE_LOCK
+    release_lock()
     return cpu_usage, mem_usage
 end
 
 function update_queue_priority!()
     global JOB_QUEUE
-    global JOB_QUEUE_LOCK
-    wait_for_job_queue()
-    @debug "update_queue_priority start" JOB_QUEUE_LOCK
-    JOB_QUEUE_LOCK = true
+    wait_for_lock()
         sort!(JOB_QUEUE, by=get_priority)
-    JOB_QUEUE_LOCK = false
-    @debug "update_queue_priority end" JOB_QUEUE_LOCK
+    release_lock()
     return
 end
 get_priority(job::Job) = job.priority
 
 
-function run_queueing_jobs(ncpu_available::Int, mem_available::Int)
+function run_queuing_jobs(ncpu_available::Int, mem_available::Int)
     global JOB_QUEUE
     global QUEUING
-    global JOB_QUEUE_LOCK
-    wait_for_job_queue()
-    @debug "run_queueing_jobs start" JOB_QUEUE_LOCK
-    JOB_QUEUE_LOCK = true
+    wait_for_lock()
         for job in JOB_QUEUE
             ncpu_available < 1 && break
             mem_available  < 1 && break
@@ -366,8 +341,7 @@ function run_queueing_jobs(ncpu_available::Int, mem_available::Int)
                 end
             end
         end
-    JOB_QUEUE_LOCK = false
-    @debug "run_queueing_jobs end" JOB_QUEUE_LOCK
+    release_lock()
     return ncpu_available, mem_available
 end
 
