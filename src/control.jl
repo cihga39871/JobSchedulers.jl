@@ -2,8 +2,23 @@
 # TODO atexit(f) to store the job history.
 
 
-
 SCHEDULER_TASK = @task scheduler()
+if :sticky in fieldnames(Task)
+    if nthreads() > 1
+        SCHEDULER_TASK.sticky = false
+    end
+end
+
+function new_scheduler_task()
+    global SCHEDULER_TASK
+    SCHEDULER_TASK = @task scheduler()
+    @static if :sticky in fieldnames(Task)  # sticky controls wether a job is running in different threads, not found in Julia 1.1, found in julia 1.2 and so on.
+        @static if nthreads() > 1
+            SCHEDULER_TASK.sticky = false
+        end
+    end
+    SCHEDULER_TASK
+end
 
 """
     scheduler_start()
@@ -15,7 +30,7 @@ function scheduler_start(; verbose=true)
 
     if istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
         verbose && @warn "Scheduler was interrupted or done. Restart."
-        SCHEDULER_TASK = @task scheduler()
+        new_scheduler_task()
         schedule(SCHEDULER_TASK)
     elseif istaskstarted(SCHEDULER_TASK) # if done, started is also true
         verbose && @warn "Scheduler is running."
