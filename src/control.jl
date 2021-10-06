@@ -3,11 +3,11 @@
 
 
 SCHEDULER_TASK = @task scheduler()
-if :sticky in fieldnames(Task)
-    if nthreads() > 1
-        SCHEDULER_TASK.sticky = false
-    end
-end
+# if :sticky in fieldnames(Task)
+#     if nthreads() > 1
+#         SCHEDULER_TASK.sticky = false
+#     end
+# end
 
 function new_scheduler_task()
     global SCHEDULER_TASK
