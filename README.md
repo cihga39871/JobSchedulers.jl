@@ -32,6 +32,8 @@ using JobSchedulers
 
 ## Quick start
 
+If you need to run multiple heavy Julia tasks, it is recommended to [start Julia with multi-threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads).
+
 ```julia
 using JobSchedulers, Dates
 ```
@@ -55,7 +57,7 @@ scheduler_status()
 
 ### Scheduler Settings
 
-Set the **maximum CPU** that the scheduler can use:
+Set the **maximum CPU** that the scheduler can use. If starting Julia with multi-threads, the maximum CPU is `nthreads() - 1`.
 
 ```julia
 set_scheduler_max_cpu()     # use all available CPUs
@@ -79,7 +81,7 @@ set_scheduler_max_mem(0.5)          # use 50% of total memory
 Set the update interval of job queue:
 
 ```julia
-set_scheduler_update_second(5.0)  # update job queue every 5 seconds
+set_scheduler_update_second(0.3)  # update job queue every 0.3 seconds
 ```
 
 Set the maximum number of finished jobs:
@@ -101,6 +103,10 @@ command_job = Job(
 task_job = Job(
     @task(println("task job done"))  # Task to run
 )
+
+function_job = Job() do  # the function should have no arguments
+    println("function job done")
+end
 
 job_with_args = Job(
     @task(println("job_with_args done")); # Task to run
@@ -150,13 +156,20 @@ Show queue (all jobs):
 ```julia
 all_queue()
 queue(all=true)
-# 3×16 DataFrame. Omitted printing of 10 columns
-# │ Row │ id              │ name          │ user   │ ncpu  │ mem   │ schedule_time           │
-# │     │ Int64           │ String        │ String │ Int64 │ Int64 │ DateTime                │
-# ├─────┼─────────────────┼───────────────┼────────┼───────┼───────┼─────────────────────────┤
-# │ 1   │ 314268209759432 │               │        │ 1     │ 0     │ 0000-01-01T00:00:00     │
-# │ 2   │ 314268298112225 │               │        │ 1     │ 0     │ 0000-01-01T00:00:00     │
-# │ 3   │ 314268353241057 │ job_with_args │ me     │ 1     │ 1024  │ 2021-04-16T12:02:37.511 │
+# 34×17 DataFrame
+#  Row │ state      id                name             user    ncpu   mem     ⋯
+#      │ Symbol     Int64             String           String  Int64  Int64   ⋯
+# ─────┼───────────────────────────────────────────────────────────────────────
+#    1 │ done       1324034831845071  high_priority                1      0   ⋯
+#    2 │ cancelled  1324072551328464  to_cancel                    1      0
+#    3 │ cancelled  1324072551917525  to_cancel                    1      0
+#    4 │ done       1324072550649105  high_priority                1      0
+#   ⋮  │     ⋮             ⋮                 ⋮           ⋮       ⋮      ⋮     ⋱
+#   31 │ failed     1324073678055463  Command Program              1      0   ⋯
+#   32 │ done       1324073675645221  Command Program              1      0
+#   33 │ done       1324073677010642  Command Program              1      0
+#   34 │ done       1324243247103863                               1      0
+#                                                11 columns and 26 rows omitted
 ```
 
 Show queue (running and queuing jobs only):
@@ -166,11 +179,25 @@ queue()
 # 0×16 DataFrame
 ```
 
+Show queue by given a job state (`QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, `PAST`):
+
+```julia
+queue(CANCELLED)
+# 2×17 DataFrame
+#  Row │ state      id                name       user    ncpu   mem    ⋯
+#      │ Symbol     Int64             String     String  Int64  Int64  ⋯
+# ─────┼────────────────────────────────────────────────────────────────
+#    1 │ cancelled  1324072551328464  to_cancel              1      0  ⋯
+#    2 │ cancelled  1324072551917525  to_cancel              1      0
+#                                                     11 columns omitted
+```
+
 ### Job Query
+
+Get `Job` object by providing job ID.
 
 ```julia
 job_query(314268353241057)
-job_query_by_id(314268353241057)
 # Job:
 #   id            → 314268353241057
 #   name          → "job_with_args"
@@ -201,6 +228,7 @@ set_scheduler_backup("/path/to/backup/file")
 ```
 > JobSchedulers writes to the backup file at exit.
 > If the file exists, scheduler settings and job queue will be recovered from it automatically.
+> Recovered jobs are just for query, not run-able.
 
 Stop backup and `delete_old` backup:
 

@@ -19,6 +19,21 @@ function queue(;all=false)
 end
 all_queue() = queue(all=true)
 
+function queue(state::Symbol)
+    if state == :all
+        queue(all=true)
+    elseif state in [QUEUING, RUNNING, DONE, FAILED, CANCELLED]
+        q = queue(all=true)
+        q[q.state .== state, :]
+    elseif state == PAST
+        DataFrame(JOB_QUEUE_OK)
+    else
+        queue(all=true)
+        @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."
+    end
+end
+queue(id::Int64) = job_query(id)
+
 @eval function Base.display(job::Job)
     fs = $(fieldnames(Job))
     fs_string = $(map(string, fieldnames(Job)))

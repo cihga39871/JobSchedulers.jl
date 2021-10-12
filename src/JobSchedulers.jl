@@ -10,6 +10,9 @@ using Pipelines
 include("jobs.jl")
 export Job, result
 
+include("thread_utils.jl")
+
+
 include("scheduler.jl")
 export B, KB, MB, GB, TB
 export submit!, cancel!
@@ -33,5 +36,12 @@ export set_scheduler_backup, backup
 
 include("compat_pipelines.jl")
 export close_in_future
+
+function __init__()
+    # initiating THREAD_POOL
+    c = Channel{Int}(nthreads() - 1)
+    THREAD_POOL[] = c
+    foreach(i -> put!(c, i), 2:nthreads())  # the thread 1 is reserved for JobScheduler, when nthreads > 2
+end
 
 end

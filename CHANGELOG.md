@@ -1,6 +1,10 @@
-v0.3.1-dev
+v0.4.0
 
-- `SCHEDULER_TASK` runs in multi-threading mode if possible.
+- If running with multi-threads Julia, `SCHEDULER_TASK` runs in thread 1, and other jobs spawn at other threads. Thread assignment was achieved by JobScheduler. Besides, `SCHEDULER_MAX_CPU = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS`.
+
+- New feature: `queue(job_state::Symbol)`.
+
+- Use try-finally for all locks.
 
 v0.3.0
 

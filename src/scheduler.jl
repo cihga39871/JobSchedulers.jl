@@ -4,9 +4,9 @@ const MB = 1024KB
 const GB = 1024MB
 const TB = 1024GB
 
-SCHEDULER_MAX_CPU = Sys.CPU_THREADS
+SCHEDULER_MAX_CPU = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS
 SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
-SCHEDULER_UPDATE_SECOND = 1
+SCHEDULER_UPDATE_SECOND = 0.3
 
 const JOB_QUEUE = Vector{Job}()
 JOB_QUEUE_LOCK = SpinLock()
@@ -65,13 +65,11 @@ function submit!(job::Job)
     end
 
     wait_for_lock()
-
+    try
         # check duplicate submission (queuing)
         for existing_job in JOB_QUEUE
             if existing_job === job
-                @error "Cannot re-submit the same job!" job
-                release_lock()
-                return job
+                error("Cannot re-submit the same job! Job ID: $(job.id)")
             end
         end
 
@@ -81,8 +79,11 @@ function submit!(job::Job)
         end
 
         push!(JOB_QUEUE, job)
-
-    release_lock()
+    catch e
+        rethrow(e)
+    finally
+        release_lock()
+    end
 
     return job
 end
@@ -109,12 +110,9 @@ function unsafe_run!(job::Job) :: Bool
     end
 
     try
-        @static if :sticky in fieldnames(Task)  # sticky controls wether a job is running in different threads, not found in Julia 1.1, found in julia 1.2 and so on.
-            @static if nthreads() > 1
-                job.task.sticky = false
-            end
-        end
-        schedule(job.task)
+        # set_non_sticky!(job)
+        # schedule(job.task)
+        schedule_thread(job)
         job.start_time = now()
         job.state = RUNNING
         true
@@ -146,14 +144,14 @@ Cancel `job`, stop queuing or running.
 """
 function cancel!(job::Job)
     wait_for_lock()
-    try
-        res = unsafe_cancel!(job)
-        release_lock()
-        return res
+    res = try
+        unsafe_cancel!(job)
     catch e
-        release_lock()
         rethrow(e)
+    finally
+        release_lock()
     end
+    res
 end
 
 """
@@ -180,11 +178,13 @@ function unsafe_cancel!(job::Job)
             # job.task.result isa Exception, notify errors
             @error "A job has failed: $(job.id)" exception=job.task.result
         end
+        free_thread(job)
         return job.state
     elseif istaskdone(job.task)
         if job.state !== DONE
             job.state = DONE
         end
+        free_thread(job)
         return job.state
     end
 
@@ -198,6 +198,9 @@ function unsafe_cancel!(job::Job)
             @error "unsafe_cancel!(job): cannot cancel a job." job
         end
         job.state
+    finally
+        free_thread(job)
+        return job.state
     end
 end
 
@@ -234,6 +237,7 @@ function cancel_jobs_reaching_wall_time!()
     global JOB_QUEUE
     global RUNNING
     wait_for_lock()
+    try
         for job in JOB_QUEUE
             if job.state === RUNNING
                 elapsed_time =  now() - job.start_time
@@ -243,7 +247,9 @@ function cancel_jobs_reaching_wall_time!()
                 end
             end
         end
-    release_lock()
+    finally
+        release_lock()
+    end
 end
 
 """
@@ -261,11 +267,13 @@ function unsafe_update_state!(job::Job)
         task_state = job.task.state
         if task_state === DONE
             job.stop_time = now()
+            free_thread(job)
             job.state = DONE
         elseif task_state === FAILED
             job.stop_time = now()
+            free_thread(job)
+            @error "A job has failed: $(job.id): $(job.name)" exception=job.task.result
             job.state = FAILED
-            @error "A job has failed: $(job.id)" exception=job.task.result
         end
     else
         job.state
@@ -280,8 +288,11 @@ Update the state of each `job` in JOB_QUEUE from `job.task` when `job.state === 
 function update_state!()
     global JOB_QUEUE
     wait_for_lock()
+    try
         foreach(unsafe_update_state!, JOB_QUEUE)
-    release_lock()
+    finally
+        release_lock()
+    end
     return
 end
 
@@ -290,10 +301,13 @@ function migrate_finished_jobs!()
     global JOB_QUEUE_OK
     global JOB_QUEUE_MAX_LENGTH
     wait_for_lock()
+    try
         finished_indices = map(j -> !(j.state === QUEUING || j.state === RUNNING), JOB_QUEUE)
         append!(JOB_QUEUE_OK, JOB_QUEUE[finished_indices])
         deleteat!(JOB_QUEUE, finished_indices)
-    release_lock()
+    finally
+        release_lock()
+    end
 
     # delete JOB_QUEUE_OK if too many
     n_delete = length(JOB_QUEUE_OK) - JOB_QUEUE_MAX_LENGTH
@@ -307,21 +321,27 @@ function current_usage()
     cpu_usage = 0
     mem_usage = 0
     wait_for_lock()
+    try
         for job in JOB_QUEUE
             if job.state === RUNNING
                 cpu_usage += job.ncpu
                 mem_usage += job.mem
             end
         end
-    release_lock()
+    finally
+        release_lock()
+    end
     return cpu_usage, mem_usage
 end
 
 function update_queue_priority!()
     global JOB_QUEUE
     wait_for_lock()
+    try
         sort!(JOB_QUEUE, by=get_priority)
-    release_lock()
+    finally
+        release_lock()
+    end
     return
 end
 get_priority(job::Job) = job.priority
@@ -331,6 +351,7 @@ function run_queuing_jobs(ncpu_available::Int, mem_available::Int)
     global JOB_QUEUE
     global QUEUING
     wait_for_lock()
+    try
         for job in JOB_QUEUE
             ncpu_available < 1 && break
             mem_available  < 1 && break
@@ -341,7 +362,9 @@ function run_queuing_jobs(ncpu_available::Int, mem_available::Int)
                 end
             end
         end
-    release_lock()
+    finally
+        release_lock()
+    end
     return ncpu_available, mem_available
 end
 

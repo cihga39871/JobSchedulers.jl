@@ -1,4 +1,12 @@
 # using Pipelines
+
+function julia_program_warn(p::JuliaProgram)
+    if nthreads() == 1
+        @warn "Submitting a JuliaProgram with 1-threaded Julia session is not recommended because it might block schedulers. Starting Julia with multi-threads is suggested. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads" maxlog=1
+    end
+end
+julia_program_warn(p::CmdProgram) = nothing
+
 """
     Job(p::Program; kwargs...)
     Job(p::Program, inputs; kwargs...)
@@ -22,6 +30,7 @@ function Job(p::Program;
     stderr=nothing,
     kwargs...
 )
+    julia_program_warn(p)
     task = @task run(p; stdout=stdout, stderr=stderr, kwargs...)
     stdout_file = format_stdxxx_file(stdout)
     stderr_file = format_stdxxx_file(stderr)
@@ -42,6 +51,7 @@ function Job(p::Program, inputs;
     stderr=nothing,
     kwargs...
 )
+    julia_program_warn(p)
     task = @task run(p, inputs; stdout=stdout, stderr=stderr, kwargs...)
     stdout_file = format_stdxxx_file(stdout)
     stderr_file = format_stdxxx_file(stderr)
@@ -62,6 +72,7 @@ function Job(p::Program, inputs, outputs;
     stderr=nothing,
     kwargs...
 )
+    julia_program_warn(p)
     task = @task run(p, inputs, outputs; stdout=stdout, stderr=stderr, kwargs...)
     stdout_file = format_stdxxx_file(stdout)
     stderr_file = format_stdxxx_file(stderr)

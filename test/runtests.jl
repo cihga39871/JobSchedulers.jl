@@ -1,6 +1,7 @@
 include("../src/JobSchedulers.jl")
 
 using .JobSchedulers
+using Base.Threads
 using Dates
 using Test
 
@@ -16,7 +17,12 @@ scheduler_status()
 
 
 job = Job(@task(begin; sleep(2); println("highpriority"); end), name="high_priority", priority = 0)
+display(job)
 submit!(job)
+
+j2 = job_query_by_id(job.id)
+@test j2 === job
+
 job2 = Job(@task(begin; sleep(2); println("lowpriority"); end), name="low_priority", priority = 20)
 submit!(job2)
 job = Job(@task(begin; sleep(2); println("highpriority"); end), name="high_priority", priority = 0)
@@ -45,7 +51,7 @@ submit!(job2)
 cancel!(job2)
 
 @test_logs (:error,) submit!(job2) # cannot resubmit
-@test_logs (:error,) submit!(job) # cannot resubmit
+@test_throws Exception submit!(job) # cannot resubmit
 @test_logs (:error,) submit!(job2)
 
 
@@ -91,10 +97,10 @@ njobs = JobSchedulers.JOB_QUEUE_OK |> length
 
 deleteat!(JobSchedulers.JOB_QUEUE_OK, 1:3:njobs)
 
-set_scheduler_max_cpu(1)
+set_scheduler_max_cpu(2)
 set_scheduler_backup("/tmp/jl_job_scheduler_backup")
 @test njobs == JobSchedulers.JOB_QUEUE_OK |> length
-@test JobSchedulers.SCHEDULER_MAX_CPU == Sys.CPU_THREADS
+@test JobSchedulers.SCHEDULER_MAX_CPU == (Base.Threads.nthreads() > 1 ? Base.Threads.nthreads()-1 : Sys.CPU_THREADS)
 
 job_queue_backup = deepcopy(JobSchedulers.JOB_QUEUE_OK)
 
@@ -139,5 +145,10 @@ submit!(cmdprog_job3)
 
 sleep(8)
 @test cmdprog_job3.state == :failed
+
+if Base.Threads.nthreads() > 1
+    include("test_thread_id.jl")
+end
+
 
 @info "Test finished."

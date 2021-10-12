@@ -3,21 +3,11 @@
 
 
 SCHEDULER_TASK = @task scheduler()
-# if :sticky in fieldnames(Task)
-#     if nthreads() > 1
-#         SCHEDULER_TASK.sticky = false
-#     end
-# end
+
 
 function new_scheduler_task()
     global SCHEDULER_TASK
     SCHEDULER_TASK = @task scheduler()
-    @static if :sticky in fieldnames(Task)  # sticky controls wether a job is running in different threads, not found in Julia 1.1, found in julia 1.2 and so on.
-        @static if nthreads() > 1
-            SCHEDULER_TASK.sticky = false
-        end
-    end
-    SCHEDULER_TASK
 end
 
 """
@@ -88,33 +78,46 @@ end
 
 Set the update interval of scheduler.
 """
-function set_scheduler_update_second(s::Float64 = 5.0)
+function set_scheduler_update_second(s::Float64 = 0.3)
     s <= 0.001 && error("schedular update interval cannot be less than 0.001.")
     global SCHEDULER_UPDATE_SECOND = s
 end
 set_scheduler_update_second(s) = set_scheduler_update_second(convert(Float64, s))
 
 """
-    set_scheduler_max_cpu(ncpu::Int = Sys.CPU_THREADS)
+    set_scheduler_max_cpu(ncpu::Int = nthreads()>1 ? nthreads()-1 : Sys.CPU_THREADS)
     set_scheduler_max_cpu(percent::Float64)
 
-Set the maximum CPU (thread) the scheduler can use.
+Set the maximum CPU (thread) the scheduler can use. If starting Julia with multi-threads, the maximum CPU is `nthreads() - 1`.
 
 # Example
     set_scheduler_max_cpu()     # use all available CPUs
     set_scheduler_max_cpu(4)    # use 4 CPUs
     set_scheduler_max_cpu(0.5)  # use 50% of CPUs
 """
-function set_scheduler_max_cpu(ncpu::Int = Sys.CPU_THREADS)
+function set_scheduler_max_cpu(ncpu::Int = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS)
     ncpu < 1 && error("number of CPU cannot be less than 1.")
     if ncpu > Sys.CPU_THREADS
         @warn "Assigning number of CPU > total CPU."
+    end
+    # nthreads == 1 will not triger schedule at different jobs.
+    if nthreads() > 1
+        if ncpu > nthreads()-1
+            error("Assigning number of CPU > total threads available - 1. Thread one is reserved for schedulers. Try to start Julia with sufficient threads. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads")
+        elseif ncpu < 2
+            error("Assigning number of CPU < 2 is not allowed in multi-threaded Julia. Thread one is reserved for schedulers.")
+        end
     end
     global SCHEDULER_MAX_CPU = ncpu
 end
 function set_scheduler_max_cpu(percent::Float64)
     if 0.0 < percent <= 1.0
-        set_scheduler_max_cpu(round(Int, Sys.CPU_THREADS * percent))
+        ncpu = round(Int, Sys.CPU_THREADS * percent)
+        if ncpu > nthreads() - 1
+            @warn "Assigning number of CPU > total threads available - 1 is not allowed. Set to total threads available - 1. Thread one is reserved for schedulers. To use more threads, try to start Julia with sufficient threads. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads"
+            ncpu = nthreads() - 1
+        end
+        set_scheduler_max_cpu(ncpu)
     else
         @error "Percent::Float64 should be between 0 and 1. Are you looking for set_scheduler_max_cpu(ncpu::Int) ?"
     end
