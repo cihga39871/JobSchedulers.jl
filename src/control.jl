@@ -74,11 +74,11 @@ function scheduler_status(; verbose=true)
 end
 
 """
-    set_scheduler_update_second(s::Float64 = 5.0)
+    set_scheduler_update_second(s::Float64 = 0.6)
 
 Set the update interval of scheduler.
 """
-function set_scheduler_update_second(s::Float64 = 0.3)
+function set_scheduler_update_second(s::Float64 = 0.6)
     s <= 0.001 && error("schedular update interval cannot be less than 0.001.")
     global SCHEDULER_UPDATE_SECOND = s
 end

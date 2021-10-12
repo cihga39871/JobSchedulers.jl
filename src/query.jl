@@ -23,6 +23,8 @@ function job_query_by_id(id::Int64)
                 end
             end
         end
+    catch e
+        rethrow(e)
     finally
         release_lock()
     end

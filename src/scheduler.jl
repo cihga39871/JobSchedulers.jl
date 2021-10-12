@@ -6,7 +6,7 @@ const TB = 1024GB
 
 SCHEDULER_MAX_CPU = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS
 SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
-SCHEDULER_UPDATE_SECOND = 0.3
+SCHEDULER_UPDATE_SECOND = 0.6
 
 const JOB_QUEUE = Vector{Job}()
 JOB_QUEUE_LOCK = SpinLock()
@@ -247,6 +247,8 @@ function cancel_jobs_reaching_wall_time!()
                 end
             end
         end
+    catch e
+        rethrow(e)
     finally
         release_lock()
     end
@@ -290,6 +292,8 @@ function update_state!()
     wait_for_lock()
     try
         foreach(unsafe_update_state!, JOB_QUEUE)
+    catch e
+        rethrow(e)
     finally
         release_lock()
     end
@@ -305,6 +309,8 @@ function migrate_finished_jobs!()
         finished_indices = map(j -> !(j.state === QUEUING || j.state === RUNNING), JOB_QUEUE)
         append!(JOB_QUEUE_OK, JOB_QUEUE[finished_indices])
         deleteat!(JOB_QUEUE, finished_indices)
+    catch e
+        rethrow(e)
     finally
         release_lock()
     end
@@ -328,6 +334,8 @@ function current_usage()
                 mem_usage += job.mem
             end
         end
+    catch e
+        rethrow(e)
     finally
         release_lock()
     end
@@ -339,6 +347,8 @@ function update_queue_priority!()
     wait_for_lock()
     try
         sort!(JOB_QUEUE, by=get_priority)
+    catch e
+        rethrow(e)
     finally
         release_lock()
     end
@@ -362,6 +372,8 @@ function run_queuing_jobs(ncpu_available::Int, mem_available::Int)
                 end
             end
         end
+    catch e
+        rethrow(e)
     finally
         release_lock()
     end
