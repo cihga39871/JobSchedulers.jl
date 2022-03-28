@@ -16,7 +16,7 @@ include("thread_utils.jl")
 include("scheduler.jl")
 export B, KB, MB, GB, TB
 export submit!, cancel!
-export QUEUING, RUNNING, DONE, FAILED, CANCELLED
+export QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST
 
 include("pretty_print.jl")
 export queue, all_queue, json_queue

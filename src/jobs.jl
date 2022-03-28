@@ -42,7 +42,7 @@ end
  - `ncpu::Int64 = 1`: number of CPU this job is about to use.
  - `mem::Int64 = 0`: number of memory this job is about to use (supports TB, GB, MB, KB, B=1).
  - `schedule_time::Union{DateTime,Period} = DateTime(0)`: The expected time to run.
- - `dependency::Vector{Pair{Symbol,Int64}}`: defer job until specified jobs reach specified state (QUEUING, RUNNING, DONE, FAILED, CANCELLED).
+ - `dependency::Vector{Pair{Symbol,Int64}}`: defer job until specified jobs reach specified state (QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST). PAST is the super set of DONE, FAILED, CANCELLED, which means the job will not run in the future.
  - `wall_time::Period = Week(1)`: wall clock time limit.
  - `priority::Int = 20`: lower means higher priority.
 
