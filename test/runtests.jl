@@ -150,5 +150,24 @@ if Base.Threads.nthreads() > 1
     include("test_thread_id.jl")
 end
 
+### Compat Pipeline v0.5.0
+# Extend `Base.istaskfailed` to fit Pipelines and JobSchedulers packages, which will return a `StackTraceVector` in `t.result`, while Base considered it as `:done`. The function will check and modify the situation and then return the real task status.
+
+p_error = JuliaProgram(
+	id_file = "id_file",
+	inputs = [
+		:a => 10.6 => Float64,
+		:b =>  5 => Int
+	],
+	main = (inputs, outputs) -> begin
+		inputs["b"] + "ed"
+	end
+)
+
+j_error = Job(p_error, touch_run_id_file=false);
+submit!(j_error)
+sleep(2)
+@test j_error.state === :failed
+
 
 @info "Test finished."

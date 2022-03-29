@@ -36,6 +36,47 @@ function wait_for_lock()
 end
 
 """
+    istaskfailed(t::Task)
+
+Extend `Base.istaskfailed` to fit Pipelines and JobSchedulers packages, which will return a `StackTraceVector` in `t.result`, while Base considered it as `:done`. The function checks the situation and modifies the real task status and other properties.
+"""
+function Base.istaskfailed(t::Task)
+    @static if hasfield(Task, :_state)
+        if t._state === 0x02 # Base.task_state_failed
+            return true
+        end
+    elseif hasfield(Task, :state)
+        # TODO: this field name should be deprecated in 2.0
+        if t.state === :failed
+            return true
+        end
+    end
+    if getproperty(t, :result) isa Pipelines.StackTraceVector
+        # it is failed, but task is showing done, so we make it failed manually.
+        @static if hasfield(Task, :_state)
+            t._state = 0x02 # Base.task_state_failed
+        end
+        @static if hasfield(Task, :_isexception)
+            t._isexception = true
+        end
+        @static if hasfield(Task, :state)
+            # TODO: this field name should be deprecated in 2.0
+            t.state = :failed
+        end
+        @static if hasfield(Task, :exception)
+            # TODO: this field name should be deprecated in 2.0
+            t.exception = t.result
+        end
+        @static if hasfield(Task, :backtrace)
+            # TODO: this field name should be deprecated in 2.0
+            t.backtrace = t.result[end][2]
+        end
+        return true
+    end
+    return false
+end
+
+"""
     submit!(job::Job)
 
 Submit the job. If `job.create_time == 0000-01-01T00:00:00 (default)`, it will change to the time of submission.
@@ -49,7 +90,7 @@ function submit!(job::Job)
         return job
     end
 
-    # cannot run a backup task
+    # cannot run a task recovered from backup, since task is nothing.
     if isnothing(job.task)
         if job.state in (RUNNING, QUEUING)
             job.state = CANCELLED
@@ -118,7 +159,7 @@ function unsafe_run!(job::Job) :: Bool
         true
     catch e
         # check status when fail
-        if istaskfailed(job.task)
+        if Pipelines.istaskfailed(job.task)
             if job.state !== CANCELLED
                 job.state = FAILED
                 @error "A job has failed: $(job.id)" exception=job.task.result
@@ -172,7 +213,7 @@ function unsafe_cancel!(job::Job)
     end
 
     # no need to cancel finished ones
-    if istaskfailed(job.task)
+    if Pipelines.istaskfailed(job.task)
         if job.state !== CANCELLED
             job.state = FAILED
             # job.task.result isa Exception, notify errors
