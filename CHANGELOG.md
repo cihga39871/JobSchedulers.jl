@@ -1,3 +1,7 @@
+v0.5.1
+
+- Fix: program_close_io: If the current stdout/stderr is IO, restore to default stdout/stderr.
+
 v0.5.0
 
 - Compatibility: Pipelines v0.5.0: fixed redirection error and optimized stack trace display. Extend `Base.istaskfailed` to fit Pipelines and JobSchedulers packages, which will return a `StackTraceVector` in `t.result`, while Base considered it as `:done`. The fix checks the situation and modifies the real task status and other properties.
