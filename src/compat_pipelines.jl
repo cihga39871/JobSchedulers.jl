@@ -28,10 +28,11 @@ function Job(p::Program;
     dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing,
     stderr=nothing,
+    dir::AbstractString = "",
     kwargs...
 )
     julia_program_warn(p)
-    task = @task run(p; stdout=stdout, stderr=stderr, kwargs...)
+    task = @task run(p; stdout=stdout, stderr=stderr, dir=abspath(dir), kwargs...)
     stdout_file = format_stdxxx_file(stdout)
     stderr_file = format_stdxxx_file(stderr)
 
@@ -49,10 +50,11 @@ function Job(p::Program, inputs;
     dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing,
     stderr=nothing,
+    dir::AbstractString = "",
     kwargs...
 )
     julia_program_warn(p)
-    task = @task run(p, inputs; stdout=stdout, stderr=stderr, kwargs...)
+    task = @task run(p, inputs; stdout=stdout, stderr=stderr, dir=abspath(dir), kwargs...)
     stdout_file = format_stdxxx_file(stdout)
     stderr_file = format_stdxxx_file(stderr)
 
@@ -70,10 +72,11 @@ function Job(p::Program, inputs, outputs;
     dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing,
     stderr=nothing,
+    dir::AbstractString = "",
     kwargs...
 )
     julia_program_warn(p)
-    task = @task run(p, inputs, outputs; stdout=stdout, stderr=stderr, kwargs...)
+    task = @task run(p, inputs, outputs; stdout=stdout, stderr=stderr, dir=abspath(dir), kwargs...)
     stdout_file = format_stdxxx_file(stdout)
     stderr_file = format_stdxxx_file(stderr)
 
