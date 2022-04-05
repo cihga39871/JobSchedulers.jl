@@ -89,6 +89,12 @@ program_close_io = JuliaProgram(
     inputs = "io" => IO,
     main = (inputs, outputs) -> begin
         close(inputs["io"])
+        if inputs["io"] == Base.stdout
+            Pipelines.restore_stdout()
+        end
+        if inputs["io"] == Base.stderr
+            Pipelines.restore_stderr()
+        end
         Dict{String,Any}()
     end
 )
