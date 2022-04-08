@@ -31,7 +31,11 @@ end
 function wait_for_lock()
     global JOB_QUEUE_LOCK
     while !trylock(JOB_QUEUE_LOCK)
-        sleep(0.05)
+        try
+            sleep(0.05)
+        catch ex
+            @warn "JobScheduler: sleep() failed but handelled." exception=ex
+        end
     end
 end
 
@@ -252,7 +256,11 @@ function scheduler()
     global SCHEDULER_UPDATE_SECOND
     while true
         update_queue!()
-        sleep(SCHEDULER_UPDATE_SECOND)
+        try # if someone sends ctrl + C to sleep, scheduler wont stop.
+            sleep(SCHEDULER_UPDATE_SECOND)
+        catch ex
+            @warn "JobScheduler: sleep() failed but handelled." exception=ex
+        end
     end
 end
 

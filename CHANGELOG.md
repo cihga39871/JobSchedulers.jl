@@ -1,3 +1,7 @@
+v0.6.1
+
+- Robustness: scheduler() and wait_for_lock(): wrap sleep() within a try-catch block. If someone sends ctrl + C to sleep, scheduler wont stop.
+
 v0.6.0
 
 - Compatibility: Pipelines v0.5.0: Job(...; dir=dir).
