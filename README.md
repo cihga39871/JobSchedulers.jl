@@ -154,8 +154,9 @@ result(job_with_args)
 
 Show queue (all jobs):
 ```julia
+queue(:all)      # or:
+queue(all=true)  # or:
 all_queue()
-queue(all=true)
 # 34×17 DataFrame
 #  Row │ state      id                name             user    ncpu   mem     ⋯
 #      │ Symbol     Int64             String           String  Int64  Int64   ⋯
@@ -197,7 +198,8 @@ queue(CANCELLED)
 Get `Job` object by providing job ID.
 
 ```julia
-job_query(314268353241057)
+job_query(314268353241057)  # or:
+queue(314268353241057)
 # Job:
 #   id            → 314268353241057
 #   name          → "job_with_args"
