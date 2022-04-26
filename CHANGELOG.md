@@ -1,3 +1,7 @@
+v0.6.3
+
+- Fix: `scheduler_start()` now wait until `SCHEDULER_TASK` is actually started. Previously, it returns after `schedule(SCHEDULER_TASK)`.
+
 v0.6.2
 
 - Compat Pipelines v0.7.0.

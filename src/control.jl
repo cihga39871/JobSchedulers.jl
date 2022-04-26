@@ -22,11 +22,17 @@ function scheduler_start(; verbose=true)
         verbose && @warn "Scheduler was interrupted or done. Restart."
         new_scheduler_task()
         schedule(SCHEDULER_TASK)
+        while !istaskstarted(SCHEDULER_TASK)
+    		sleep(0.2)
+    	end
     elseif istaskstarted(SCHEDULER_TASK) # if done, started is also true
         verbose && @warn "Scheduler is running."
     else
         verbose && @info "Scheduler starts."
         schedule(SCHEDULER_TASK)
+        while !istaskstarted(SCHEDULER_TASK)
+    		sleep(0.2)
+    	end
     end
 end
 
