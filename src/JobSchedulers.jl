@@ -1,4 +1,3 @@
-__precompile__(false)  # Task cannot be serialized
 
 module JobSchedulers
 
@@ -6,6 +5,7 @@ using Base.Threads
 using Dates, DataFrames, JSON
 using JLD2
 using Pipelines
+using OrderedCollections
 
 include("jobs.jl")
 export Job, result
@@ -36,6 +36,9 @@ export set_scheduler_backup, backup
 
 include("compat_pipelines.jl")
 export close_in_future
+
+local SCHEDULER_TASK
+
 
 function __init__()
     # initiating THREAD_POOL

@@ -15,6 +15,16 @@ JOB_QUEUE_MAX_LENGTH = 10000
 
 SCHEDULER_BACKUP_FILE = ""
 
+SCHEDULER_WHILE_LOOP = true
+"""
+    set_scheduler_while_loop(b::Bool)
+
+if set to false, the scheduler will stop.
+"""
+function set_scheduler_while_loop(b::Bool)
+    global SCHEDULER_WHILE_LOOP = b
+end
+
 const QUEUING = :queuing
 const RUNNING = :running
 const DONE = :done
@@ -254,7 +264,8 @@ end
 
 function scheduler()
     global SCHEDULER_UPDATE_SECOND
-    while true
+    global SCHEDULER_WHILE_LOOP
+    while SCHEDULER_WHILE_LOOP
         update_queue!()
         try # if someone sends ctrl + C to sleep, scheduler wont stop.
             sleep(SCHEDULER_UPDATE_SECOND)
@@ -262,6 +273,7 @@ function scheduler()
             @warn "JobScheduler: sleep() failed but handelled." exception=ex
         end
     end
+    nothing
 end
 
 function update_queue!()

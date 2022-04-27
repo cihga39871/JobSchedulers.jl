@@ -2,9 +2,6 @@
 # TODO atexit(f) to store the job history.
 
 
-SCHEDULER_TASK = @task scheduler()
-
-
 function new_scheduler_task()
     global SCHEDULER_TASK
     SCHEDULER_TASK = @task scheduler()
@@ -17,6 +14,12 @@ Start the job scheduler.
 """
 function scheduler_start(; verbose=true)
     global SCHEDULER_TASK
+
+    if !isdefined(@__MODULE__, :SCHEDULER_TASK)
+        new_scheduler_task()
+    end
+
+    set_scheduler_while_loop(true) # scheduler task won't stop
 
     if istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
         verbose && @warn "Scheduler was interrupted or done. Restart."
@@ -43,12 +46,16 @@ Stop the job scheduler.
 """
 function scheduler_stop(; verbose=true)
     global SCHEDULER_TASK
-    if istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
+
+    if !isdefined(@__MODULE__, :SCHEDULER_TASK)
+        verbose && @warn "Scheduler is not running."
+    elseif istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
         verbose && @warn "Scheduler is not running."
     elseif istaskstarted(SCHEDULER_TASK) # if done, started is also true
-        wait_for_lock()
-            schedule(SCHEDULER_TASK, InterruptException; error=true)
-        release_lock()
+        set_scheduler_while_loop(false) # scheduler task stop after the next loop
+        while !(istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK))
+            sleep(0.2)
+        end
         verbose && @info "Scheduler stops."
     else
         verbose && @warn "Scheduler is not running."
@@ -67,7 +74,9 @@ function scheduler_status(; verbose=true)
     global SCHEDULER_UPDATE_SECOND
     global JOB_QUEUE_MAX_LENGTH
     global SCHEDULER_TASK
-    if istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
+    if !isdefined(@__MODULE__, :SCHEDULER_TASK)
+        verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
+    elseif istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
         verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK
         :not_running
     elseif istaskstarted(SCHEDULER_TASK)

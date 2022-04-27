@@ -1,19 +1,21 @@
 name = "JobSchedulers"
 uuid = "eeff360b-c02d-44d3-ab26-4013c616a17e"
 authors = ["Jiacheng Chuan <jiacheng_chuan@outlook.com>"]
-version = "0.6.3"
+version = "0.6.4"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Pipelines = "ef544631-5c6f-4e9b-994c-12e7a4cd724c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-julia = "1.0"
 DataFrames = "1.2"
 JLD2 = "0.4"
 JSON = "0.21"
 Pipelines = "^0.7.0"
+julia = "1.0"
+OrderedCollections = "1"
