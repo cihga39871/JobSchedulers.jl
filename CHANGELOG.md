@@ -1,3 +1,9 @@
+v0.6.5
+
+- Fix: If an app is built, SCHEDULER_MAX_CPU and SCHEDULER_MAX_MEM will be fixed to the building computer: fix by re-defining `SCHEDULER_MAX_CPU` and `SCHEDULER_MAX_MEM` in `__init__()`.
+
+- Debug: add debug outputs.
+
 v0.6.4
 
 - Fix: `scheduler_stop()` cannot stop because v0.6.1 update. Now `scheduler_stop` does not send ^C to `SCHEDULER_TASK`, but a new global variable `SCHEDULER_WHILE_LOOP::Bool` is added to control the while loop in `scheduler()`.
