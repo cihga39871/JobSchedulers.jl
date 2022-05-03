@@ -35,16 +35,16 @@ const PAST = :past # super set of DONE, FAILED, CANCELLED
 
 function release_lock()
     global JOB_QUEUE_LOCK
-    @debug "               release_lock() start"
+    @debug "               release_lock() start  $JOB_QUEUE_LOCK"
     unlock(JOB_QUEUE_LOCK)
-    @debug "               release_lock() end"
+    @debug "               release_lock() end    $JOB_QUEUE_LOCK"
 end
 
 SLEEP_HANDELED_TIME = 10
 function wait_for_lock()
     global JOB_QUEUE_LOCK
     global SLEEP_HANDELED_TIME
-    @debug "wait_for_lock() start"
+    @debug "               wait_for_lock() start $JOB_QUEUE_LOCK"
     while !trylock(JOB_QUEUE_LOCK)
         try
             sleep(0.05)
@@ -57,7 +57,7 @@ function wait_for_lock()
             end
         end
     end
-    @debug "wait_for_lock() end"
+    @debug "               wait_for_lock() end   $JOB_QUEUE_LOCK"
 end
 
 """
