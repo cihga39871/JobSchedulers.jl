@@ -35,15 +35,15 @@ const PAST = :past # super set of DONE, FAILED, CANCELLED
 
 function release_lock()
     global JOB_QUEUE_LOCK
-    @debug "release_lock() start"
+    @debug "               release_lock() start"
     unlock(JOB_QUEUE_LOCK)
-    @debug "release_lock() ok"
+    @debug "               release_lock() end"
 end
 
 SLEEP_HANDELED_TIME = 10
 function wait_for_lock()
     global JOB_QUEUE_LOCK
-    global SLEEP_HANDELED
+    global SLEEP_HANDELED_TIME
     @debug "wait_for_lock() start"
     while !trylock(JOB_QUEUE_LOCK)
         try
@@ -57,7 +57,7 @@ function wait_for_lock()
             end
         end
     end
-    @debug "wait_for_lock() ok"
+    @debug "wait_for_lock() end"
 end
 
 """
@@ -279,6 +279,7 @@ function scheduler()
     global SCHEDULER_UPDATE_SECOND
     global SCHEDULER_WHILE_LOOP
     while SCHEDULER_WHILE_LOOP
+        @debug "scheduler() new loop"
         update_queue!()
         try # if someone sends ctrl + C to sleep, scheduler wont stop.
             sleep(SCHEDULER_UPDATE_SECOND)
@@ -286,6 +287,7 @@ function scheduler()
             @warn "JobScheduler: sleep() failed but handelled." exception=ex
         end
     end
+    @debug "scheduler() end"
     nothing
 end
 
