@@ -35,18 +35,29 @@ const PAST = :past # super set of DONE, FAILED, CANCELLED
 
 function release_lock()
     global JOB_QUEUE_LOCK
+    @debug "release_lock() start"
     unlock(JOB_QUEUE_LOCK)
+    @debug "release_lock() ok"
 end
 
+SLEEP_HANDELED_TIME = 10
 function wait_for_lock()
     global JOB_QUEUE_LOCK
+    global SLEEP_HANDELED
+    @debug "wait_for_lock() start"
     while !trylock(JOB_QUEUE_LOCK)
         try
             sleep(0.05)
         catch ex
-            @warn "JobScheduler: sleep() failed but handelled." exception=ex
+            SLEEP_HANDELED_TIME -= 1
+            if SLEEP_HANDELED_TIME < 0
+                rethrow(ex)
+            else
+                @warn "JobScheduler: sleep() failed but handelled. Max time to handle: $SLEEP_HANDELED_TIME" exception=ex
+            end
         end
     end
+    @debug "wait_for_lock() ok"
 end
 
 """
@@ -119,6 +130,7 @@ function submit!(job::Job)
         return job
     end
 
+    @debug "submit!(job::Job) id=$(job.id) name=$(job.name)"
     wait_for_lock()
     try
         # check duplicate submission (queuing)
@@ -198,6 +210,7 @@ end
 Cancel `job`, stop queuing or running.
 """
 function cancel!(job::Job)
+    @debug "cancel!(job::Job) id=$(job.id) name=$(job.name)"
     wait_for_lock()
     res = try
         unsafe_cancel!(job)
@@ -297,6 +310,7 @@ end
 function cancel_jobs_reaching_wall_time!()
     global JOB_QUEUE
     global RUNNING
+    @debug "cancel_jobs_reaching_wall_time!()"
     wait_for_lock()
     try
         for job in JOB_QUEUE
@@ -350,6 +364,7 @@ Update the state of each `job` in JOB_QUEUE from `job.task` when `job.state === 
 """
 function update_state!()
     global JOB_QUEUE
+    @debug "update_state!()"
     wait_for_lock()
     try
         foreach(unsafe_update_state!, JOB_QUEUE)
@@ -365,6 +380,7 @@ function migrate_finished_jobs!()
     global JOB_QUEUE
     global JOB_QUEUE_OK
     global JOB_QUEUE_MAX_LENGTH
+    @debug "migrate_finished_jobs!()"
     wait_for_lock()
     try
         finished_indices = map(j -> !(j.state === QUEUING || j.state === RUNNING), JOB_QUEUE)
@@ -387,6 +403,7 @@ function current_usage()
     global RUNNING
     cpu_usage = 0
     mem_usage = 0
+    @debug "current_usage()"
     wait_for_lock()
     try
         for job in JOB_QUEUE
@@ -405,6 +422,7 @@ end
 
 function update_queue_priority!()
     global JOB_QUEUE
+    @debug "update_queue_priority!()"
     wait_for_lock()
     try
         sort!(JOB_QUEUE, by=get_priority)
@@ -421,6 +439,7 @@ get_priority(job::Job) = job.priority
 function run_queuing_jobs(ncpu_available::Int, mem_available::Int)
     global JOB_QUEUE
     global QUEUING
+    @debug "run_queuing_jobs($ncpu_available::Int, $mem_available::Int)"
     wait_for_lock()
     try
         for job in JOB_QUEUE

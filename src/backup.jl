@@ -88,7 +88,9 @@ function backup()
     scheduler_update_second = SCHEDULER_UPDATE_SECOND
     job_queue_max_length = JOB_QUEUE_MAX_LENGTH
 
+    @debug "backup()"
     wait_for_lock()
+    try
         # update state of jobs for the last time
         foreach(unsafe_update_state!, JOB_QUEUE)
 
@@ -106,12 +108,13 @@ function backup()
             job.task = nothing
         end
         append!(job_queue_ok, job_queue)
-    release_lock()
-
-    # clean old file
-    rm(SCHEDULER_BACKUP_FILE, force=true)
-    @save SCHEDULER_BACKUP_FILE scheduler_max_cpu scheduler_max_mem scheduler_update_second job_queue_max_length job_queue_ok
-    @info "Scheduler backuped to $SCHEDULER_BACKUP_FILE"
+        # clean old file
+        rm(SCHEDULER_BACKUP_FILE, force=true)
+        @save SCHEDULER_BACKUP_FILE scheduler_max_cpu scheduler_max_mem scheduler_update_second job_queue_max_length job_queue_ok
+        @info "Scheduler backuped to $SCHEDULER_BACKUP_FILE"
+    finally
+        release_lock()
+    end
 end
 
 atexit(backup)
@@ -150,6 +153,7 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
     end
 
     if recover_queue
+        @debug "recover_backup($filepath; recover_settings = $recover_settings, recover_queue = $recover_queue)"
         wait_for_lock()
             current_jobs = Dict{Int64, Vector{Job}}()
             append_jobs_dict!(current_jobs, JOB_QUEUE)

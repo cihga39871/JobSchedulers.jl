@@ -7,6 +7,7 @@ Return `job::Job` if found, `nothing` if not found.
 """
 function job_query_by_id(id::Int64)
     res = nothing
+    @debug "job_query_by_id($id)"
     wait_for_lock()
     try
         for job in JOB_QUEUE
