@@ -69,12 +69,12 @@ end), name="dep2", priority = 20)
 job_with_dep = Job(@task(begin
     println("job with dep1 and dep2 ok")
 end), name="job_with_dep", priority = 20,
-dependency = [DONE => dep1.id, DONE => dep2.id])
+dependency = [DONE => dep1.id, DONE => dep2])
 
 job_with_dep2 = Job(@task(begin
     println("job with dep2 ok")
 end), name="job_with_dep", priority = 20,
-dependency = DONE => dep2.id)
+dependency = DONE => dep2)
 
 submit!(dep1)
 submit!(dep2)
@@ -143,7 +143,9 @@ submit!(cmdprog_job)
 submit!(cmdprog_job2)
 submit!(cmdprog_job3)
 
-sleep(8)
+while cmdprog_job3.state in (QUEUING, RUNNING)
+	sleep(1)
+end
 @test cmdprog_job3.state == :failed
 
 if Base.Threads.nthreads() > 1
@@ -154,6 +156,7 @@ end
 # Extend `Base.istaskfailed` to fit Pipelines and JobSchedulers packages, which will return a `StackTraceVector` in `t.result`, while Base considered it as `:done`. The function will check and modify the situation and then return the real task status.
 
 p_error = JuliaProgram(
+	name = "Julia Program with Errors"
 	id_file = "id_file",
 	inputs = [
 		:a => 10.6 => Float64,
@@ -166,7 +169,9 @@ p_error = JuliaProgram(
 
 j_error = Job(p_error, touch_run_id_file=false);
 submit!(j_error)
-sleep(2)
+while j_error.state in (QUEUING, RUNNING)
+	sleep(1)
+end
 @test j_error.state === :failed
 
 

@@ -463,36 +463,61 @@ function run_queuing_jobs(ncpu_available::Int, mem_available::Int)
 end
 
 """
+    is_dependency_ok(job::Job)::Bool
+
 Caution: run it within lock only.
+
+Algorithm: Break for loop when found a dep not ok, and delete previous ok deps.
+
+If dep is provided as Int, query Int for job and then replace Int with the job.
 """
 function is_dependency_ok(job::Job)
-    for dep in job.dependency
+    if length(job.dependency) == 0
+        return true
+    end
+    deps_to_delete = 0
+    res = true
+    # break for loop when found dep not ok, and delete previous ok deps
+    for (i, dep) in enumerate(job.dependency)
         state = dep.first
-        dep_id = dep.second
-        dep_job = job_query_by_id_no_lock(dep_id)
+        if dep.second isa Int
+            dep_job = job_query_by_id_no_lock(dep.second)
 
-        if isnothing(dep_job)
-            return false
+            if isnothing(dep_job)
+                res = false
+                break
+            end
+            job.dependency[i] = state => dep_job
+        else
+            dep_job = dep.second
         end
 
-        state == dep_job.state && continue
 
-        state == PAST &&
-            dep_job.state in (FAILED, CANCELLED, DONE) && continue
+        if (state == dep_job.state) ||
+        (state == PAST && dep_job.state in (FAILED, CANCELLED, DONE))
+            deps_to_delete = i
+            continue
+        end
 
         if dep_job.state in (FAILED, CANCELLED)
             # change job state to cancelled
             @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is failed or cancelled."
             job.state = CANCELLED
-            return false
+            res = false
+            break
         elseif dep_job.state == DONE
             # change job state to cancelled
             @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is done, but the required state is $(state)."
             job.state = CANCELLED
-            return false
+            res = false
+            break
         end
 
-        return false
+        res = false
+        break
     end
-    return true
+    if deps_to_delete > 0
+        deleteat!(job.dependency, 1:deps_to_delete)
+    end
+    return res
 end

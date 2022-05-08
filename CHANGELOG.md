@@ -1,3 +1,9 @@
+v0.6.6
+
+- Optimize: `job.dependency` now accepts `DONE => job`, `[DONE => job1.id; PAST => job2]`.
+
+- Optimize: `is_dependency_ok(job::Job)::Bool` is rewritten: for loop when found a dep not ok, and delete previous ok deps. If dep is provided as Int, query Int for job and then replace Int with the job.
+
 v0.6.5
 
 - Fix: If an app is built, SCHEDULER_MAX_CPU and SCHEDULER_MAX_MEM will be fixed to the building computer: fix by re-defining `SCHEDULER_MAX_CPU` and `SCHEDULER_MAX_MEM` in `__init__()`.

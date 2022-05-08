@@ -12,7 +12,7 @@ function queue(;all=false)
     global JOB_QUEUE
     global JOB_QUEUE_OK
     if all
-        DataFrame([JOB_QUEUE..., JOB_QUEUE_OK...])
+        DataFrame([JOB_QUEUE; JOB_QUEUE_OK])
     else
         DataFrame(JOB_QUEUE)
     end

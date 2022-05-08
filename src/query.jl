@@ -31,6 +31,7 @@ function job_query_by_id(id::Int64)
     end
     return res
 end # function
+job_query_by_id(job::Job) = job
 
 job_query = job_query_by_id
 
@@ -47,5 +48,4 @@ function job_query_by_id_no_lock(id::Int64)
     end
     return nothing # not found
 end # function
-
-job_query = job_query_by_id
+job_query_by_id_no_lock(job::Job) = job
