@@ -254,6 +254,7 @@ You can also create a `Job` by using `Program` types from Pipelines.jl:
 Job(p::Program; kwargs...)
 Job(p::Program, inputs; kwargs...)
 Job(p::Program, inputs, outputs; kwargs...)
+@Job p::Program key_value_args... kwargs...  # like @run, `key_value_args` means inputs and outputs are provided in the form of key = value, rather than Dict.
 ```
 
 `kwargs...` include keyword arguments of `Job(::Union{Base.AbstractCmd,Task}, ...)` and `run(::Program, ...)`. Details can be found by typing
@@ -262,6 +263,7 @@ Job(p::Program, inputs, outputs; kwargs...)
 julia> using Pipelines, JobSchedulers
 julia> ?Job
 julia> ?run
+julia> ?@Job
 ```
 
 #### Example
@@ -277,23 +279,22 @@ p = CmdProgram(
     cmd = pipeline(`echo inputs are: IN1 and IN2` & `echo outputs are: OUT`)
 )
 
-inputs = Dict(
-    "IN1" => `in1`,
-    "IN2" => 2
-)
-
+inputs = Dict("IN1" => `in1`, "IN2" => 2)
 outputs = "OUT" => "out"
 
 # native Pipelines.jl method to run the program
-run(p, inputs, outputs;
-    touch_run_id_file = false  # do not create a file which indicates the job is done and avoids re-run.
-)
+run(p, inputs, outputs; touch_run_id_file = false)  # or
+@run(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)  # @run is available since Pipelines v0.7.5
+# touch_run_id_file = false means do not create a file which indicates the job is done and avoids re-run.
+
 # inputs are: in1 and 2
 # outputs are: out
 # (true, Dict("OUT" => "out"))
 
 # run the program by submitting to JobSchedulers.jl
-program_job = Job(p, inputs, outputs; touch_run_id_file = false)
+program_job = Job(p, inputs, outputs; touch_run_id_file = false)  # or
+program_job = @Job(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)
+
 submit!(program_job)
 # inputs are: in1 and 2
 # outputs are: out
