@@ -35,7 +35,7 @@ include("backup.jl")
 export set_scheduler_backup, backup
 
 include("compat_pipelines.jl")
-export close_in_future
+export close_in_future, @Job
 
 local SCHEDULER_TASK
 

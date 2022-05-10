@@ -1,3 +1,7 @@
+v0.6.7
+
+- Feature: Run `program` without creating `inputs::Dict` and `outputs::Dict`: `@Job program::Program key_value_args... Job_args...`. See also `@run` in Pipelines.jl.
+
 v0.6.6
 
 - Optimize: `job.dependency` now accepts `DONE => job`, `[DONE => job1.id; PAST => job2]`.

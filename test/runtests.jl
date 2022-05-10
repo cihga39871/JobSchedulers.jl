@@ -81,7 +81,7 @@ submit!(dep2)
 submit!(job_with_dep)
 submit!(job_with_dep2)
 
-while JobSchedulers.DataFrames.nrow(queue()) > 0
+while JobSchedulers.DataFrames.nrow(queue()) > 0 && scheduler_status(verbose=false) === RUNNING
     sleep(2)
 end
 
@@ -143,7 +143,7 @@ submit!(cmdprog_job)
 submit!(cmdprog_job2)
 submit!(cmdprog_job3)
 
-while cmdprog_job3.state in (QUEUING, RUNNING)
+while cmdprog_job3.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
 	sleep(1)
 end
 @test cmdprog_job3.state == :failed
@@ -156,7 +156,7 @@ end
 # Extend `Base.istaskfailed` to fit Pipelines and JobSchedulers packages, which will return a `StackTraceVector` in `t.result`, while Base considered it as `:done`. The function will check and modify the situation and then return the real task status.
 
 p_error = JuliaProgram(
-	name = "Julia Program with Errors"
+	name = "Julia Program with Errors",
 	id_file = "id_file",
 	inputs = [
 		:a => 10.6 => Float64,
@@ -169,10 +169,44 @@ p_error = JuliaProgram(
 
 j_error = Job(p_error, touch_run_id_file=false);
 submit!(j_error)
-while j_error.state in (QUEUING, RUNNING)
+while j_error.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
 	sleep(1)
 end
 @test j_error.state === :failed
 
+## v0.6.7 @Job
+jp = JuliaProgram(
+	name = "Echo",
+	id_file = "id_file",
+	inputs = [
+		"input",
+		"input2" => Int,
+		"optional_arg" => 5,
+		"optional_arg2" => 0.5 => Number
+	],
+	outputs = [
+		"output" => "<input>.output"
+	],
+	main = (x,y) -> begin
+		@show x
+		@show y
+		y
+	end
+)
+
+i = "iout"
+kk = :xxx
+b = false
+commonargs = (touch_run_id_file = b, verbose = :min)
+job = @Job jp input=kk input2=22 optional_arg=:sym output=i priority=10 commonargs...
+@test job.priority == 10
+
+submit!(job)
+while job.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
+	sleep(1)
+end
+@test result(job) == (true, Dict{String, Any}("output" => "iout"))
+
+@test scheduler_status() === RUNNING
 
 @info "Test finished."
