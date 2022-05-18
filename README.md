@@ -254,7 +254,6 @@ You can also create a `Job` by using `Program` types from Pipelines.jl:
 Job(p::Program; kwargs...)
 Job(p::Program, inputs; kwargs...)
 Job(p::Program, inputs, outputs; kwargs...)
-@Job p::Program key_value_args... kwargs...  # like @run, `key_value_args` means inputs and outputs are provided in the form of key = value, rather than Dict.
 ```
 
 `kwargs...` include keyword arguments of `Job(::Union{Base.AbstractCmd,Task}, ...)` and `run(::Program, ...)`. Details can be found by typing
@@ -263,7 +262,6 @@ Job(p::Program, inputs, outputs; kwargs...)
 julia> using Pipelines, JobSchedulers
 julia> ?Job
 julia> ?run
-julia> ?@Job
 ```
 
 #### Example

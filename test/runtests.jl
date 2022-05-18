@@ -198,7 +198,7 @@ i = "iout"
 kk = :xxx
 b = false
 commonargs = (touch_run_id_file = b, verbose = :min)
-job = @Job jp input=kk input2=22 optional_arg=:sym output=i priority=10 commonargs...
+job = Job(jp; input=kk, input2=22, optional_arg=:sym, output=i, priority=10, commonargs...)
 @test job.priority == 10
 
 submit!(job)

@@ -1,3 +1,7 @@
+v0.6.8
+
+- Feature: Replace `@Job` with `Job` to run `program` without creating `inputs::Dict` and `outputs::Dict`. Remove `@Job`.
+
 v0.6.7
 
 - Feature: Run `program` without creating `inputs::Dict` and `outputs::Dict`: `@Job program::Program key_value_args... Job_args...`. See also `@run` in Pipelines.jl.
