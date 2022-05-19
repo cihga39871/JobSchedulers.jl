@@ -1,3 +1,7 @@
+v0.6.9
+
+- Support Pipelines.jl v0.8.
+
 v0.6.8
 
 - Feature: Replace `@Job` with `Job` to run `program` without creating `inputs::Dict` and `outputs::Dict`. Remove `@Job`.
