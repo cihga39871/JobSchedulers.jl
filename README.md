@@ -118,9 +118,9 @@ job_with_args = Job(
     wall_time = Hour(1),        # The maximum wall time to run the job.
     priority = 20,              # Lower = higher priority.
     dependency = [              # Defer job until some jobs reach some states.
-        DONE => command_job.id,   # Left can be DONE, FAILED, CANCELLED, or even
+        DONE => command_job,    # Left can be DONE, FAILED, CANCELLED, or even
         DONE => task_job.id       # QUEUING, RUNNING, PAST.
-    ]                             # Right is the job id.
+    ]                             # Right is job, or job id.
 )
 ```
 
