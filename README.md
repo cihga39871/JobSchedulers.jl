@@ -118,15 +118,15 @@ job_with_args = Job(
     wall_time = Hour(1),        # The maximum wall time to run the job.
     priority = 20,              # Lower = higher priority.
     dependency = [              # Defer job until some jobs reach some states.
-        DONE => command_job,    # Left can be DONE, FAILED, CANCELLED, or even
-        DONE => task_job.id       # QUEUING, RUNNING, PAST.
-    ]                             # Right is job, or job id.
+        DONE => command_job,
+        DONE => task_job.id
+    ]
 )
 ```
 
 > `dependency` argument in `Job(...)` controls when to start a job.
 >
-> It is a vector with element `STATUS => job.id`.
+> It is a vector with element `STATUS => job` or `STATUS => job.id`.
 >
 > STATUS is one of `DONE`, `FAILED`, `CANCELLED`, `QUEUING`, `RUNNING`, `PAST`. The first 5 status is the real job status. `PAST` is the super set of `DONE`, `FAILED`, `CANCELLED`, which means the job will not run in the future.
 
