@@ -277,21 +277,15 @@ p = CmdProgram(
     cmd = pipeline(`echo inputs are: IN1 and IN2` & `echo outputs are: OUT`)
 )
 
-inputs = Dict("IN1" => `in1`, "IN2" => 2)
-outputs = "OUT" => "out"
+### native Pipelines.jl method to run the program
+run(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false) # touch_run_id_file = false means do not create a file which indicates the job is done and avoids re-run.
 
-# native Pipelines.jl method to run the program
-run(p, inputs, outputs; touch_run_id_file = false)  # or
-@run(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)  # @run is available since Pipelines v0.7.5
-# touch_run_id_file = false means do not create a file which indicates the job is done and avoids re-run.
-
-# inputs are: in1 and 2
+# inputs are: in1 and in2
 # outputs are: out
 # (true, Dict("OUT" => "out"))
 
-# run the program by submitting to JobSchedulers.jl
-program_job = Job(p, inputs, outputs; touch_run_id_file = false)  # or
-program_job = @Job(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)
+### run the program by submitting to JobSchedulers.jl
+program_job = Job(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)
 
 submit!(program_job)
 # inputs are: in1 and 2
