@@ -256,12 +256,16 @@ Job(p::Program, inputs; run_kwargs..., job_kwargs...)
 Job(p::Program, inputs, outputs; run_kwargs..., job_kwargs...)
 ```
 
-`kwargs...` include keyword arguments of `Job(::Union{Base.AbstractCmd,Task}, ...)` and `run(::Program, ...)`. Details can be found by typing
+- `program_kwargs...` is input and output arguments defined in `p::Program`.
+- `run_kwargs...` is keyword arguments of `run(::Program; ...)`
+- `job_kwargs...` is keyword arguments of `Job(::Union{Base.AbstractCmd,Task}; ...)`
+
+Details can be found by typing
 
 ```julia
 julia> using Pipelines, JobSchedulers
-julia> ?Job
 julia> ?run
+julia> ?Job
 ```
 
 #### Example
