@@ -251,9 +251,9 @@ backup()
 You can also create a `Job` by using `Program` types from Pipelines.jl:
 
 ```julia
-Job(p::Program; kwargs...)
-Job(p::Program, inputs; kwargs...)
-Job(p::Program, inputs, outputs; kwargs...)
+Job(p::Program; program_kwargs..., run_kwargs..., job_kwargs...)
+Job(p::Program, inputs; run_kwargs..., job_kwargs...)
+Job(p::Program, inputs, outputs; run_kwargs..., job_kwargs...)
 ```
 
 `kwargs...` include keyword arguments of `Job(::Union{Base.AbstractCmd,Task}, ...)` and `run(::Program, ...)`. Details can be found by typing
