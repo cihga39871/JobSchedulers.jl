@@ -174,7 +174,7 @@ while j_error.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) ===
 end
 @test j_error.state === :failed
 
-## v0.6.7 @Job
+## Compat Pipelines v0.8
 jp = JuliaProgram(
 	name = "Echo",
 	id_file = "id_file",

@@ -13,12 +13,11 @@ julia_program_warn(p::CmdProgram) = nothing
     Job(p::Program, inputs, outputs; kwargs...)
 
 Create `Job` by using `Program` from Pipelines.jl package.
-The 3 methods are a wrapper around `run(::Program, ...)`.
+The 3 methods are wrappers around `run(::Program, ...)` defined in Pipelines.jl.
 
 `kwargs...` include keyword arguments of `Job(::BaseAbstractCmd, ...)` and `run(::Program, ...)`.
 
-See also [`@Job`](@ref), [`run`](@ref), [`@run`](@ref), [`@vars`](@ref)
-
+See also: [`run`](@ref)
 """
 function Job(p::Program;
     name::AbstractString = p.name,
