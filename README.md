@@ -110,13 +110,13 @@ end
 
 job_with_args = Job(
     @task(println("job_with_args done")); # Task to run
-    name = "job_with_args",               # job name.
+    name = "job with args",               # job name.
     user = "me",                # Job owner.
     ncpu = 1,                   # Number of CPU required.
     mem = 1KB,                  # Number of memory required (unit: TB, GB, MB, KB, B).
-    schedule_time = Second(3),  # Run after 3 seconds; can be DateTime or Period.
-    wall_time = Hour(1),        # The maximum wall time to run the job.
-    priority = 20,              # Lower = higher priority.
+    schedule_time = Second(3),  # Run after 3 seconds; can be ::DateTime or ::Period.
+    wall_time = Hour(1),        # The maximum time to run the job. (Cancel job after reaching wall time.)
+    priority = 20,              # Lower number = higher priority.
     dependency = [              # Defer job until some jobs reach some states.
         DONE => command_job,
         DONE => task_job.id
@@ -126,9 +126,11 @@ job_with_args = Job(
 
 > `dependency` argument in `Job(...)` controls when to start a job.
 >
-> It is a vector with element `STATUS => job` or `STATUS => job.id`.
+> It is a vector with element `STATE => job` or `STATE => job.id`.
 >
-> STATUS is one of `DONE`, `FAILED`, `CANCELLED`, `QUEUING`, `RUNNING`, `PAST`. The first 5 status is the real job status. `PAST` is the super set of `DONE`, `FAILED`, `CANCELLED`, which means the job will not run in the future.
+> STATE is one of `DONE`, `FAILED`, `CANCELLED`, `QUEUING`, `RUNNING`, `PAST`.  
+> The first 5 states are real job states.  
+> `PAST` is the super set of `DONE`, `FAILED`, `CANCELLED`, which means the job will not run in the future.
 
 Submit a job to queue:
 
@@ -180,7 +182,7 @@ queue()
 # 0×16 DataFrame
 ```
 
-Show queue by given a job state (`QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, `PAST`):
+Show queue by given a job state (`QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, or `PAST`):
 
 ```julia
 queue(CANCELLED)
