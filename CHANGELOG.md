@@ -1,3 +1,11 @@
+v0.6.11
+
+- Fix: running `queue()` when updating queue: use lock within `DataFrames.DataFrame(job_queue::Vector{Job})`.
+
+v0.6.10
+
+- Update documents.
+
 v0.6.9
 
 - Support Pipelines.jl v0.8.

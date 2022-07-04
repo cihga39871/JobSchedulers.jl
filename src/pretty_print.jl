@@ -2,8 +2,15 @@
 @eval function DataFrames.DataFrame(job_queue::Vector{Job})
     fs = $(fieldnames(Job))
     d = DataFrame()
-    for f in fs
-        d[!, f] = getfield.(job_queue, f)
+    wait_for_lock()
+    try
+        for f in fs
+            d[!, f] = getfield.(job_queue, f)
+        end
+    catch e
+        rethrow(e)
+    finally
+        release_lock()
     end
     select!(d, :state, :id, :name, :user, :ncpu, :mem, :create_time, :)
 end
