@@ -62,9 +62,12 @@ deps = ["Pkg", "Requires", "UUIDs"]
 git-tree-sha1 = "94f5101b96d2d968ace56f7f2db19d0a5f592e28"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 version = "1.15.0"
+<<<<<<< HEAD
 
 [[FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
+=======
+>>>>>>> 6c876bf4def3900facbb44ea86bd670af95c2de6
 
 [[Formatting]]
 deps = ["Printf"]
@@ -181,9 +184,17 @@ version = "2.4.0"
 
 [[Pipelines]]
 deps = ["Dates", "Logging", "OrderedCollections", "Printf", "Test", "UUIDs"]
+<<<<<<< HEAD
 git-tree-sha1 = "8e82aa1063cf6d546838a7b4e4bf0d1f4f6a0f7c"
 uuid = "ef544631-5c6f-4e9b-994c-12e7a4cd724c"
 version = "0.8.4"
+=======
+git-tree-sha1 = "e88624fa27857a51174b8376985a35854712ae4b"
+repo-rev = "main"
+repo-url = "/home/jc/projects/Pipelines.jl"
+uuid = "ef544631-5c6f-4e9b-994c-12e7a4cd724c"
+version = "0.8.5"
+>>>>>>> 6c876bf4def3900facbb44ea86bd670af95c2de6
 
 [[Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]

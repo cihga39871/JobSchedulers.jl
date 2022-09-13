@@ -1,3 +1,7 @@
+v0.6.12
+
+- Feature: Enchance compatibility with Pipelines v0.8.5: Program has a new field called arg_forward that is used to forward user-defined inputs/outputs to specific keyword arguments of JobSchedulers.Job(::Program, ...), including name::String, user::String, ncpu::Int, mem::Int.
+
 v0.6.11
 
 - Fix: running `queue()` when updating queue: use lock within `DataFrames.DataFrame(job_queue::Vector{Job})`.

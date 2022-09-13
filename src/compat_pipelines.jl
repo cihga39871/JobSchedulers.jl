@@ -1,11 +1,11 @@
 # using Pipelines
 
-function julia_program_warn(p::JuliaProgram)
+function julia_program_warn(::JuliaProgram)
     if nthreads() == 1
         @warn "Submitting a JuliaProgram with 1-threaded Julia session is not recommended because it might block schedulers. Starting Julia with multi-threads is suggested. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads" maxlog=1
     end
 end
-julia_program_warn(p::CmdProgram) = nothing
+julia_program_warn(::CmdProgram) = nothing
 
 """
     Job(p::Program; kwargs...)
@@ -34,55 +34,55 @@ function Job(p::Program;
     kwargs...
 )
     julia_program_warn(p)
-    task = @task run(p; stdout=stdout, stderr=stderr, dir=abspath(dir), kwargs...)
+
+    inputs, outputs, kws = Pipelines.parse_program_args(p; kwargs...)
+    inputs, outputs = Pipelines.xxputs_completion_and_check(p, inputs, outputs)
+
+    if !isempty(p.arg_forward)
+        for pair in p.arg_forward
+            val = if haskey(inputs, pair.first)
+                inputs[pair.first]
+            else
+                outputs[pair.first]
+            end
+            if pair.second == :name
+                if name == p.name
+                    name = string(val)
+                end
+            elseif pair.second == :user
+                if user == ""
+                    user = string(val)
+                end
+            elseif pair.second == :ncpu
+                if ncpu == 1
+                    ncpu = val isa Number ? Int(val) : parse(Int, val)
+                end
+            elseif pair.second == :mem
+                if mem == 0
+                    mem = val isa Number ? Int(val) : parse(Int, val)
+                end
+            end
+        end
+    end
+
+    task = @task run(p; 
+        _do_parse_program_args=false, 
+        _do_xxputs_completion_and_check=false,
+        inputs=inputs, outputs=outputs, stdout=stdout, stderr=stderr, dir=abspath(dir), 
+        kws...
+    )
     stdout_file = format_stdxxx_file(stdout)
     stderr_file = format_stdxxx_file(stderr)
 
     Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
 
-function Job(p::Program, inputs;
-    name::AbstractString = p.name,
-    user::AbstractString = "",
-    ncpu::Int64 = 1,
-    mem::Int64 = 0,
-    schedule_time::Union{DateTime,Period} = DateTime(0),
-    wall_time::Period = Week(1),
-    priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Union{Int64, Job}}}(),
-    stdout = nothing,
-    stderr = nothing,
-    dir::AbstractString = "",
-    kwargs...
-)
-    julia_program_warn(p)
-    task = @task run(p, inputs; stdout=stdout, stderr=stderr, dir=abspath(dir), kwargs...)
-    stdout_file = format_stdxxx_file(stdout)
-    stderr_file = format_stdxxx_file(stderr)
-
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
+function Job(p::Program, inputs; kwargs...)
+    Job(p::Program; inputs=inputs, kwargs...)
 end
 
-function Job(p::Program, inputs, outputs;
-    name::AbstractString = p.name,
-    user::AbstractString = "",
-    ncpu::Int64 = 1,
-    mem::Int64 = 0,
-    schedule_time::Union{DateTime,Period} = DateTime(0),
-    wall_time::Period = Week(1),
-    priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Union{Int64, Job}}}(),
-    stdout = nothing,
-    stderr = nothing,
-    dir::AbstractString = "",
-    kwargs...
-)
-    julia_program_warn(p)
-    task = @task run(p, inputs, outputs; stdout=stdout, stderr=stderr, dir=abspath(dir), kwargs...)
-    stdout_file = format_stdxxx_file(stdout)
-    stderr_file = format_stdxxx_file(stderr)
-
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
+function Job(p::Program, inputs, outputs; kwargs...)
+    Job(p::Program; inputs=inputs, outputs=outputs, kwargs...)
 end
 
 program_close_io = JuliaProgram(
