@@ -27,9 +27,13 @@ export job_query_by_id, job_query
 include("control.jl")
 export scheduler_start, scheduler_stop, scheduler_status
 export set_scheduler_update_second,
+set_scheduler,
 set_scheduler_max_cpu,
 set_scheduler_max_mem,
-set_scheduler_max_job
+set_scheduler_max_job,
+default_ncpu,
+default_mem
+
 
 include("backup.jl")
 export set_scheduler_backup, backup
@@ -47,7 +51,7 @@ function __init__()
     foreach(i -> put!(c, i), 2:nthreads())  # the thread 1 is reserved for JobScheduler, when nthreads > 2
 
     # SCHEDULER_MAX_CPU must be the same as THREAD_POOL (if nthreads > 1), or the scheduler will stop.
-    global SCHEDULER_MAX_CPU = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS
+    global SCHEDULER_MAX_CPU = default_ncpu()
     global SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
 end
 

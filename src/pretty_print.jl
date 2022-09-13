@@ -12,10 +12,20 @@
     finally
         release_lock()
     end
-    select!(d, :state, :id, :name, :user, :ncpu, :mem, :create_time, :)
+    select!(d, :state, :id, :name, :user, :ncpu, :mem, :start_time, :stop_time)
 end
 
-function queue(;all=false)
+"""
+```julia
+queue(; all::Bool = false)
+queue(state)
+queue(needle)
+queue(state, needle)
+queue(needle, state)
+queue(id)
+```
+"""
+function queue(;all::Bool=false)
     global JOB_QUEUE
     global JOB_QUEUE_OK
     if all
@@ -24,7 +34,6 @@ function queue(;all=false)
         DataFrame(JOB_QUEUE)
     end
 end
-all_queue() = queue(all=true)
 
 function queue(state::Symbol)
     if state == :all
@@ -39,7 +48,39 @@ function queue(state::Symbol)
         @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."
     end
 end
+
+
+function queue(needle::Union{AbstractString,AbstractPattern,AbstractChar})
+    global JOB_QUEUE
+    global JOB_QUEUE_OK
+    dt = DataFrame([JOB_QUEUE; JOB_QUEUE_OK])
+    filter!(r -> occursin(needle, r.name) || occursin(needle, r.user), dt)
+end
+
+function queue(state::Symbol, needle::Union{AbstractString,AbstractPattern,AbstractChar})
+    if state == :all
+        dt = queue(needle)
+    elseif state in [QUEUING, RUNNING, DONE, FAILED, CANCELLED]
+        dt = queue(all=true)
+        filter!(:state => x -> x == state, dt)
+    elseif state == PAST
+        dt = DataFrame(JOB_QUEUE_OK)
+    else
+        dt = queue(all=true)
+        @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."
+    end
+    filter!(r -> occursin(needle, r.name) || occursin(needle, r.user), dt)
+end
+function queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}, state::Symbol)
+    queue(state, needle)
+end
+
 queue(id::Int64) = job_query(id)
+all_queue(id::Int64) = job_query(id)
+
+all_queue(state::Symbol) = queue(state)
+all_queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}) = queue(:all, needle)
+
 
 @eval function Base.display(job::Job)
     fs = $(fieldnames(Job))

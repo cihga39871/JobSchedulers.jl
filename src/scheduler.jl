@@ -110,7 +110,7 @@ function submit!(job::Job)
     global JOB_QUEUE
     global QUEUING
 
-    if scheduler_status(verbose=false) == :not_running
+    if scheduler_status(verbose=false) != :running
         @error "Scheduler is not running. Please start scheduler by using scheduler_start()"
         return job
     end

@@ -91,6 +91,17 @@ set_scheduler_max_job(10000)  # If number of finished jobs > 10000, the oldest o
                               # It does not affect queuing or running jobs.
 ```
 
+Set the previous setting in one function:
+
+```julia
+set_scheduler(
+    max_cpu = SCHEDULER_MAX_CPU,
+    max_mum = SCHEDULER_MAX_MEM,
+    update_second = SCHEDULER_UPDATE_SECOND,
+    max_job::Int = JOB_QUEUE_MAX_LENGTH
+)
+```
+
 ### Job Controls
 
 A `Job` is the wrapper of `AbstractCmd` or `Task`:

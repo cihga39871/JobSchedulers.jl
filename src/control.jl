@@ -5,6 +5,19 @@
 function new_scheduler_task()
     global SCHEDULER_TASK
     SCHEDULER_TASK = @task scheduler()
+    @static if :sticky in fieldnames(Task)
+        # make the scheduler task sticky to threadid == 1
+        if nthreads() > 1
+            # sticky: disallow task migration which was introduced in 1.7
+            @static if VERSION >= v"1.7"
+                SCHEDULER_TASK.sticky = true
+            else
+                SCHEDULER_TASK.sticky = false
+            end    
+            ccall(:jl_set_task_tid, Cvoid, (Any, Cint), SCHEDULER_TASK, 0)
+        end
+    end
+    SCHEDULER_TASK
 end
 
 """
@@ -26,7 +39,7 @@ function scheduler_start(; verbose=true)
         new_scheduler_task()
         schedule(SCHEDULER_TASK)
         while !istaskstarted(SCHEDULER_TASK)
-    		sleep(0.2)
+    		sleep(0.05)
     	end
     elseif istaskstarted(SCHEDULER_TASK) # if done, started is also true
         verbose && @warn "Scheduler is running."
@@ -34,7 +47,7 @@ function scheduler_start(; verbose=true)
         verbose && @info "Scheduler starts."
         schedule(SCHEDULER_TASK)
         while !istaskstarted(SCHEDULER_TASK)
-    		sleep(0.2)
+    		sleep(0.05)
     	end
     end
 end
@@ -99,8 +112,11 @@ function set_scheduler_update_second(s::Float64 = 0.6)
 end
 set_scheduler_update_second(s) = set_scheduler_update_second(convert(Float64, s))
 
+
+default_ncpu() = ifelse(nthreads() > 1, nthreads()-1, Sys.CPU_THREADS)
+
 """
-    set_scheduler_max_cpu(ncpu::Int = nthreads()>1 ? nthreads()-1 : Sys.CPU_THREADS)
+    set_scheduler_max_cpu(ncpu::Int = default_ncpu())
     set_scheduler_max_cpu(percent::Float64)
 
 Set the maximum CPU (thread) the scheduler can use. If starting Julia with multi-threads, the maximum CPU is `nthreads() - 1`.
@@ -110,7 +126,7 @@ Set the maximum CPU (thread) the scheduler can use. If starting Julia with multi
     set_scheduler_max_cpu(4)    # use 4 CPUs
     set_scheduler_max_cpu(0.5)  # use 50% of CPUs
 """
-function set_scheduler_max_cpu(ncpu::Int = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS)
+function set_scheduler_max_cpu(ncpu::Int = default_ncpu())
     ncpu < 1 && error("number of CPU cannot be less than 1.")
     if ncpu > Sys.CPU_THREADS
         @warn "Assigning number of CPU > total CPU."
@@ -138,8 +154,9 @@ function set_scheduler_max_cpu(percent::Float64)
     end
 end
 
+default_mem() = round(Int, Sys.total_memory() * 0.8)
 """
-    set_scheduler_max_mem(mem::Int = round(Int, Sys.total_memory() * 0.8))
+    set_scheduler_max_mem(mem::Int = default_mem())
     set_scheduler_max_mem(percent::Float64)
 
 Set the maximum RAM the scheduler can use.
@@ -153,9 +170,8 @@ Set the maximum RAM the scheduler can use.
     set_scheduler_max_mem(4294967296B)
 
     set_scheduler_max_mem(0.5)          # use 50% of total memory
-
 """
-function set_scheduler_max_mem(mem::Int = round(Int, Sys.total_memory() * 0.8))
+function set_scheduler_max_mem(mem::Int = default_mem())
     mem < 1 && error("number of memory cannot be less than 1.")
     if mem > Sys.total_memory() * 0.9
         @warn "Assigning memory > 90% of total memory."
@@ -181,4 +197,31 @@ function set_scheduler_max_job(n_finished_jobs::Int = 10000)
     else
         global JOB_QUEUE_MAX_LENGTH = n_finished_jobs
     end
+end
+
+"""
+    set_scheduler(
+        max_cpu = SCHEDULER_MAX_CPU,
+        max_mum = SCHEDULER_MAX_MEM,
+        max_job::Int = JOB_QUEUE_MAX_LENGTH,
+        update_second = SCHEDULER_UPDATE_SECOND
+    )
+
+See details:
+[`set_scheduler_max_cpu`](@ref), 
+[`set_scheduler_max_mem`](@ref), 
+[`set_scheduler_max_job`](@ref), 
+[`set_scheduler_update_second`](@ref) 
+"""
+function set_scheduler(;
+    max_cpu::Union{Int,Float64} = SCHEDULER_MAX_CPU,
+    max_mem::Union{Int,Float64} = SCHEDULER_MAX_MEM,
+    update_second = SCHEDULER_UPDATE_SECOND,
+    max_job::Int = JOB_QUEUE_MAX_LENGTH
+)
+    set_scheduler_max_cpu(max_cpu)
+    set_scheduler_max_mem(max_mem)
+    set_scheduler_update_second(update_second)
+    set_scheduler_max_job(max_job)
+    set
 end
