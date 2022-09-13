@@ -137,16 +137,10 @@ inputs = Dict(
 )
 cmdprog_job = Job(echo, inputs, touch_run_id_file=false)
 cmdprog_job2 = Job(echo, inputs=inputs, touch_run_id_file=false)
-cmdprog_job3 = Job(echo, touch_run_id_file=false)
+@test_throws ErrorException cmdprog_job3 = Job(echo, touch_run_id_file=false)
 
 submit!(cmdprog_job)
 submit!(cmdprog_job2)
-submit!(cmdprog_job3)
-
-while cmdprog_job3.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
-	sleep(1)
-end
-@test cmdprog_job3.state == :failed
 
 if Base.Threads.nthreads() > 1
     include("test_thread_id.jl")
@@ -154,58 +148,102 @@ end
 
 ### Compat Pipeline v0.5.0
 # Extend `Base.istaskfailed` to fit Pipelines and JobSchedulers packages, which will return a `StackTraceVector` in `t.result`, while Base considered it as `:done`. The function will check and modify the situation and then return the real task status.
-
-p_error = JuliaProgram(
-	name = "Julia Program with Errors",
-	id_file = "id_file",
-	inputs = [
-		:a => 10.6 => Float64,
-		:b =>  5 => Int
-	],
-	main = (inputs, outputs) -> begin
-		inputs["b"] + "ed"
+@testset "Compat Pipelines v0.5" begin
+	p_error = JuliaProgram(
+		name = "Julia Program with Errors",
+		id_file = "id_file",
+		inputs = [
+			:a => 10.6 => Float64,
+			:b =>  5 => Int
+		],
+		main = (inputs, outputs) -> begin
+			inputs["b"] + "ed"
+		end
+	)
+	@warn "The following will show method error of +"
+	j_error = Job(p_error, touch_run_id_file=false);
+	submit!(j_error)
+	while j_error.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
+		sleep(1)
 	end
-)
-
-j_error = Job(p_error, touch_run_id_file=false);
-submit!(j_error)
-while j_error.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
-	sleep(1)
+	@test j_error.state === :failed
 end
-@test j_error.state === :failed
+
 
 ## Compat Pipelines v0.8
-jp = JuliaProgram(
-	name = "Echo",
-	id_file = "id_file",
-	inputs = [
-		"input",
-		"input2" => Int,
-		"optional_arg" => 5,
-		"optional_arg2" => 0.5 => Number
-	],
-	outputs = [
-		"output" => "<input>.output"
-	],
-	main = (x,y) -> begin
-		@show x
-		@show y
-		y
+@testset "Compat Pipelines v0.8" begin
+	jp = JuliaProgram(
+		name = "Echo",
+		id_file = "id_file",
+		inputs = [
+			"input",
+			"input2" => Int,
+			"optional_arg" => 5,
+			"optional_arg2" => 0.5 => Number
+		],
+		outputs = [
+			"output" => "<input>.output"
+		],
+		main = (x,y) -> begin
+			@show x
+			@show y
+			y
+		end
+	)
+
+	i = "iout"
+	kk = :xxx
+	b = false
+	commonargs = (touch_run_id_file = b, verbose = :min)
+	job = Job(jp; input=kk, input2=22, optional_arg=:sym, output=i, priority=10, commonargs...)
+	@test job.priority == 10
+
+	submit!(job)
+	while job.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
+		sleep(1)
 	end
-)
+	@test result(job) == (true, Dict{String, Any}("output" => "iout"))
 
-i = "iout"
-kk = :xxx
-b = false
-commonargs = (touch_run_id_file = b, verbose = :min)
-job = Job(jp; input=kk, input2=22, optional_arg=:sym, output=i, priority=10, commonargs...)
-@test job.priority == 10
-
-submit!(job)
-while job.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
-	sleep(1)
 end
-@test result(job) == (true, Dict{String, Any}("output" => "iout"))
+
+
+@testset "Compat Pipelines v0.8.5" begin
+	jp = JuliaProgram(
+		name = "Echo",
+		id_file = "id_file",
+		inputs = [
+			"NAME", "USER", :NCPU, :MEM
+		],
+		main = quote
+			@show NAME
+			@show USER
+			@show NCPU
+			@show MEM
+		end,
+		arg_forward = [
+			"NAME" => :name,
+			:USER => "user",
+			"NCPU" => "ncpu",
+			:MEM => :mem
+		]
+	)
+	commonargs = (touch_run_id_file = false, verbose = :min)
+	job = Job(jp; NAME = "cihga39871", USER = "CJC", NCPU=3, MEM=666, priority=10, commonargs...)
+	@test job.priority == 10
+	@test job.name == "cihga39871"
+	@test job.user == "CJC"
+	@test job.ncpu == 3
+	@test job.mem == 666
+
+	job.ncpu = 1
+	submit!(job)
+	while job.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
+		sleep(1)
+	end
+	@test result(job) == (true, Dict{String, Any}())
+
+end
+
 
 @test scheduler_status() === RUNNING
 
