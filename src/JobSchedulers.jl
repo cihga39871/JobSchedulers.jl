@@ -2,13 +2,15 @@
 module JobSchedulers
 
 using Base.Threads
-using Dates, DataFrames, JSON
+using Dates, JSON
+using PrettyTables
 using JLD2
 using Pipelines
 using OrderedCollections
 
 include("jobs.jl")
 export Job, result
+
 
 include("thread_utils.jl")
 
@@ -32,7 +34,8 @@ set_scheduler_max_cpu,
 set_scheduler_max_mem,
 set_scheduler_max_job,
 default_ncpu,
-default_mem
+default_mem,
+wait_queue
 
 
 include("backup.jl")

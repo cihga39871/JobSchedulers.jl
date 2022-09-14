@@ -144,9 +144,9 @@ end
 function set_scheduler_max_cpu(percent::Float64)
     if 0.0 < percent <= 1.0
         ncpu = round(Int, Sys.CPU_THREADS * percent)
-        if ncpu > nthreads() - 1
-            @warn "Assigning number of CPU > total threads available - 1 is not allowed. Set to total threads available - 1. Thread one is reserved for schedulers. To use more threads, try to start Julia with sufficient threads. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads"
-            ncpu = nthreads() - 1
+        if ncpu > default_ncpu()
+            @warn "Assigning number of CPU > default_ncpu() is not allowed. Set to default_ncpu(). Thread one is reserved for schedulers if Threads.nthreads() > 1. To use more threads, try to start Julia with sufficient threads. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads"
+            ncpu = default_ncpu()
         end
         set_scheduler_max_cpu(ncpu)
     else
@@ -200,11 +200,11 @@ function set_scheduler_max_job(n_finished_jobs::Int = 10000)
 end
 
 """
-    set_scheduler(
-        max_cpu = SCHEDULER_MAX_CPU,
-        max_mum = SCHEDULER_MAX_MEM,
-        max_job::Int = JOB_QUEUE_MAX_LENGTH,
-        update_second = SCHEDULER_UPDATE_SECOND
+    set_scheduler(;
+        max_cpu::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_CPU,
+        max_mem::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_MEM,
+        max_job::Int = JobSchedulers.JOB_QUEUE_MAX_LENGTH,
+        update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND
     )
 
 See details:
@@ -216,12 +216,28 @@ See details:
 function set_scheduler(;
     max_cpu::Union{Int,Float64} = SCHEDULER_MAX_CPU,
     max_mem::Union{Int,Float64} = SCHEDULER_MAX_MEM,
-    update_second = SCHEDULER_UPDATE_SECOND,
-    max_job::Int = JOB_QUEUE_MAX_LENGTH
+    max_job::Int = JOB_QUEUE_MAX_LENGTH,
+    update_second = SCHEDULER_UPDATE_SECOND
 )
     set_scheduler_max_cpu(max_cpu)
     set_scheduler_max_mem(max_mem)
-    set_scheduler_update_second(update_second)
     set_scheduler_max_job(max_job)
-    set
+    set_scheduler_update_second(update_second)
+
+    scheduler_status()
+end
+
+"""
+    wait_queue()
+
+Wait for all jobs in `queue()` become finished.
+"""
+function wait_queue()
+    while length(JOB_QUEUE) > 0 && scheduler_status(verbose=false) === RUNNING
+        sleep(SCHEDULER_UPDATE_SECOND)
+    end
+    if scheduler_status(verbose=false) != RUNNING
+        @error "Scheduler was not running. Jump out from wait_queue()"
+    end
+    nothing
 end

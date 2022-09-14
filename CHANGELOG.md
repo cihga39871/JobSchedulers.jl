@@ -1,3 +1,21 @@
+v0.7.0
+
+- Remove dependency DataFrames and change to PrettyTables. The loading time of DataFrames is high.
+
+- Feature: now a Job is sticky to one thread (>1). JobSchedulers allocates and manuages it. The SCHEDULER_TASK is sticky to thread 1.
+
+- Feature: `queue(...)` is rewritten.
+
+- Feature: Better pretty print of Job and queue().
+
+- Feature: New function: `wait_queue()` waits for all jobs in `queue()` become finished.
+
+- Feature: New function: `set_scheduler()`
+
+- Fix: `set_scheduler_max_cpu(percent::Float64)`: use default_ncpu() if error.
+
+- Change: SCHEDULER_UPDATE_SECOND to 0.05 from 0.6
+
 v0.6.12
 
 - Feature: Enchance compatibility with Pipelines v0.8.5: Program has a new field called arg_forward that is used to forward user-defined inputs/outputs to specific keyword arguments of JobSchedulers.Job(::Program, ...), including name::String, user::String, ncpu::Int, mem::Int.

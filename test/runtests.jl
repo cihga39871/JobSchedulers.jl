@@ -12,7 +12,6 @@ scheduler_stop()
 scheduler_status()
 
 scheduler_start()
-sleep(2)
 scheduler_status()
 
 
@@ -29,7 +28,7 @@ job = Job(@task(begin; sleep(2); println("highpriority"); end), name="high_prior
 submit!(job)
 job = Job(@task(begin; sleep(2); println("midpriority"); end), name="mid_priority", priority = 15)
 submit!(job)
-for i in 1:20
+for i in 1:10
     local job = Job(@task(begin; sleep(2); println(i); end), name="$i", priority = 20)
     submit!(job)
 end
@@ -81,9 +80,7 @@ submit!(dep2)
 submit!(job_with_dep)
 submit!(job_with_dep2)
 
-while JobSchedulers.DataFrames.nrow(queue()) > 0 && scheduler_status(verbose=false) === RUNNING
-    sleep(2)
-end
+wait_queue()
 
 ### set backup
 rm("/tmp/jl_job_scheduler_backup", force=true)
@@ -142,9 +139,7 @@ cmdprog_job2 = Job(echo, inputs=inputs, touch_run_id_file=false)
 submit!(cmdprog_job)
 submit!(cmdprog_job2)
 
-if Base.Threads.nthreads() > 1
-    include("test_thread_id.jl")
-end
+
 
 ### Compat Pipeline v0.5.0
 # Extend `Base.istaskfailed` to fit Pipelines and JobSchedulers packages, which will return a `StackTraceVector` in `t.result`, while Base considered it as `:done`. The function will check and modify the situation and then return the real task status.
@@ -244,6 +239,11 @@ end
 
 end
 
+if Base.Threads.nthreads() > 1
+    include("test_thread_id.jl")
+else
+	@warn "Threads.nthreads() == 1 during testing is not recommended. Please run Julia in multi-threads to test JobSchedulers."
+end
 
 @test scheduler_status() === RUNNING
 

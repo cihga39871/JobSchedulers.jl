@@ -193,3 +193,6 @@ function result(job::Job)
     end
     job.task.result
 end
+
+get_thread_id(job::Job) = job._thread_id
+get_priority(job::Job) = job.priority

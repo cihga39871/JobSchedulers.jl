@@ -6,7 +6,7 @@ const TB = 1024GB
 
 SCHEDULER_MAX_CPU = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS
 SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
-SCHEDULER_UPDATE_SECOND = 0.6
+SCHEDULER_UPDATE_SECOND = 0.05
 
 const JOB_QUEUE = Vector{Job}()
 JOB_QUEUE_LOCK = SpinLock()
@@ -435,8 +435,6 @@ function update_queue_priority!()
     end
     return
 end
-get_priority(job::Job) = job.priority
-
 
 function run_queuing_jobs(ncpu_available::Int, mem_available::Int)
     global JOB_QUEUE

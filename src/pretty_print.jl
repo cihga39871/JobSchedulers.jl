@@ -1,37 +1,31 @@
 
-@eval function DataFrames.DataFrame(job_queue::Vector{Job})
-    fs = $(fieldnames(Job))
-    d = DataFrame()
-    wait_for_lock()
-    try
-        for f in fs
-            d[!, f] = getfield.(job_queue, f)
-        end
-    catch e
-        rethrow(e)
-    finally
-        release_lock()
-    end
-    select!(d, :state, :id, :name, :user, :ncpu, :mem, :start_time, :stop_time)
-end
-
 """
 ```julia
-queue(; all::Bool = false)
-queue(state)
-queue(needle)
-queue(state, needle)
-queue(needle, state)
-queue(id)
+queue(; all::Bool = false) -> Vector{Job}
+queue(state )              -> Vector{Job}
+queue(needle)              -> Vector{Job}
+queue(state , needle)      -> Vector{Job}
+queue(needle, state )      -> Vector{Job}
+queue(id)                  -> Job
 ```
+
+- `all::Bool`: get queuing and past jobs.
+
+- `state::Symbol`: get jobs with a specific state, including `:all`, `QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, `PAST`.
+
+  > `PAST` is the superset of `DONE`, `FAILED`, `CANCELLED`.
+
+- `needle::Union{AbstractString,AbstractPattern,AbstractChar}`: get jobs if they contain `needle` in their name or user.
+
+- `id::Int`: get the job with the specific `id`.
 """
 function queue(;all::Bool=false)
     global JOB_QUEUE
     global JOB_QUEUE_OK
     if all
-        DataFrame([JOB_QUEUE; JOB_QUEUE_OK])
+        [JOB_QUEUE; JOB_QUEUE_OK]
     else
-        DataFrame(JOB_QUEUE)
+        copy(JOB_QUEUE)
     end
 end
 
@@ -40,9 +34,9 @@ function queue(state::Symbol)
         queue(all=true)
     elseif state in [QUEUING, RUNNING, DONE, FAILED, CANCELLED]
         q = queue(all=true)
-        q[q.state .== state, :]
+        filter!(job -> job.state == state, q)
     elseif state == PAST
-        DataFrame(JOB_QUEUE_OK)
+        copy(JOB_QUEUE_OK)
     else
         queue(all=true)
         @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."
@@ -53,7 +47,7 @@ end
 function queue(needle::Union{AbstractString,AbstractPattern,AbstractChar})
     global JOB_QUEUE
     global JOB_QUEUE_OK
-    dt = DataFrame([JOB_QUEUE; JOB_QUEUE_OK])
+    dt = [JOB_QUEUE; JOB_QUEUE_OK]
     filter!(r -> occursin(needle, r.name) || occursin(needle, r.user), dt)
 end
 
@@ -62,9 +56,9 @@ function queue(state::Symbol, needle::Union{AbstractString,AbstractPattern,Abstr
         dt = queue(needle)
     elseif state in [QUEUING, RUNNING, DONE, FAILED, CANCELLED]
         dt = queue(all=true)
-        filter!(:state => x -> x == state, dt)
+        filter!(x -> x.state == state, dt)
     elseif state == PAST
-        dt = DataFrame(JOB_QUEUE_OK)
+        dt = copy(JOB_QUEUE_OK)
     else
         dt = queue(all=true)
         @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."
@@ -76,23 +70,86 @@ function queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}, state
 end
 
 queue(id::Int64) = job_query(id)
+
+"""
+    all_queue()
+    all_queue(id::Int64)
+    all_queue(state::Symbol)
+    all_queue(needle::Union{AbstractString,AbstractPattern,AbstractChar})
+
+- `state::Symbol`: get jobs with a specific state, including `:all`, `QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, `PAST`.
+
+  > `PAST` is the superset of `DONE`, `FAILED`, `CANCELLED`.
+
+- `needle::Union{AbstractString,AbstractPattern,AbstractChar}`: get jobs if they contain `needle` in their name or user.
+
+- `id::Int`: get the job with the specific `id`.
+"""
+all_queue() = queue(;all=true)
 all_queue(id::Int64) = job_query(id)
 
 all_queue(state::Symbol) = queue(state)
 all_queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}) = queue(:all, needle)
 
 
-@eval function Base.display(job::Job)
+@eval function Base.show(io::IO, ::MIME"text/plain", job::Job)
     fs = $(fieldnames(Job))
     fs_string = $(map(string, fieldnames(Job)))
     max_byte = $(maximum(length, map(string, fieldnames(Job))))
-    println("Job:")
+    println(io, "Job:")
     for (i,f) in enumerate(fs)
-        print("  ", f, " " ^ (max_byte - length(fs_string[i])), " → ")
-        display(getfield(job, f))
+        print(io, "  ", f, " " ^ (max_byte - length(fs_string[i])), " → ")
+        print(io, simplify(getfield(job, f)))
+        println(io)
     end
 end
 
+function Base.show(io::IO, ::MIME"text/plain", job_queue::Vector{Job};
+    allrows::Bool = !get(io, :limit, false),
+    allcols::Bool = !get(io, :limit, false)
+)
+    field_order = [:state, :id, :name, :user, :ncpu, :mem, :start_time, :stop_time, :schedule_time, :create_time, :wall_time, :priority, :dependency, :stdout_file, :stderr_file, :task, :_thread_id]
+    mat = [JobSchedulers.simplify(getfield(j,f)) for j in job_queue, f in field_order]
+
+    if allcols && allrows
+        crop = :none
+    elseif allcols
+        crop = :vertical
+    elseif allrows
+        crop = :horizontal
+    else
+        crop = :both
+    end
+    println(io, "$(length(job_queue))-element Vector{Job}:")
+    JobSchedulers.pretty_table(io, mat; header = field_order, crop = crop)
+end
+
+
+
+simplify(x::Symbol) = ":$x"
+simplify(x::Int) = string(x)
+simplify(x::AbstractString) = "\"$x\""
+simplify(x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS")
+function simplify(deps::Vector{Pair{Symbol,Union{Int64, Job}}})
+    n_dep = length(deps)
+    if n_dep == 0
+        :([])
+    elseif n_dep == 1
+        dep = deps[1]
+        id = if dep.second isa Int
+            dep.second
+        else
+            dep.second.id
+        end
+        "[:$(dep.first) => $(id)]"
+    else
+        "$n_dep jobs"
+    end
+end
+simplify(x::Task) = "Task"
+simplify(x) = string(x)
+
+#### JSON conversion
 @eval function Base.Dict(job::Job)
     fs = $(fieldnames(Job))
     d = Dict{Symbol, Any}()

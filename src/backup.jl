@@ -111,7 +111,7 @@ function backup()
         # clean old file
         rm(SCHEDULER_BACKUP_FILE, force=true)
         @save SCHEDULER_BACKUP_FILE scheduler_max_cpu scheduler_max_mem scheduler_update_second job_queue_max_length job_queue_ok
-        @info "Scheduler backuped to $SCHEDULER_BACKUP_FILE"
+        @info "Scheduler backup: $SCHEDULER_BACKUP_FILE"
     finally
         release_lock()
     end

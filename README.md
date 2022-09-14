@@ -48,9 +48,10 @@ scheduler_status()
 # ┌ Info: Scheduler is running.
 # │   SCHEDULER_MAX_CPU = 32
 # │   SCHEDULER_MAX_MEM = 121278191616
-# │   SCHEDULER_UPDATE_SECOND = 5.0
+# │   SCHEDULER_UPDATE_SECOND = 0.05
 # │   JOB_QUEUE_MAX_LENGTH = 10000
 # └   SCHEDULER_TASK = Task (runnable) @0x00007fe205052e60
+# :running
 
 # scheduler_stop()  # NO RUN
 ```
@@ -81,7 +82,7 @@ set_scheduler_max_mem(0.5)          # use 50% of total memory
 Set the update interval of job queue:
 
 ```julia
-set_scheduler_update_second(0.3)  # update job queue every 0.3 seconds
+set_scheduler_update_second(0.03)  # update job queue every 0.3 seconds
 ```
 
 Set the maximum number of finished jobs:
@@ -95,10 +96,10 @@ Set the previous setting in one function:
 
 ```julia
 set_scheduler(
-    max_cpu = SCHEDULER_MAX_CPU,
-    max_mum = SCHEDULER_MAX_MEM,
-    update_second = SCHEDULER_UPDATE_SECOND,
-    max_job::Int = JOB_QUEUE_MAX_LENGTH
+    max_cpu = JobSchedulers.SCHEDULER_MAX_CPU,
+    max_mem = JobSchedulers.SCHEDULER_MAX_MEM,
+    update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND,
+    max_job = JobSchedulers.JOB_QUEUE_MAX_LENGTH
 )
 ```
 
@@ -119,8 +120,9 @@ function_job = Job() do  # the function should have no arguments
     println("function job done")
 end
 
+using Dates
 job_with_args = Job(
-    @task(println("job_with_args done")); # Task to run
+    @task(begin println("job_with_args done"); "result" end); # Task to run
     name = "job with args",               # job name.
     user = "me",                # Job owner.
     ncpu = 1,                   # Number of CPU required.
@@ -161,6 +163,7 @@ Get the returned result:
 
 ```julia
 result(job_with_args)
+# "result"
 ```
 
 ### Queue
@@ -170,70 +173,77 @@ Show queue (all jobs):
 queue(:all)      # or:
 queue(all=true)  # or:
 all_queue()
-# 34×17 DataFrame
-#  Row │ state      id                name             user    ncpu   mem     ⋯
-#      │ Symbol     Int64             String           String  Int64  Int64   ⋯
-# ─────┼───────────────────────────────────────────────────────────────────────
-#    1 │ done       1324034831845071  high_priority                1      0   ⋯
-#    2 │ cancelled  1324072551328464  to_cancel                    1      0
-#    3 │ cancelled  1324072551917525  to_cancel                    1      0
-#    4 │ done       1324072550649105  high_priority                1      0
-#   ⋮  │     ⋮             ⋮                 ⋮           ⋮       ⋮      ⋮     ⋱
-#   31 │ failed     1324073678055463  Command Program              1      0   ⋯
-#   32 │ done       1324073675645221  Command Program              1      0
-#   33 │ done       1324073677010642  Command Program              1      0
-#   34 │ done       1324243247103863                               1      0
-#                                                11 columns and 26 rows omitted
+# 4-element Vector{Job}:
+# ┌───────┬──────────────────┬─────────────────┬──────┬──────┬────────
+# │ state │               id │            name │ user │ ncpu │  mem  ⋯
+# ├───────┼──────────────────┼─────────────────┼──────┼──────┼────────
+# │ :done │ 3233241043997541 │              "" │   "" │    1 │    0  ⋯
+# │ :done │ 3233241054331563 │              "" │   "" │    1 │    0  ⋯
+# │ :done │ 3233241075180017 │ "job with args" │ "me" │    1 │ 1024  ⋯
+# │ :done │ 3233245819853069 │ "job with args" │ "me" │    1 │ 1024  ⋯
+# └───────┴──────────────────┴─────────────────┴──────┴──────┴────────
+#                                                   11 columns omitted
 ```
 
 Show queue (running and queuing jobs only):
 
 ```julia
 queue()
-# 0×16 DataFrame
+# 0-element Vector{Job}:
 ```
 
 Show queue by given a job state (`QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, or `PAST`):
 
 ```julia
-queue(CANCELLED)
-# 2×17 DataFrame
-#  Row │ state      id                name       user    ncpu   mem    ⋯
-#      │ Symbol     Int64             String     String  Int64  Int64  ⋯
-# ─────┼────────────────────────────────────────────────────────────────
-#    1 │ cancelled  1324072551328464  to_cancel              1      0  ⋯
-#    2 │ cancelled  1324072551917525  to_cancel              1      0
-#                                                     11 columns omitted
+queue(DONE)
+# 4-element Vector{Job}:
+# ┌───────┬──────────────────┬─────────────────┬──────┬──────┬────────
+# │ state │               id │            name │ user │ ncpu │  mem  ⋯
+# ├───────┼──────────────────┼─────────────────┼──────┼──────┼────────
+# │ :done │ 3233241043997541 │              "" │   "" │    1 │    0  ⋯
+# │ :done │ 3233241054331563 │              "" │   "" │    1 │    0  ⋯
+# │ :done │ 3233241075180017 │ "job with args" │ "me" │    1 │ 1024  ⋯
+# │ :done │ 3233245819853069 │ "job with args" │ "me" │    1 │ 1024  ⋯
+# └───────┴──────────────────┴─────────────────┴──────┴──────┴────────
+#                                                   11 columns omitted
 ```
+
+`queue(...)` and `all_queue()` can also used to filter job name and user. Please find out more by typing `?queue` and `?all_queue` in REPL.
 
 ### Job Query
 
 Get `Job` object by providing job ID.
 
 ```julia
-job_query(314268353241057)  # or:
-queue(314268353241057)
+job_query(3233241043997541)  # or:
+queue(3233241043997541)
 # Job:
-#   id            → 314268353241057
-#   name          → "job_with_args"
-#   user          → "me"
+#   id            → 3233241043997541
+#   name          → ""
+#   user          → ""
 #   ncpu          → 1
-#   mem           → 1024
-#   schedule_time → 2021-04-16T12:02:37.511
-#   create_time   → 2021-04-16T12:02:40.587
-#   start_time    → 2021-04-16T12:02:49.786
-#   stop_time     → 2021-04-16T12:02:54.803
-#   wall_time     → 1 hour
+#   mem           → 0
+#   schedule_time → 0000-01-01 00:00:00
+#   create_time   → 2022-09-14 00:15:47
+#   start_time    → 2022-09-14 00:15:47
+#   stop_time     → 2022-09-14 00:15:47
+#   wall_time     → 1 week
 #   state         → :done
 #   priority      → 20
-#   dependency    → 2-element Array{Pair{Symbol,Int64},1}:
-#  :done => 314268209759432
-#  :done => 314268298112225
-#   task          → Task (done) @0x00007fe7c027bd00
+#   dependency    → []
+#   task          → Task
 #   stdout_file   → ""
 #   stderr_file   → ""
+#   _thread_id    → -2
 ```
 
+### Wait for jobs
+
+Wait for all jobs in `queue()` become finished:
+
+```julia
+wait_queue()
+```
 ### Backup
 
 Set backup file:
