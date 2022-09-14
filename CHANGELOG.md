@@ -1,3 +1,7 @@
+v0.7.1
+
+- Compat: PrettyTables = "0.12 - 2" to satisfy DataFrames v1.3.5 which needs PrettyTables v1 but not v2.
+
 v0.7.0
 
 - Remove dependency DataFrames and change to PrettyTables. The loading time of DataFrames is high.
