@@ -51,7 +51,7 @@ function schedule_thread(j::Job)
                 j.task.sticky = true
             else
                 j.task.sticky = false
-            end    
+            end
             # take the next free thread... Will block/wait until a thread becomes free
             j._thread_id = take!(THREAD_POOL[])
             ccall(:jl_set_task_tid, Cvoid, (Any, Cint), j.task, j._thread_id-1)
