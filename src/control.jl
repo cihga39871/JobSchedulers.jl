@@ -89,6 +89,7 @@ function scheduler_status(; verbose=true)
     global SCHEDULER_TASK
     if !isdefined(@__MODULE__, :SCHEDULER_TASK)
         verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
+        :not_running
     elseif istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
         verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK
         :not_running

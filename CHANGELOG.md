@@ -1,3 +1,7 @@
+v0.7.2
+
+- Fix: unexpected output of `scheduler_status()` when SCHEDULER_TASK is not defined.
+
 v0.7.1
 
 - Compat: PrettyTables = "0.12 - 2" to satisfy DataFrames v1.3.5 which needs PrettyTables v1 but not v2.
