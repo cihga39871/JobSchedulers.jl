@@ -104,6 +104,10 @@ all_queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}) = queue(:a
     end
 end
 
+function Base.show(io::IO, job::Job)
+    print(io, "Job $(job.id) ($(job.state)): $(job.name)")
+end
+
 function Base.show(io::IO, ::MIME"text/plain", job_queue::Vector{Job};
     allrows::Bool = !get(io, :limit, false),
     allcols::Bool = !get(io, :limit, false)
@@ -121,7 +125,7 @@ function Base.show(io::IO, ::MIME"text/plain", job_queue::Vector{Job};
         crop = :both
     end
     println(io, "$(length(job_queue))-element Vector{Job}:")
-    JobSchedulers.pretty_table(io, mat; header = field_order, crop = crop)
+    JobSchedulers.pretty_table(io, mat; header = field_order, crop = crop, maximum_columns_width = 20, vcrop_mode = :middle, show_row_number = true)
 end
 
 

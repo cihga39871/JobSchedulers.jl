@@ -1,3 +1,8 @@
+v0.7.3
+
+- Compat: Pipelines v0.9: significant improvement on decision of re-run: considering file change.
+- Fix: pretty print of Job and Vector{Job}.
+
 v0.7.2
 
 - Fix: unexpected output of `scheduler_status()` when SCHEDULER_TASK is not defined.

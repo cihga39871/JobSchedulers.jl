@@ -1,8 +1,10 @@
 
 module JobSchedulers
 
+using Reexport
 using Base.Threads
-using Dates, JSON
+@reexport using Dates
+using JSON
 using PrettyTables
 using JLD2
 using Pipelines
