@@ -4,7 +4,7 @@
 
 ## Why JobScheduler?
 
-When building a computational workflow, we may find different tasks use different CPU and memory. Some can run simultaneously, but some have to run sequentially. JobScheduler is stable, useful and powerful for task organization and workload management. 
+When building a computational workflow, we may find different tasks use different CPU and memory. Some can run simultaneously, but some have to run sequentially. JobScheduler is stable, useful and powerful for task queuing and workload management. 
 
 ## Package Features
 
