@@ -225,7 +225,7 @@ queue()
 # 0-element Vector{Job}:
 ```
 
-Show queue by given a job state (`QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, or `PAST`):
+Show queue using a job state (`QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, or `PAST`):
 
 ```julia
 queue(DONE)
@@ -271,7 +271,7 @@ queue(3603962563817452)
 
 ### Wait for jobs
 
-Wait for all jobs in `queue()` become finished:
+Wait for all jobs in `queue()` finished:
 
 ```julia
 wait_queue()
