@@ -2,7 +2,6 @@ include("../src/JobSchedulers.jl")
 
 using .JobSchedulers
 using Base.Threads
-using Dates
 using Test
 
 scheduler_start()
@@ -29,7 +28,7 @@ submit!(job)
 job = Job(@task(begin; sleep(2); println("midpriority"); end), name="mid_priority", priority = 15)
 submit!(job)
 for i in 1:10
-    local job = Job(@task(begin; sleep(2); println(i); end), name="$i", priority = 20)
+    local job = Job(@task(begin; sleep(2); println(i); end), name="batch: $i", priority = 20)
     submit!(job)
 end
 
