@@ -11,6 +11,8 @@ OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Pipelines = "ef544631-5c6f-4e9b-994c-12e7a4cd724c"
 PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
+Terming = "5a1048b7-9ca6-4e8a-8e2e-1f932e78ac4e"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
