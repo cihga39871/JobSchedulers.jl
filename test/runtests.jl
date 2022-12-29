@@ -1,6 +1,5 @@
-include("../src/JobSchedulers.jl")
 
-using .JobSchedulers
+using JobSchedulers
 using Base.Threads
 using Test
 
@@ -17,6 +16,8 @@ scheduler_status()
 job = Job(@task(begin; sleep(2); println("highpriority"); end), name="high_priority", priority = 0)
 display(job)
 submit!(job)
+
+wait_queue()
 
 j2 = job_query_by_id(job.id)
 @test j2 === job
@@ -54,24 +55,26 @@ cancel!(job2)
 
 
 ### dependency
+sleep(1)
 dep1 = Job(@task(begin
     sleep(2)
     println("dep1 ok")
-end), name="dep1", priority = 20)
+end), name="dep: 1", priority = 20)
+sleep(1)
 
 dep2 = Job(@task(begin
     sleep(3)
     println("dep2 ok")
-end), name="dep2", priority = 20)
+end), name="dep: 2", priority = 20)
 
 job_with_dep = Job(@task(begin
     println("job with dep1 and dep2 ok")
-end), name="job_with_dep", priority = 20,
+end), name="dep: job_with_dep", priority = 20,
 dependency = [DONE => dep1.id, DONE => dep2])
 
 job_with_dep2 = Job(@task(begin
     println("job with dep2 ok")
-end), name="job_with_dep", priority = 20,
+end), name="dep: job_with_dep", priority = 20,
 dependency = DONE => dep2)
 
 submit!(dep1)
@@ -79,7 +82,7 @@ submit!(dep2)
 submit!(job_with_dep)
 submit!(job_with_dep2)
 
-wait_queue()
+wait_queue(show_progress = true)
 
 ### set backup
 rm("/tmp/jl_job_scheduler_backup", force=true)
@@ -243,6 +246,8 @@ if Base.Threads.nthreads() > 1
 else
 	@warn "Threads.nthreads() == 1 during testing is not recommended. Please run Julia in multi-threads to test JobSchedulers."
 end
+
+include("terming.jl")
 
 @test scheduler_status() === RUNNING
 

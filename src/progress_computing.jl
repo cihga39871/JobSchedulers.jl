@@ -1,16 +1,19 @@
-using DisplayStructure
 using Terming
 using Term
 using Logging
 using Printf
+using OrderedCollections
 
-const DS = DisplayStructure
 const T = Terming
 
 const BLOCKS = ["▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
 const BAR_LEFT = "▕"
 const BAR_RIGHT = "▎"
 const BLOCK = "█"
+
+CPU_RUNNING = 0
+MEM_RUNNING = 0
+
 
 mutable struct JobGroup
     total::Int
@@ -19,19 +22,33 @@ mutable struct JobGroup
     done::Int
     failed::Int
     cancelled::Int
+    eta::Millisecond
     group_name::String
     job_names::Vector{String}
+    failed_job_names::Vector{String}
     elapsed_times::Vector{Millisecond}
-    #failed
-    eta::Millisecond
     function JobGroup(group_name)
-        new(0,0,0,0,0,0,group_name, String[], Millisecond[], Millisecond(0))
+        new(0, 0, 0, 0, 0, 0, Millisecond(0), group_name, String[], String[], Millisecond[])
     end
 end
 
 ALL_JOB_GROUP = JobGroup("ALL JOBS")
 JOB_GROUPS = OrderedDict{String, JobGroup}()
 OTHER_JOB_GROUP = JobGroup("OTHER JOBS")
+
+function fingerprint(g::JobGroup)
+    return (
+        g.total,
+        g.queuing,
+        g.running,
+        g.done,
+        g.failed,
+        g.cancelled
+    )
+end
+ALL_JOB_GROUP_FINGERPRINT = fingerprint(ALL_JOB_GROUP)
+
+
 
 function clear_job_group!(g::JobGroup)
     g.total = 0
@@ -40,40 +57,36 @@ function clear_job_group!(g::JobGroup)
     g.done = 0
     g.failed = 0
     g.cancelled = 0
-    empty!(g.job_names)
-    empty!(g.elapsed_times)
     g.eta = Millisecond(0)
+    empty!(g.job_names)
+    empty!(g.failed_job_names)
+    empty!(g.elapsed_times)
 end
 
 function clear_job_groups!(; delete::Bool = false)
     if delete
         empty!(JOB_GROUPS)
-        clear_job_group!(ALL_JOB_GROUP)
-        clear_job_group!(OTHER_JOB_GROUP)
     else
         for g in values(JOB_GROUPS)
             clear_job_group!(g)
         end
     end
+    clear_job_group!(ALL_JOB_GROUP)
+    clear_job_group!(OTHER_JOB_GROUP)
+    global CPU_RUNNING = 0
+    global MEM_RUNNING = 0
 end
 
 """
-get_groups(job::Job, group_seperator = r": *")
+    get_group(job::Job, group_seperator = r": *")
 
 Return `nested_group_names::Vector{String}`. 
 
 Eg: If `job.name` is `"A: B: 1232"`, return `["A", "A: B", "A: B: 1232"]`
 """
-function get_groups(job::Job, group_seperator = r": *")
-    gs = String.(split(job.name, group_seperator))
-    current_name = gs[end]
-    if length(gs) == 1
-        return gs
-    end
-    for i in 2:length(gs)
-        gs[i] = gs[i - 1] * ": " * gs[i]
-    end
-    return gs
+function get_group(job::Job, group_seperator = r": *")
+    g = String(split(job.name, group_seperator; limit = 2)[1])
+    return g
 end
 
 function add_job_to_group!(g::JobGroup, j::Job)
@@ -83,13 +96,13 @@ function add_job_to_group!(g::JobGroup, j::Job)
     elseif j.state === QUEUING
         g.queuing += 1
     elseif j.state === RUNNING
+        push!(g.job_names, j.name)
         g.running += 1
     elseif j.state === FAILED
         g.failed += 1
     elseif j.state === CANCELLED
         g.cancelled += 1
     end
-    push!(g.job_names, j.name)
     if year(j.stop_time) != 0 # stoped
         elapsed_time = j.stop_time - j.start_time
         push!(g.elapsed_times, elapsed_time)
@@ -118,40 +131,47 @@ function compute_other_job_group!()
 end
 
 function queue_summary(;group_seperator = r": *")
+    queue_update = false
     wait_for_lock()
     try
         clear_job_groups!()
-        cpu_running = 0
-        mem_running = 0
 
         for job_queue in [JobSchedulers.JOB_QUEUE_OK, JobSchedulers.JOB_QUEUE]
             for j in job_queue
-                group_names = get_groups(j, group_seperator)
-                for group_name in group_names
-                    group = get(JOB_GROUPS, group_name, nothing)
-                    if group === nothing
-                        g = JobGroup(group_name)
-                        JOB_GROUPS[group_name] = g
-                        add_job_to_group!(g, j)
-                    else
-                        add_job_to_group!(group, j)
-                    end
+                group_name = get_group(j, group_seperator)
+                group = get(JOB_GROUPS, group_name, nothing)
+                if group === nothing
+                    g = JobGroup(group_name)
+                    JOB_GROUPS[group_name] = g
+                    add_job_to_group!(g, j)
+                else
+                    add_job_to_group!(group, j)
                 end
                 add_job_to_group!(ALL_JOB_GROUP, j)
 
                 if j.state === RUNNING
-                    cpu_running += j.ncpu
-                    mem_running+= j.mem
+                    global CPU_RUNNING += j.ncpu
+                    global MEM_RUNNING += j.mem
                 end
             end
         end
         compute_other_job_group!()
+
+        new_fingerprint = fingerprint(ALL_JOB_GROUP)
+        if new_fingerprint == ALL_JOB_GROUP_FINGERPRINT
+            queue_update = false
+        else
+            queue_update = true
+            global ALL_JOB_GROUP_FINGERPRINT = new_fingerprint
+        end
+
+
     catch
         rethrow()
     finally
         release_lock()
     end
-    return cpu_running, mem_running
+    return queue_update
 end
 
 
