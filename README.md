@@ -10,6 +10,7 @@ We may find different tasks or programs use different CPU and memory. Some can r
 
 - Job and task scheduler.
 - Local workload manager.
+- Fancy progress meter in terminal.
 - Support CPU, memory, run time management.
 - Support running a job at specific time, or a period after creating (schedule).
 - Support deferring a job until specific jobs reach specific states (dependency).
