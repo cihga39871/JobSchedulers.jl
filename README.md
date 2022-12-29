@@ -274,7 +274,7 @@ queue(3603962563817452)
 
 Wait for all jobs in `queue()` finished using `wait_queue(show_progress = false)`.
 
-If `show_progress = true`, a colourful job progress will display.
+If `show_progress = true`, a fancy progress meter will display.
 
 ```julia
 wait_queue()
