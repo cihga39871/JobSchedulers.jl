@@ -229,9 +229,13 @@ function set_scheduler(;
 end
 
 """
-    wait_queue()
+    wait_queue(;show_progress = false)
 
 Wait for all jobs in `queue()` become finished.
+
+- `show_progress = true`, job progress will show.
+
+See also: [`queue_progress`](@ref).
 """
 function wait_queue()
     while length(JOB_QUEUE) > 0 && scheduler_status(verbose=false) === RUNNING
@@ -239,6 +243,20 @@ function wait_queue()
     end
     if scheduler_status(verbose=false) != RUNNING
         @error "Scheduler was not running. Jump out from wait_queue()"
+    end
+    nothing
+end
+
+function wait_queue(;show_progress::Bool = false)
+    if show_progress
+        queue_progress()
+    else
+        while length(JOB_QUEUE) > 0 && scheduler_status(verbose=false) === RUNNING
+            sleep(SCHEDULER_UPDATE_SECOND)
+        end
+        if scheduler_status(verbose=false) != RUNNING
+            @error "Scheduler was not running. Jump out from wait_queue()"
+        end
     end
     nothing
 end

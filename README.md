@@ -10,6 +10,7 @@ We may find different tasks or programs use different CPU and memory. Some can r
 
 - Job and task scheduler.
 - Local workload manager.
+- Fancy progress meter in terminal.
 - Support CPU, memory, run time management.
 - Support running a job at specific time, or a period after creating (schedule).
 - Support deferring a job until specific jobs reach specific states (dependency).
@@ -271,32 +272,25 @@ queue(3603962563817452)
 
 ### Wait for jobs
 
-Wait for all jobs in `queue()` finished:
+Wait for all jobs in `queue()` finished using `wait_queue(show_progress = false)`.
+
+If `show_progress = true`, a fancy progress meter will display.
 
 ```julia
 wait_queue()
-```
-### Backup
+# no output
 
-Set backup file:
-
-```julia
-set_scheduler_backup("/path/to/backup/file")
-```
-> JobSchedulers writes to the backup file at exit.
-> If the file exists, scheduler settings and job queue will be recovered from it automatically.
-> Recovered jobs are just for query, not run-able.
-
-Stop backup and `delete_old` backup:
-
-```julia
-set_scheduler_backup(delete_old=true)
-```
-
-Backup immediately:
-
-```julia
-backup()
+wait_queue(show_progress = true)
+# CURRENT RESOURCES:
+#     CPU: 0/28    MEM: 0.00%
+# JOB PROGRESS:
+#    (running,failed,cancelled,total)
+# 100.00% ▕████████████████████████████████████████████████████████▎ALL JOBS (0,0,2,20)
+# 100.00% ▕████████████████████████████████████████████████████████▎high_priority (0,0,0,2)
+# 100.00% ▕████████████████████████████████████████████████████████▎to_cancel (0,0,2,2)
+# 100.00% ▕████████████████████████████████████████████████████████▎batch (0,0,0,10)
+# 100.00% ▕████████████████████████████████████████████████████████▎dep (0,0,0,4)
+# 100.00% ▕████████████████████████████████████████████████████████▎OTHER JOBS (0,0,0,2)
 ```
 
 ### Compatibility with Pipelines.jl
@@ -388,4 +382,27 @@ submit!(program_job)
 # get the returned result
 result(program_job)
 # (true, Dict("OUT" => "out"))
+```
+
+### Backup (deprecated)
+
+Set backup file:
+
+```julia
+set_scheduler_backup("/path/to/backup/file")
+```
+> JobSchedulers writes to the backup file at exit.
+> If the file exists, scheduler settings and job queue will be recovered from it automatically.
+> Recovered jobs are just for query, not run-able.
+
+Stop backup and `delete_old` backup:
+
+```julia
+set_scheduler_backup(delete_old=true)
+```
+
+Backup immediately:
+
+```julia
+backup()
 ```

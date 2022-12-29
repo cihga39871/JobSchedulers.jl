@@ -1,16 +1,20 @@
 name = "JobSchedulers"
 uuid = "eeff360b-c02d-44d3-ab26-4013c616a17e"
 authors = ["Jiacheng Chuan <jiacheng_chuan@outlook.com>"]
-version = "0.7.3"
+version = "0.7.4"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Pipelines = "ef544631-5c6f-4e9b-994c-12e7a4cd724c"
 PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
+Terming = "5a1048b7-9ca6-4e8a-8e2e-1f932e78ac4e"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
@@ -20,4 +24,6 @@ OrderedCollections = "1"
 Pipelines = "^0.9"
 PrettyTables = "0.12, 2"
 Reexport = "^1"
+Term = "^1"
+Terming = "^0.2.6"
 julia = "1"

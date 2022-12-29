@@ -46,6 +46,11 @@ export set_scheduler_backup, backup
 include("compat_pipelines.jl")
 export close_in_future
 
+
+include("progress_computing.jl")
+include("progress_view.jl")
+export queue_progress
+
 local SCHEDULER_TASK
 
 
