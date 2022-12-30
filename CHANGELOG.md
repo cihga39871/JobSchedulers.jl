@@ -1,3 +1,7 @@
+v0.7.6
+
+- Fix: if original stdout is a file, not contaminating stdout using `wait_queue(show_progress = true)`.
+
 v0.7.5
 
 - Change: remove extra blank lines after `wait_queue(show_progress = true)`.

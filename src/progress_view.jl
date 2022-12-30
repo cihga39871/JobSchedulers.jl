@@ -7,39 +7,58 @@ Return ::String for progress bar whose char length is `width`.
 
 - `width`: should be > 3. If <= 10, percentage will not show. If > 10, percentage will show.
 """
-function progress_bar(percent::Float64, width::Int = 20)
+function progress_bar(percent::Float64, width::Int = 20; is_in_terminal::Bool = true)
     if percent > 1.0
         percent = 1.0
     end
     if percent < 0.0
         percent = 0.0
     end
-    if width < 3
-        width = 3
-        w = 1
-    elseif width <= 10
-        w = width - 2
-    else
-        w = width - 10  # width of block ()
-    end
     if isnan(percent)
         percent = 1.0
     end
+
+    if is_in_terminal
+        if width < 3
+            width = 3
+            w = 1
+        elseif width <= 10
+            w = width - 2
+        else
+            w = width - 10  # width of blocks
+        end
+    else
+        width = 39871
+        w = 20
+    end
+
     block_w = w * percent
     block_num = floor(Int, block_w)
     block_last_i = round(Int, (block_w - block_num) * 8)
     if block_last_i == 0 || block_last_i == 8
         empty_num = w - block_num
-        bar = BAR_LEFT * (@green BLOCK ^ block_num) * (" " ^ empty_num * BAR_RIGHT)
+        if is_in_terminal
+            bar = BAR_LEFT * (@green BLOCK ^ block_num) * (" " ^ empty_num * BAR_RIGHT)
+        else
+            bar = BAR_LEFT * (BLOCK ^ block_num) * (" " ^ empty_num * BAR_RIGHT)
+        end
     else
         empty_num = w - block_num - 1
         block_last = BLOCKS[block_last_i]
-        bar = BAR_LEFT * (@green BLOCK ^ block_num * block_last) * (" " ^ empty_num * BAR_RIGHT)
+        if is_in_terminal
+            bar = BAR_LEFT * (@green BLOCK ^ block_num * block_last) * (" " ^ empty_num * BAR_RIGHT)
+        else
+            bar = BAR_LEFT * (BLOCK ^ block_num * block_last) * (" " ^ empty_num * BAR_RIGHT)
+        end
     end
     if width <= 10
         return bar
     else
-        percent_hint = @green @sprintf("%6.2f%% ", 100 * percent)
+        if is_in_terminal
+            percent_hint = @green @sprintf("%6.2f%% ", 100 * percent)
+        else
+            percent_hint = @sprintf("%6.2f%% ", 100 * percent)
+        end
         return percent_hint * bar 
     end
 end
@@ -56,6 +75,15 @@ end
 - `loop`: if false, only show the current progress and exit. 
 """
 function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
+
+    is_in_terminal = Pipelines.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
+    if !is_in_terminal
+        # Not in terminal == stdout is a file
+        # We do not want to contaminate stdout with non-readable chars
+        normal_print_queue_progress()
+        return
+    end
+
     now_str = Dates.format(now(),DateFormat("yyyymmdd_HHMMSS")) * "_$(round(Int, rand()*10000))"
     
     stdout_tmp_file = joinpath(homedir(), "julia_$(now_str).out")
@@ -87,7 +115,16 @@ end
 function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
     group_seperator = r": *", wait_second_for_new_jobs::Int = 1, loop::Bool = true)
 
-    progress_loop = true
+    is_in_terminal = Pipelines.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
+    if !is_in_terminal
+        # Not in terminal == stdout is a file
+        # We do not want to contaminate stdout with non-readable chars
+        normal_print_queue_progress()
+        return
+    end
+
+    is_interactive = isinteractive() && Base.stdin isa Base.TTY
+
     old_stdout = Base.stdout
     old_stderr = Base.stderr
     # old_stdlog = global_logger()
@@ -104,12 +141,10 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
     groups_shown = JobGroup[]
 
     try
-        # event = nothing
-        
         h_old, w_old = 0, 0
         
         term_init = true
-        while progress_loop
+        while true
 
             if Base.stdout isa Base.TTY
                 old_stdout = Base.stdout
@@ -130,26 +165,6 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
             Base.flush(stderr_tmp)
             # Base.flush(stdlog_tmp.stream)
 
-            # handle keyboard event
-            # if exit_with_key && Base.stdin isa Base.TTY
-            #     if event == Terming.KeyPressedEvent(Terming.ESC) || event == Terming.KeyPressedEvent('x') || event == Terming.KeyPressedEvent('q')
-            #         progress_loop = false
-            #         # T.alt_screen(false)
-            #     else
-            #         sequence = T.read_stream()
-            #         event = Terming.parse_sequence(sequence)
-            #     end
-            # end
-
-            # handle auto exit
-            if length(queue()) == 0
-                sleep(wait_second_for_new_jobs)
-                if length(queue()) == 0
-                    progress_loop = false
-                    # T.alt_screen(false)
-                end
-            end
-
             queue_update = queue_summary(;group_seperator = group_seperator)
 
             h, w = T.displaysize()
@@ -165,27 +180,25 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
                 if term_init
                     init_term(h)
                     term_init = false
-                else
-                    empty!(groups_shown)
                 end
-                T.clear()
-                
-                row = view_update_resources(h, w; row = 1)
-                row = view_update_job_group_title(h, w; row = row)
-                row = view_update_job_group(h, w; row = row, job_group = ALL_JOB_GROUP, highlight = true)
+                row = view_update(h, w; row = 1, groups_shown = groups_shown, is_in_terminal = is_in_terminal, is_interactive = is_interactive)
+            end
 
-                # view_update: specific job groups
-                for job_group in values(JOB_GROUPS)
-                    job_group.total < 2 && continue
-                    if row >= h
-                        break
-                    end
-                    row = view_update_job_group(h, w; row = row, job_group = job_group)
-                    push!(groups_shown, job_group)
+            # # handle keyboard event
+            # if is_interactive
+            #     event = handle_keyboard_event()
+            #     if event === :quit
+            #         break
+            #     end
+            # end
+
+            # handle auto exit
+            if length(queue()) == 0
+                sleep(wait_second_for_new_jobs)
+                if length(queue()) == 0
+                    break
+                    # T.alt_screen(false)
                 end
-                compute_other_job_group!(groups_shown)
-
-                row = view_update_job_group(h, w; row = row, job_group = OTHER_JOB_GROUP, highlight = true)
             end
 
             if !loop
@@ -200,8 +213,10 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
         h, w = T.displaysize()
         reset_term(row, h)
 
+
         old_stdout != Base.stdout && redirect_stdout(old_stdout)
         old_stderr != Base.stderr && redirect_stderr(old_stderr)
+
         # old_stdlog != global_logger() && global_logger(old_stdlog)
 
         # if !(stdlog_tmp.stream isa IOBuffer)
@@ -274,16 +289,22 @@ function style_line(line::String, log_style::Symbol)
     return line, log_style
 end
 
-function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu = JobSchedulers.SCHEDULER_MAX_CPU, max_mem = JobSchedulers.SCHEDULER_MAX_MEM)
-    title = @bold("CURRENT RESOURCES:")
+function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu::Int = JobSchedulers.SCHEDULER_MAX_CPU, max_mem::Int = JobSchedulers.SCHEDULER_MAX_MEM, is_in_terminal::Bool = true)
+    
+    if h - row < 5
+        # no render: height not enough
+        return row
+    end
+
+    title = is_in_terminal ? @bold("CURRENT RESOURCES:") : "CURRENT RESOURCES:"
 
     cpu_text = ("    CPU: ")
     cpu_val = "$CPU_RUNNING/$max_cpu"
     cpu_width = 9 + length(cpu_val)
     if CPU_RUNNING < max_cpu
-        cpu_text *= @green(cpu_val)
+        cpu_text *= is_in_terminal ? @green(cpu_val) : cpu_val
     else
-        cpu_text *= @yellow(cpu_val)
+        cpu_text *= is_in_terminal ? @yellow(cpu_val) : cpu_val
     end
 
 
@@ -291,18 +312,13 @@ function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu = JobSchedu
     mem_percent = @sprintf("%3.2f%%", MEM_RUNNING / max_mem * 100)
     mem_width = 9 + length(mem_percent)
     if MEM_RUNNING < max_mem
-        mem_text *= @green("$mem_percent")
+        mem_text *= is_in_terminal ? @green(mem_percent) : mem_percent
     else
-        mem_text *= @yellow("$mem_percent")
+        mem_text *= is_in_terminal ? @yellow(mem_percent) : mem_percent
     end
 
     # render
-    T.cmove(row, 1)
-
-    if h - row < 5
-        # no render: height not enough
-        return row
-    end
+    is_in_terminal && T.cmove(row, 1)
 
     T.println(title)
     row += 1
@@ -318,15 +334,24 @@ function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu = JobSchedu
     return row
 end
 
-function view_update_job_group_title(h::Int, w::Int; row::Int = 2)
-    title = @bold("JOB PROGRESS:")
-    description = "[" * @green("running") * "," *
-                        @red("failed") * "," *
-                        @yellow("cancelled") * "," *
-                        @bold("total") * "]"
+function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_terminal::Bool = true)
+    
+    if is_in_terminal
+        title = @bold("JOB PROGRESS:")
+        description = "[" * @green("running") * "," *
+                            @red("failed") * "," *
+                            @yellow("cancelled") * "," *
+                            @bold("total") * "]"
+    else
+        title = "JOB PROGRESS:"
+        description = "[" * "running" * "," *
+                            "failed" * "," *
+                            "cancelled" * "," *
+                            "total" * "]"
+    end
     width_description = 36 # 4 space + 32 char 
 
-    T.cmove(row, 1)
+    is_in_terminal && T.cmove(row, 1)
 
     if h - row > 0
         T.println(title)
@@ -341,14 +366,14 @@ function view_update_job_group_title(h::Int, w::Int; row::Int = 2)
     return row
 end
 
-function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group = ALL_JOB_GROUP, highlight::Bool = false)
+function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true)
     width_progress = w ÷ 4
     if width_progress < 12
         width_progress = max(w ÷ 5, 5)
     end
 
     percent = (job_group.total - job_group.queuing - job_group.running) / job_group.total
-    text_progress = progress_bar(percent, width_progress)
+    text_progress = progress_bar(percent, width_progress; is_in_terminal = is_in_terminal)
     
     group_name = job_group.group_name
     width_group_name = length(group_name) + 1
@@ -370,14 +395,23 @@ function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group = ALL_JOB
     total = string(job_group.total)
 
     width_counts = length(running) + length(failed) + length(cancelled) + length(total) + 6
-    text_counts = "[" * @green(running) * "," *
-                        @red(failed) * "," *
-                        @yellow(cancelled) * "," *
-                        @bold(total) * "]"
+    if is_in_terminal
+        text_counts = "[" * @green(running) * "," *
+                            @red(failed) * "," *
+                            @yellow(cancelled) * "," *
+                            @bold(total) * "]"
+    else
+        text_counts = "[" * running * "," *
+                            failed * "," *
+                            cancelled * "," *
+                            total * "]"
+    end
     
     # render progress bar line
-    T.clear_line(row)
-    T.cmove(row, 1)
+    if is_in_terminal
+        T.clear_line(row)
+        T.cmove(row, 1)
+    end
     T.print(text_progress)
     col_left = w - width_progress
 
@@ -408,18 +442,21 @@ function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group = ALL_JOB
     end
 
     if show_group
-        if highlight
+        if !is_in_terminal
+            T.print(group_name)
+        elseif highlight
             T.print(@bold @cyan group_name)
         else
             T.print(@bold group_name)
         end
     end
     if show_job && length(job_name) > 0
-        T.print(@dim job_name)
+        T.print(is_in_terminal ? @dim(job_name) : job_name)
     end
     if show_counts
         T.print(" " * text_counts)
     end
+    T.println()
     row += 1
     return row
 end
@@ -447,7 +484,10 @@ function init_term(h::Int)
     # catch
     # end
     # T.alt_screen(true)
-    cshow(false)
+    try
+        T.cshow(false)
+    catch
+    end
     print(Pipelines.stdout_origin, "\n" ^ h)
     # T.clear()
 end
@@ -469,13 +509,77 @@ function reset_term(row_from, row_to)
     # catch
     # end
     # T.alt_screen(false)
-    T.cshow(true)
+    try
+        T.cshow(true)
+    catch
+    end
 end
 
-# function progress_display(CPU_RUNNING::Int, MEM_RUNNING::Int)
-#     init_term()
-#     view_update_resources(CPU_RUNNING, MEM_RUNNING)
-#     handle_event()
-#     reset_term()
-#     return
+# function handle_keyboard_event()
+#     bb = bytesavailable(Base.stdin)
+#     bb == 0 && return :nothing
+#     data = read(stdin, bb)
+#     for c in data
+#         if c == 0x71 || c == 0x78 # q or x
+#             return :quit
+#         end
+#     end
+#     return :nothing
 # end
+
+function normal_print_queue_progress(; group_seperator = r": *", wait_all_jobs = true)
+    if wait_all_jobs
+        wait_queue(show_progress = false)
+    end
+    queue_summary(;group_seperator = group_seperator)
+    println()
+    view_update(39871, 120; row = 1, groups_shown = JobGroup[], is_in_terminal = false, is_interactive = false)
+    println()
+end
+
+function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true)
+    empty!(groups_shown)
+
+    is_in_terminal && T.clear()
+
+    row = view_update_resources(h, w; row = row, is_in_terminal = is_in_terminal)
+
+    if ALL_JOB_GROUP.total == 0
+        if is_in_terminal
+            T.cmove(row, 1)
+            T.println(@bold @yellow "NO JOB SUBMITTED.")
+        else
+            T.println("NO JOB SUBMITTED.")
+        end
+        row += 1
+        @goto ret
+    end
+
+    row = view_update_job_group_title(h, w; row = row, is_in_terminal = is_in_terminal)
+
+    row = view_update_job_group(h, w; row = row, job_group = ALL_JOB_GROUP, highlight = true, is_in_terminal = is_in_terminal)
+
+    # specific job groups
+    for job_group in values(JOB_GROUPS)
+        job_group.total < 2 && continue
+        if row >= h
+            break
+        end
+        row = view_update_job_group(h, w; row = row, job_group = job_group, is_in_terminal = is_in_terminal)
+        push!(groups_shown, job_group)
+    end
+
+    compute_other_job_group!(groups_shown)
+
+    if OTHER_JOB_GROUP.total > 0
+        row = view_update_job_group(h, w; row = row, job_group = OTHER_JOB_GROUP, highlight = true,     is_in_terminal = is_in_terminal)
+    end
+
+    @label ret
+    # if is_interactive
+    #     T.cmove_line_last()
+    #     T.cmove_left()
+    #     T.print("Press q or x to quit.")
+    # end
+    return row
+end

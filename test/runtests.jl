@@ -55,12 +55,12 @@ cancel!(job2)
 
 
 ### dependency
-sleep(1)
+# sleep(1)
 dep1 = Job(@task(begin
     sleep(2)
     println("dep1 ok")
 end), name="dep: 1", priority = 20)
-sleep(1)
+# sleep(1)
 
 dep2 = Job(@task(begin
     sleep(3)
