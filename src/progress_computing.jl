@@ -109,17 +109,14 @@ function add_job_to_group!(g::JobGroup, j::Job)
     end
 end
 
-function compute_other_job_group!()
+function compute_other_job_group!(groups_shown::Vector{JobGroup})
     OTHER_JOB_GROUP.total = ALL_JOB_GROUP.total
     OTHER_JOB_GROUP.queuing = ALL_JOB_GROUP.queuing
     OTHER_JOB_GROUP.running = ALL_JOB_GROUP.running
     OTHER_JOB_GROUP.done = ALL_JOB_GROUP.done
     OTHER_JOB_GROUP.failed = ALL_JOB_GROUP.failed
     OTHER_JOB_GROUP.cancelled = ALL_JOB_GROUP.cancelled
-    for g in values(JOB_GROUPS)
-        if g.total == 1
-            continue
-        end
+    for g in groups_shown
         OTHER_JOB_GROUP.total -= g.total
         OTHER_JOB_GROUP.queuing -= g.queuing
         OTHER_JOB_GROUP.running -= g.running
@@ -139,13 +136,15 @@ function queue_summary(;group_seperator = r": *")
         for job_queue in [JobSchedulers.JOB_QUEUE_OK, JobSchedulers.JOB_QUEUE]
             for j in job_queue
                 group_name = get_group(j, group_seperator)
-                group = get(JOB_GROUPS, group_name, nothing)
-                if group === nothing
-                    g = JobGroup(group_name)
-                    JOB_GROUPS[group_name] = g
-                    add_job_to_group!(g, j)
-                else
-                    add_job_to_group!(group, j)
+                if group_name != ""
+                    group = get(JOB_GROUPS, group_name, nothing)
+                    if group === nothing
+                        g = JobGroup(group_name)
+                        JOB_GROUPS[group_name] = g
+                        add_job_to_group!(g, j)
+                    else
+                        add_job_to_group!(group, j)
+                    end
                 end
                 add_job_to_group!(ALL_JOB_GROUP, j)
 
@@ -155,21 +154,18 @@ function queue_summary(;group_seperator = r": *")
                 end
             end
         end
-        compute_other_job_group!()
-
-        new_fingerprint = fingerprint(ALL_JOB_GROUP)
-        if new_fingerprint == ALL_JOB_GROUP_FINGERPRINT
-            queue_update = false
-        else
-            queue_update = true
-            global ALL_JOB_GROUP_FINGERPRINT = new_fingerprint
-        end
-
-
     catch
         rethrow()
     finally
         release_lock()
+    end
+
+    new_fingerprint = fingerprint(ALL_JOB_GROUP)
+    if new_fingerprint == ALL_JOB_GROUP_FINGERPRINT
+        queue_update = false
+    else
+        queue_update = true
+        global ALL_JOB_GROUP_FINGERPRINT = new_fingerprint
     end
     return queue_update
 end

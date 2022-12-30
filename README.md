@@ -10,11 +10,13 @@ We may find different tasks or programs use different CPU and memory. Some can r
 
 - Job and task scheduler.
 - Local workload manager.
-- Fancy progress meter in terminal.
 - Support CPU, memory, run time management.
 - Support running a job at specific time, or a period after creating (schedule).
 - Support deferring a job until specific jobs reach specific states (dependency).
 - Support automatic backup and reload.
+- Fancy progress meter in terminal.
+
+  ![progress meter](assets/progress_meter.png)
 
 ## Future development
 
@@ -281,17 +283,8 @@ wait_queue()
 # no output
 
 wait_queue(show_progress = true)
-# CURRENT RESOURCES:
-#     CPU: 0/28    MEM: 0.00%
-# JOB PROGRESS:
-#    (running,failed,cancelled,total)
-# 100.00% ▕████████████████████████████████████████████████████████▎ALL JOBS (0,0,2,20)
-# 100.00% ▕████████████████████████████████████████████████████████▎high_priority (0,0,0,2)
-# 100.00% ▕████████████████████████████████████████████████████████▎to_cancel (0,0,2,2)
-# 100.00% ▕████████████████████████████████████████████████████████▎batch (0,0,0,10)
-# 100.00% ▕████████████████████████████████████████████████████████▎dep (0,0,0,4)
-# 100.00% ▕████████████████████████████████████████████████████████▎OTHER JOBS (0,0,0,2)
 ```
+![progress meter](assets/progress_meter.png)
 
 ### Compatibility with Pipelines.jl
 
@@ -384,7 +377,7 @@ result(program_job)
 # (true, Dict("OUT" => "out"))
 ```
 
-### Backup (deprecated)
+### Backup
 
 Set backup file:
 

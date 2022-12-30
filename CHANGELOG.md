@@ -1,3 +1,13 @@
+v0.7.5
+
+- Change: remove extra blank lines after `wait_queue(show_progress = true)`.
+
+- Fix a benign error (task switch error for `sleep()`).
+
+v0.7.4
+
+- Feature: Progress meter: `wait_queue(show_progress = true)`.
+
 v0.7.3
 
 - Compat: Pipelines v0.9: significant improvement on decision of re-run: considering file change.

@@ -284,7 +284,7 @@ function scheduler()
         try # if someone sends ctrl + C to sleep, scheduler wont stop.
             sleep(SCHEDULER_UPDATE_SECOND)
         catch ex
-            @warn "JobScheduler: sleep() failed but handelled." exception=ex
+            @warn "JobScheduler.scheduler(): interruption signal received but suppressed."
         end
     end
     @debug "scheduler() end"

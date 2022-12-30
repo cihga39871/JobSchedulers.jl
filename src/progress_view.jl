@@ -47,11 +47,13 @@ end
 """
     queue_progress(;remove_tmp_files::Bool = true, kwargs...)
     queue_progress(stdout_tmp::IO, stderr_tmp::IO;
-    group_seperator = r": *", wait_second_for_new_jobs::Int = 1)
+    group_seperator = r": *", wait_second_for_new_jobs::Int = 1, loop::Bool = true)
 
 - `group_seperator`: delim to split `(job::Job).name` to group and specific job names.
 
 - `wait_second_for_new_jobs`: if `auto_exit`, and all jobs are PAST, not quiting `queue_progress` immediately but wait for a period. If new jobs are submitted, not quiting `queue_progress`.
+
+- `loop`: if false, only show the current progress and exit. 
 """
 function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
     now_str = Dates.format(now(),DateFormat("yyyymmdd_HHMMSS")) * "_$(round(Int, rand()*10000))"
@@ -83,7 +85,7 @@ function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
 end
 
 function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
-    group_seperator = r": *", wait_second_for_new_jobs::Int = 1)
+    group_seperator = r": *", wait_second_for_new_jobs::Int = 1, loop::Bool = true)
 
     progress_loop = true
     old_stdout = Base.stdout
@@ -97,12 +99,16 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
     # if !exit_with_key
     #     auto_exit = true
     # end
+    row = 1 # the current row of cursor
+
+    groups_shown = JobGroup[]
 
     try
-        event = nothing
-        init_term()
+        # event = nothing
+        
         h_old, w_old = 0, 0
-
+        
+        term_init = true
         while progress_loop
 
             if Base.stdout isa Base.TTY
@@ -154,20 +160,36 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
                 display_size_update = true
                 h_old, w_old = h, w
             end
-
+            
             if queue_update || display_size_update
+                if term_init
+                    init_term(h)
+                    term_init = false
+                else
+                    empty!(groups_shown)
+                end
                 T.clear()
+                
                 row = view_update_resources(h, w; row = 1)
                 row = view_update_job_group_title(h, w; row = row)
                 row = view_update_job_group(h, w; row = row, job_group = ALL_JOB_GROUP, highlight = true)
-                while row < h
-                    for job_group in values(JOB_GROUPS)
-                        job_group.total < 2 && continue
-                        row = view_update_job_group(h, w; row = row, job_group = job_group)
+
+                # view_update: specific job groups
+                for job_group in values(JOB_GROUPS)
+                    job_group.total < 2 && continue
+                    if row >= h
+                        break
                     end
-                    break
+                    row = view_update_job_group(h, w; row = row, job_group = job_group)
+                    push!(groups_shown, job_group)
                 end
+                compute_other_job_group!(groups_shown)
+
                 row = view_update_job_group(h, w; row = row, job_group = OTHER_JOB_GROUP, highlight = true)
+            end
+
+            if !loop
+                break
             end
 
             sleep(0.1)
@@ -175,44 +197,36 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
     catch
         rethrow()
     finally
-        reset_term()
+        h, w = T.displaysize()
+        reset_term(row, h)
 
         old_stdout != Base.stdout && redirect_stdout(old_stdout)
         old_stderr != Base.stderr && redirect_stderr(old_stderr)
         # old_stdlog != global_logger() && global_logger(old_stdlog)
-        
 
         # if !(stdlog_tmp.stream isa IOBuffer)
         #     println(Pipelines.stderr_origin, @cyan @bold "Logs   saved to $(stdlog_tmp.stream)")
         # end
         # println(Pipelines.stdout_origin, @yellow @bold "Stdout saved to $stdout_tmp")
         # println(Pipelines.stderr_origin, @red @bold "Stderr saved to $stderr_tmp")
+        isopen(stdout_tmp) && Base.flush(stdout_tmp)
+        isopen(stderr_tmp) && Base.flush(stderr_tmp)
+        # isopen(stdlog_tmp.stream) && Base.flush(stdlog_tmp.stream)
+        print_rest_lines(Pipelines.stdout_origin, stdout_tmp, start_pos_stdout_tmp)
+        # print_rest_lines(Pipelines.stderr_origin, stdlog_tmp.stream, start_pos_stdlog_tmp)
+        print_rest_lines(Pipelines.stderr_origin, stderr_tmp, start_pos_stderr_tmp)
     end
-    isopen(stdout_tmp) && Base.flush(stdout_tmp)
-    isopen(stderr_tmp) && Base.flush(stderr_tmp)
-    # isopen(stdlog_tmp.stream) && Base.flush(stdlog_tmp.stream)
-    
-    print_rest_lines(Pipelines.stdout_origin, stdout_tmp, start_pos_stdout_tmp)
-    # print_rest_lines(Pipelines.stderr_origin, stdlog_tmp.stream, start_pos_stdlog_tmp)
-    print_rest_lines(Pipelines.stderr_origin, stderr_tmp, start_pos_stderr_tmp)
 end
 
 function print_rest_lines(io_to::IO, io_from::IO, io_from_position::Int; with_log_style::Bool = true)
-    lock(io_from.lock)
-    try
-        seek(io_from, io_from_position)
-        log_style = :nothing
-        while !eof(io_from)
-            line = readline(io_from)
-            if with_log_style
-                line, log_style = style_line(line, log_style)
-            end
-            println(io_to, line)
+    seek(io_from, io_from_position)
+    log_style = :nothing
+    while !eof(io_from)
+        line = readline(io_from)
+        if with_log_style
+            line, log_style = style_line(line, log_style)
         end
-    catch
-        rethrow()
-    finally
-        unlock(io_from)
+        println(io_to, line)
     end
 end
 
@@ -221,7 +235,7 @@ end
 """
 function style_line(line::String, log_style::Symbol)
     if startswith(line, "ERROR:")
-        line = replace(line, r"^ERROR" => @red(@bold "ERROR:"))
+        line = replace(line, r"^ERROR\:" => @red(@bold "ERROR:"))
         log_style = :nothing
     elseif startswith(line, r" *@ ")   # traceback info
         line = @dim(line)
@@ -306,11 +320,11 @@ end
 
 function view_update_job_group_title(h::Int, w::Int; row::Int = 2)
     title = @bold("JOB PROGRESS:")
-    description = "(" * @green("running") * "," *
+    description = "[" * @green("running") * "," *
                         @red("failed") * "," *
                         @yellow("cancelled") * "," *
-                        @bold("total") * ")"
-    width_description = 32
+                        @bold("total") * "]"
+    width_description = 36 # 4 space + 32 char 
 
     T.cmove(row, 1)
 
@@ -319,8 +333,8 @@ function view_update_job_group_title(h::Int, w::Int; row::Int = 2)
         row += 1
     end
 
-    if h - row > 0 && w > width_description + 4
-        T.print("   ")
+    if h - row > 0 && w > width_description
+        T.print("    ")
         T.println(description)
         row += 1
     end
@@ -356,12 +370,13 @@ function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group = ALL_JOB
     total = string(job_group.total)
 
     width_counts = length(running) + length(failed) + length(cancelled) + length(total) + 6
-    text_counts = "(" * @green(running) * "," *
+    text_counts = "[" * @green(running) * "," *
                         @red(failed) * "," *
                         @yellow(cancelled) * "," *
-                        @bold(total) * ")"
+                        @bold(total) * "]"
     
     # render progress bar line
+    T.clear_line(row)
     T.cmove(row, 1)
     T.print(text_progress)
     col_left = w - width_progress
@@ -426,19 +441,28 @@ end
 # end
 
 
-function init_term()
+function init_term(h::Int)
     # try
     #     T.raw!(true)
     # catch
     # end
     # T.alt_screen(true)
     cshow(false)
+    print(Pipelines.stdout_origin, "\n" ^ h)
     # T.clear()
 end
 
-function reset_term()
-    T.cmove_line_last()
-    T.cmove_down()
+"""
+    reset_term(row_from, row_to)
+
+Empty lines from `row_from` to `row_to`. Set cursor to `row_from`. Show cursor.
+"""
+function reset_term(row_from, row_to)
+    for r in row_from:row_to
+        T.clear_line(r)
+    end
+    T.cmove(row_from, 1)
+    T.println()
     # T.println(@dim "\nExit progress interface.")
     # try
     #     T.raw!(false)

@@ -237,16 +237,6 @@ Wait for all jobs in `queue()` become finished.
 
 See also: [`queue_progress`](@ref).
 """
-function wait_queue()
-    while length(JOB_QUEUE) > 0 && scheduler_status(verbose=false) === RUNNING
-        sleep(SCHEDULER_UPDATE_SECOND)
-    end
-    if scheduler_status(verbose=false) != RUNNING
-        @error "Scheduler was not running. Jump out from wait_queue()"
-    end
-    nothing
-end
-
 function wait_queue(;show_progress::Bool = false)
     if show_progress
         queue_progress()
