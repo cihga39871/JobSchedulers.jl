@@ -1,0 +1,66 @@
+┌ Info: 2023-01-04 11:19:45 Started: prog
+│   command_template = `prog`
+│   run_id = UUID("39f4d9ab-046a-5184-a120-53a1a937fe13")
+│   inputs =
+│    Dict{String, Any} with 4 entries:
+│      "INPUT_SEQ"  => "/path/3.xxx/SN005-…
+│      "OTHER_ARGS" => ``
+│      "DB"         => "/path/Reference/prog-pluspfp-db-i…
+│      "THREADS"    => 10
+│   outputs =
+│    Dict{String, Any} with 4 entries:
+│      "UNCLASSIFIED_OUT" => "/path/3.1.yyy
+│      "REPORT"           => "/path/3.1.yyy
+│      "OUTPUT"           => "/path/3.1.yyy
+└      "CLASSIFIED_OUT"   => "/path/3.1.yyy
+8103 sequences (10.58 Mbp) processed in 0.888s (547.4 Kseq/m, 714.99 Mbp/m).
+  1876 sequences classified (23.15%)
+  6227 sequences unclassified (76.85%)
+┌ Info: 2023-01-04 11:19:47 Finished: prog
+│   command_running = `prog`
+│   run_id = UUID("1742c504-4eef-5b06-8c1a-dcab689c6d1a")
+│   inputs =
+│    Dict{String, Any} with 4 entries:
+│      "INPUT_SEQ"  => "/path/3.xxx/SN005-…
+│      "OTHER_ARGS" => ``
+│      "DB"         => "/path/Reference/prog-pluspfp-db-i…
+│      "THREADS"    => 10
+│   outputs =
+│    Dict{String, Any} with 4 entries:
+│      "UNCLASSIFIED_OUT" => "/path/3.1.yyy
+│      "REPORT"           => "/path/3.1.yyy
+│      "OUTPUT"           => "/path/3.1.yyy
+└      "CLASSIFIED_OUT"   => "/path/3.1.yyy
+┌ Info: 2023-01-04 11:19:47 Started: prog
+│   command_template = `prog`
+│   run_id = UUID("1033dc81-c747-5987-8b43-ade755fc1eb7")
+│   inputs =
+│    Dict{String, Any} with 4 entries:
+│      "INPUT_SEQ"  => "/path/3.xxx/SN005-…
+│      "OTHER_ARGS" => ``
+│      "DB"         => "/path/Reference/prog-pluspfp-db-i…
+│      "THREADS"    => 10
+│   outputs =
+│    Dict{String, Any} with 4 entries:
+│      "UNCLASSIFIED_OUT" => "/path/3.1.yyy
+│      "REPORT"           => "/path/3.1.yyy
+│      "OUTPUT"           => "/path/3.1.yyy
+└      "CLASSIFIED_OUT"   => "/path/3.1.yyy
+12766 sequences (17.22 Mbp) processed in 1.243s (616.5 Kseq/m, 831.43 Mbp/m).
+  7363 sequences classified (57.68%)
+  5403 sequences unclassified (42.32%)
+┌ Info: 2023-01-04 11:19:50 Finished: prog
+│   command_running = `prog`
+│   run_id = UUID("3b196da2-0ba7-5814-9cd3-fe85aeba3b23")
+│   inputs =
+│    Dict{String, Any} with 4 entries:
+│      "INPUT_SEQ"  => "/path/3.xxx/SN005-…
+│      "OTHER_ARGS" => ``
+│      "DB"         => "/path/Reference/prog-pluspfp-db-i…
+│      "THREADS"    => 10
+│   outputs =
+│    Dict{String, Any} with 4 entries:
+│      "UNCLASSIFIED_OUT" => "/path/3.1.yyy
+│      "REPORT"           => "/path/3.1.yyy
+│      "OUTPUT"           => "/path/3.1.yyy
+└      "CLASSIFIED_OUT"   => "/path/3.1.yyy

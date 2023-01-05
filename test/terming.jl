@@ -8,6 +8,10 @@ scheduler_start()
 
 =#
 
+io_from = open(joinpath(@__DIR__, "log.log"), "r")
+@test_nowarn JobSchedulers.print_rest_lines(Base.stdout, io_from, 0)
+close(io_from)
+
 println(stdout, JobSchedulers.progress_bar(0.0, 3))
 println(stdout, JobSchedulers.progress_bar(0.4, 3))
 println(stdout, JobSchedulers.progress_bar(1.0, 3))

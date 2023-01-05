@@ -1,3 +1,9 @@
+# Changelog
+
+v0.7.7
+
+- Fix: `style_line()`: index error for special UTF characters.
+
 v0.7.6
 
 - Fix: if original stdout is a file, not contaminating stdout using `wait_queue(show_progress = true)`.

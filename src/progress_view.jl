@@ -249,25 +249,31 @@ end
     styled_line, log_style_of_this_line = style_line(line::String, log_style_of_last_line::Symbol)
 """
 function style_line(line::String, log_style::Symbol)
-    if startswith(line, "ERROR:")
+    if length(line) <= 1
+        return line, log_style
+    elseif startswith(line, "ERROR:")
         line = replace(line, r"^ERROR\:" => @red(@bold "ERROR:"))
         log_style = :nothing
     elseif startswith(line, r" *@ ")   # traceback info
         line = @dim(line)
         log_style = :nothing
-    elseif startswith(line, r"^[\[┌] Info:")
+    elseif startswith(line, r"^[\[┌] Info: ")
         # Info: Debug: Warning: Error:
         # cyan  blue   yellow   red
-        line = @bold(@cyan line[1:7]) * line[8:end]
+        a = nextind(line, 1, 1) - 2  # first_utf_char_additional_length
+        line = @bold(@cyan line[1:7 + a]) * line[8 + a:end]
         log_style = :info
-    elseif startswith(line, r"^[\[┌] Debug:")
-        line = @bold(@blue line[1:8]) * line[9:end]
+    elseif startswith(line, r"^[\[┌] Debug: ")
+        a = nextind(line, 1, 1) - 2  # first_utf_char_additional_length
+        line = @bold(@blue line[1:8 + a]) * line[9 + a:end]
         log_style = :debug
-    elseif startswith(line, r"^[\[┌] Warning:")
-        line = @bold(@yellow line[1:10]) * line[11:end]
+    elseif startswith(line, r"^[\[┌] Warning: ")
+        a = nextind(line, 1, 1) - 2  # first_utf_char_additional_length
+        line = @bold(@yellow line[1:10 + a]) * line[11 + a:end]
         log_style = :warning
-        startswith(line, r"^[\[┌] Error:")
-        line = @bold(@red line[1:8]) * line[9:end]
+    elseif startswith(line, r"^[\[┌] Error: ")
+        a = nextind(line, 1, 1) - 2  # first_utf_char_additional_length
+        line = @bold(@red line[1:8 + a]) * line[9 + a:end]
         log_style = :error
     elseif startswith(line, r"^[│└] ")
         line_1 = line[1:1]
@@ -279,11 +285,14 @@ function style_line(line::String, log_style::Symbol)
             @bold(@yellow line_1)
         elseif log_style === :error
             @bold(@red line_1)
+        else
+            line_1
         end
         if line_1 == "└"  # close of log message
             log_style = :nothing
         end
-        line_rest, _ = style_line(line[2:end], :nothing)
+        a = nextind(line, 1, 1) - 2  # first_utf_char_additional_length
+        line_rest, _ = style_line(line[2 + a:end], :nothing)
         line = line_1 * line_rest
     end
     return line, log_style
