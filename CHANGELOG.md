@@ -1,5 +1,9 @@
 # Changelog
 
+v0.7.9
+
+- Fix: `solve_optimized_ncpu()`: devision by 0 if njob == 0.
+
 v0.7.8
 
 - Feature: `solve_optimized_ncpu()`: Find the optimized number of CPU for a job.
