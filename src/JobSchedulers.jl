@@ -11,7 +11,7 @@ using Pipelines
 using OrderedCollections
 
 include("jobs.jl")
-export Job, result
+export Job, result, solve_optimized_ncpu
 
 
 include("thread_utils.jl")
