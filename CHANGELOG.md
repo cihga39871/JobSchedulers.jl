@@ -1,5 +1,9 @@
 # Changelog
 
+v0.7.8
+
+- Feature: `solve_optimized_ncpu()`: Find the optimized number of CPU for a job.
+
 v0.7.7
 
 - Fix: `style_line()`: index error for special UTF characters.
