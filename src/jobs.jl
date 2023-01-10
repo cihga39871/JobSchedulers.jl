@@ -213,9 +213,12 @@ Find the optimized number of CPU for a job.
 - `side_jobs_cpu`: some small jobs that might be run when the job is running, so the job won't use up all of the resources and stop small tasks.
 """
 function solve_optimized_ncpu(default::Int; njob::Int = 1, total_cpu::Int = JobSchedulers.SCHEDULER_MAX_CPU, ncpu_range::UnitRange{Int64} = 1:total_cpu, side_jobs_cpu::Int = 0)
-    mincpu = ncpu_range.start
+    mincpu = max(ncpu_range.start, 1)
     maxcpu = ncpu_range.stop
-    @assert mincpu <= maxcpu <= total_cpu
+    if !(mincpu <= maxcpu <= total_cpu)
+        return max(1, default)
+    end
+
     if default > maxcpu
         default = maxcpu
     elseif default < mincpu
@@ -225,10 +228,12 @@ function solve_optimized_ncpu(default::Int; njob::Int = 1, total_cpu::Int = JobS
     if njob == 1
         n1 = (total_cpu - side_jobs_cpu)
         return min(max(n1, default, mincpu), maxcpu)
-    else
+    elseif njob > 1
         njob_batch = round(Int, total_cpu / default)
         njob_batch = min(njob, njob_batch)
         n1 = (total_cpu - side_jobs_cpu) ÷ njob_batch
         return min(max(n1, mincpu), maxcpu)
+    else
+        return max(1, default)
     end
 end
