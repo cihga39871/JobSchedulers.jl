@@ -125,20 +125,20 @@ set_scheduler(
 
 ### Job Controls
 
-A `Job` is the wrapper of `AbstractCmd` or `Task`:
+A `Job` is the wrapper of `AbstractCmd`, `Function` or `Task`:
 
 ```julia
 command_job = Job(
     `echo command job done`    # AbstractCmd to run
 )
 
-task_job = Job(
-    @task(println("task job done"))  # Task to run
-)
-
 function_job = Job() do  # the function should have no arguments
     println("function job done")
 end
+
+task_job = Job(
+    @task(println("task job done"))  # Task to run
+)
 
 job_with_args = Job(
     @task(begin println("job_with_args done"); "result" end); # Task to run
@@ -301,13 +301,9 @@ solve_optimized_ncpu(default::Int;
 Find the optimized number of CPU for a job.
 
   - `default`: default ncpu of the job.
-  - 
   - `ncpu_range`: the possible ncpu range of the job.
-  - 
   - `njob`: number of the same job.
-  - 
   - `total_cpu`: the total CPU that can be used by JobSchedulers.
-  - 
   - `side_jobs_cpu`: some small jobs that might be run when the job is running, so the job won't use up all of the resources and stop small tasks.
 
 ### Compatibility with Pipelines.jl
