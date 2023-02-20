@@ -583,7 +583,7 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
     # specific job groups
     for job_group in values(JOB_GROUPS)
         job_group.total < 2 && continue
-        if row >= h
+        if row >= h - 1
             break
         end
         row = view_update_job_group(h, w; row = row, job_group = job_group, is_in_terminal = is_in_terminal)
