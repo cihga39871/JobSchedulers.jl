@@ -345,20 +345,26 @@ end
 
 function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_terminal::Bool = true)
     
+    # description_plain = "[$(ALL_JOB_GROUP.running) running, $(ALL_JOB_GROUP.failed) failed + $(ALL_JOB_GROUP.cancelled) cancelled, $(ALL_JOB_GROUP.done) done / $(ALL_JOB_GROUP.total) total]"
+
     if is_in_terminal
         title = @bold("JOB PROGRESS:")
-        description = "[" * @green("running") * "," *
-                            @red("failed") * "," *
-                            @yellow("cancelled") * "," *
-                            @bold("total") * "]"
+        # description = "[" * @green("$(ALL_JOB_GROUP.running) running") * ", " *
+        #                     @red("$(ALL_JOB_GROUP.failed) failed") *
+        #                     @yellow(" + $(ALL_JOB_GROUP.cancelled) cancelled") * ", " * 
+        #                     "$(ALL_JOB_GROUP.done) done / " *
+        #                     @bold("$(ALL_JOB_GROUP.total) total") * "]"
+        description = @dim("[") * @green("running") * @dim(", ") *
+                            @red("failed") *
+                            @yellow("+cancelled") * @dim(", ") * 
+                            "done/" *
+                            @bold("total") * @dim("]")
     else
         title = "JOB PROGRESS:"
-        description = "[" * "running" * "," *
-                            "failed" * "," *
-                            "cancelled" * "," *
-                            "total" * "]"
+        # description = "[$(ALL_JOB_GROUP.running) running, $(ALL_JOB_GROUP.failed) failed + $(ALL_JOB_GROUP.cancelled) cancelled, $(ALL_JOB_GROUP.done) done / $(ALL_JOB_GROUP.total) total]"
+        description = "[running, failed+cancelled, done/total]"
     end
-    width_description = 36 # 4 space + 32 char 
+    width_description = 43  # 4 + length(description_plain)
 
     is_in_terminal && T.cmove(row, 1)
 
@@ -375,7 +381,7 @@ function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_termina
     return row
 end
 
-function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true)
+function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true, group_seperator_at_begining = r": *")
     width_progress = w ÷ 4
     if width_progress < 12
         width_progress = max(w ÷ 5, 5)
@@ -387,13 +393,10 @@ function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup
     group_name = job_group.group_name
     width_group_name = length(group_name) + 1
     
-    if isempty(job_group.job_names)
-        job_name = ""
-    else
-        job_name = replace(job_group.job_names[end], group_name => ""; count = 1)
-        if startswith(job_name, r"[A-Za-z0-9]*")
-            job_name = ": " * job_name
-        end
+    job_name = job_group.job_name
+    if job_name != ""
+        job_name = replace(job_name, group_name => ""; count = 1)
+        job_name = ": " * replace(job_name, group_seperator_at_begining => "", count = 1)
     end
     width_job_name = length(job_name)
 
@@ -401,18 +404,21 @@ function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup
     running = string(job_group.running)
     failed = string(job_group.failed)
     cancelled = string(job_group.cancelled)
+    done = string(job_group.done)
     total = string(job_group.total)
-
-    width_counts = length(running) + length(failed) + length(cancelled) + length(total) + 6
+    
+    width_counts = length(running) + length(failed) + length(cancelled) + length(done) + length(total) + 8
     if is_in_terminal
-        text_counts = "[" * @green(running) * "," *
-                            @red(failed) * "," *
-                            @yellow(cancelled) * "," *
-                            @bold(total) * "]"
+        text_counts = @dim("[") * @green(running) * @dim(", ") *
+                            @red(failed) * 
+                            @yellow("+" * cancelled) * 
+                            @dim(", ") * done * "/"*
+                            @bold(total) * @dim("]")
     else
-        text_counts = "[" * running * "," *
-                            failed * "," *
-                            cancelled * "," *
+        text_counts = "[" * running * ", " *
+                            failed * "+" *
+                            cancelled * ", " * 
+                            done * "/"
                             total * "]"
     end
     
@@ -542,11 +548,17 @@ function normal_print_queue_progress(; group_seperator = r": *", wait_all_jobs =
     end
     queue_summary(;group_seperator = group_seperator)
     println()
-    view_update(39871, 120; row = 1, groups_shown = JobGroup[], is_in_terminal = false, is_interactive = false)
+    group_seperator_at_begining = Regex("^" * group_seperator.pattern)
+    view_update(39871, 120; row = 1, groups_shown = JobGroup[], is_in_terminal = false, is_interactive = false, group_seperator_at_begining = group_seperator_at_begining)
     println()
 end
 
-function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true)
+"""
+    view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true, group_seperator_at_begining = r"^: *")
+
+Update the whole screen view.
+"""
+function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true, group_seperator_at_begining = r"^: *")
     empty!(groups_shown)
 
     is_in_terminal && T.clear()
@@ -566,7 +578,7 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
 
     row = view_update_job_group_title(h, w; row = row, is_in_terminal = is_in_terminal)
 
-    row = view_update_job_group(h, w; row = row, job_group = ALL_JOB_GROUP, highlight = true, is_in_terminal = is_in_terminal)
+    row = view_update_job_group(h, w; row = row, job_group = ALL_JOB_GROUP, highlight = true, is_in_terminal = is_in_terminal, group_seperator_at_begining)
 
     # specific job groups
     for job_group in values(JOB_GROUPS)

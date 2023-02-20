@@ -24,18 +24,24 @@ mutable struct JobGroup
     cancelled::Int
     eta::Millisecond
     group_name::String
-    job_names::Vector{String}
+    job_name::String
     failed_job_names::Vector{String}
     elapsed_times::Vector{Millisecond}
     function JobGroup(group_name)
-        new(0, 0, 0, 0, 0, 0, Millisecond(0), group_name, String[], String[], Millisecond[])
+        new(0, 0, 0, 0, 0, 0, Millisecond(0), group_name, "", String[], Millisecond[])
     end
 end
 
 ALL_JOB_GROUP = JobGroup("ALL JOBS")
 JOB_GROUPS = OrderedDict{String, JobGroup}()
-OTHER_JOB_GROUP = JobGroup("OTHER JOBS")
+OTHER_JOB_GROUP = JobGroup("OTHERS")
 
+"""
+    fingerprint(g::JobGroup)
+    ALL_JOB_GROUP_FINGERPRINT = fingerprint(ALL_JOB_GROUP)
+
+If `ALL_JOB_GROUP_FINGERPRINT` is different from new fingerprint, update view.
+"""
 function fingerprint(g::JobGroup)
     return (
         g.total,
@@ -58,7 +64,7 @@ function clear_job_group!(g::JobGroup)
     g.failed = 0
     g.cancelled = 0
     g.eta = Millisecond(0)
-    empty!(g.job_names)
+    g.job_name = ""
     empty!(g.failed_job_names)
     empty!(g.elapsed_times)
 end
@@ -96,7 +102,7 @@ function add_job_to_group!(g::JobGroup, j::Job)
     elseif j.state === QUEUING
         g.queuing += 1
     elseif j.state === RUNNING
-        push!(g.job_names, j.name)
+        g.job_name = j.name
         g.running += 1
     elseif j.state === FAILED
         g.failed += 1
@@ -116,6 +122,7 @@ function compute_other_job_group!(groups_shown::Vector{JobGroup})
     OTHER_JOB_GROUP.done = ALL_JOB_GROUP.done
     OTHER_JOB_GROUP.failed = ALL_JOB_GROUP.failed
     OTHER_JOB_GROUP.cancelled = ALL_JOB_GROUP.cancelled
+    OTHER_JOB_GROUP.job_name = ""
     for g in groups_shown
         OTHER_JOB_GROUP.total -= g.total
         OTHER_JOB_GROUP.queuing -= g.queuing
@@ -123,6 +130,17 @@ function compute_other_job_group!(groups_shown::Vector{JobGroup})
         OTHER_JOB_GROUP.done -= g.done
         OTHER_JOB_GROUP.failed -= g.failed
         OTHER_JOB_GROUP.cancelled -= g.cancelled
+    end
+    if OTHER_JOB_GROUP.running > 0
+        # find one that is running
+        shown_group_names = Set([g.group_name for g in groups_shown])
+        for job_group in values(JOB_GROUPS)
+            if !(job_group.group_name in shown_group_names)
+                job_group.job_name == "" && continue
+                OTHER_JOB_GROUP.job_name = job_group.job_name
+                break
+            end
+        end
     end
     OTHER_JOB_GROUP
 end

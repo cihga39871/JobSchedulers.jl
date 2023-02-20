@@ -1,5 +1,9 @@
 # Changelog
 
+v0.7.10
+
+- Feature: Better progress bar for visualization.
+
 v0.7.9
 
 - Fix: `solve_optimized_ncpu()`: devision by 0 if njob == 0.
