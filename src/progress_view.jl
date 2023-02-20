@@ -381,7 +381,7 @@ function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_termina
     return row
 end
 
-function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true, group_seperator_at_begining = r": *")
+function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true, group_seperator_at_begining = r"^: *")
     width_progress = w ÷ 4
     if width_progress < 12
         width_progress = max(w ÷ 5, 5)
@@ -578,7 +578,7 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
 
     row = view_update_job_group_title(h, w; row = row, is_in_terminal = is_in_terminal)
 
-    row = view_update_job_group(h, w; row = row, job_group = ALL_JOB_GROUP, highlight = true, is_in_terminal = is_in_terminal, group_seperator_at_begining)
+    row = view_update_job_group(h, w; row = row, job_group = ALL_JOB_GROUP, highlight = true, is_in_terminal = is_in_terminal, group_seperator_at_begining = group_seperator_at_begining)
 
     # specific job groups
     for job_group in values(JOB_GROUPS)
@@ -586,14 +586,14 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
         if row >= h - 1
             break
         end
-        row = view_update_job_group(h, w; row = row, job_group = job_group, is_in_terminal = is_in_terminal)
+        row = view_update_job_group(h, w; row = row, job_group = job_group, is_in_terminal = is_in_terminal, group_seperator_at_begining = group_seperator_at_begining)
         push!(groups_shown, job_group)
     end
 
     compute_other_job_group!(groups_shown)
 
     if OTHER_JOB_GROUP.total > 0
-        row = view_update_job_group(h, w; row = row, job_group = OTHER_JOB_GROUP, highlight = true,     is_in_terminal = is_in_terminal)
+        row = view_update_job_group(h, w; row = row, job_group = OTHER_JOB_GROUP, highlight = true, is_in_terminal = is_in_terminal, group_seperator_at_begining = group_seperator_at_begining)
     end
 
     @label ret
