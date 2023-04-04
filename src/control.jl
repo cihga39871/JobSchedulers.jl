@@ -42,7 +42,7 @@ function scheduler_start(; verbose=true)
     		sleep(0.05)
     	end
     elseif istaskstarted(SCHEDULER_TASK) # if done, started is also true
-        verbose && @warn "Scheduler is running."
+        verbose && @info "Scheduler is running."
     else
         verbose && @info "Scheduler starts."
         schedule(SCHEDULER_TASK)

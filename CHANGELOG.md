@@ -1,5 +1,10 @@
 # Changelog
 
+v0.7.11
+- Update: Term to v2.
+- Feat: Set a lower loop interval of nthreads > 2.
+- Feat: Move scheduler_start() in __init__
+
 v0.7.10
 
 - Feature: Better progress bar for visualization.
