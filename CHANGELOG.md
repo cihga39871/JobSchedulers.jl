@@ -1,6 +1,11 @@
 # Changelog
 
+v0.7.12
+
+- Compat: Pipelines v0.9, 0.10 (new), 1 (not published).
+
 v0.7.11
+
 - Update: Term to v2.
 - Feat: Set a lower loop interval of nthreads > 2.
 - Feat: Move scheduler_start() in __init__
