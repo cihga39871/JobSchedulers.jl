@@ -1,15 +1,15 @@
 
 """
 ```julia
-queue(; all::Bool = false) -> Vector{Job}
-queue(state )              -> Vector{Job}
-queue(needle)              -> Vector{Job}
-queue(state , needle)      -> Vector{Job}
-queue(needle, state )      -> Vector{Job}
-queue(id)                  -> Job
+queue(; all::Bool = false)    -> Vector{Job}
+queue(state::Symbol )         -> Vector{Job}
+queue(needle)                 -> Vector{Job}
+queue(state::Symbol , needle) -> Vector{Job}
+queue(needle, state::Symbol ) -> Vector{Job}
+queue(id::Int)                -> Job
 ```
 
-- `all::Bool`: get queuing and past jobs.
+- `all::Bool`: if true, get all jobs. if false, get only running and queuing jobs.
 
 - `state::Symbol`: get jobs with a specific state, including `:all`, `QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, `PAST`.
 

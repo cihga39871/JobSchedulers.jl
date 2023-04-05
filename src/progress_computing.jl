@@ -14,7 +14,26 @@ const BLOCK = "█"
 CPU_RUNNING = 0
 MEM_RUNNING = 0
 
+"""
+    mutable struct JobGroup
+        total::Int
+        queuing::Int
+        running::Int
+        done::Int
+        failed::Int
+        cancelled::Int
+        eta::Millisecond
+        group_name::String
+        job_name::String
+        failed_job_names::Vector{String}
+        elapsed_times::Vector{Millisecond}
+        function JobGroup(group_name)
+            new(0, 0, 0, 0, 0, 0, Millisecond(0), group_name, "", String[], Millisecond[])
+        end
+    end
 
+`JobGroup` is computed when displaying a progress meter.
+"""
 mutable struct JobGroup
     total::Int
     queuing::Int

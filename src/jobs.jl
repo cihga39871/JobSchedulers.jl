@@ -187,6 +187,11 @@ function Job(command::Base.AbstractCmd;
     Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
 
+"""
+    result(job::Job)
+
+Return the result of `job`. If the job is not done, a warning message will also show.
+"""
 function result(job::Job)
     if job.state !== DONE
         @warn "Getting result from a $(job.state) job: returned value might be unexpected."

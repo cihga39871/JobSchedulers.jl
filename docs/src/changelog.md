@@ -3,6 +3,7 @@
 v0.7.12
 
 - Compat: Pipelines v0.9, 0.10 (new), 1 (not published).
+- Docs: Use Documenter.jl.
 
 v0.7.11
 
