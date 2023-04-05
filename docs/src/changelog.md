@@ -1,5 +1,9 @@
 # Changelog
 
+v0.7.13
+
+- Docs: generate stable docs.
+
 v0.7.12
 
 - Compat: Pipelines v0.9, 0.10 (new), 1 (not published).
