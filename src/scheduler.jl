@@ -286,9 +286,8 @@ function scheduler()
         catch ex
             if isa(ex, InterruptException)
                 set_scheduler_while_loop(false)
-            else
-                throw(ex)
             end
+            throw(ex)
         end
     end
     @debug "scheduler() end"
