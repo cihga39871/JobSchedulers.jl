@@ -281,10 +281,14 @@ function scheduler()
     while SCHEDULER_WHILE_LOOP
         @debug "scheduler() new loop"
         update_queue!()
-        try # if someone sends ctrl + C to sleep, scheduler wont stop.
+        try
             sleep(SCHEDULER_UPDATE_SECOND)
         catch ex
-            @warn "JobScheduler.scheduler(): interruption signal received but suppressed."
+            if isa(ex, InterruptException)
+                set_scheduler_while_loop(false)
+            else
+                throw(ex)
+            end
         end
     end
     @debug "scheduler() end"
