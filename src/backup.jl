@@ -50,12 +50,12 @@ function set_scheduler_backup(
 
     if migrate
         if isfile(SCHEDULER_BACKUP_FILE) # old one
-            recover_backup(SCHEDULER_BACKUP_FILE; recover_settings = recover_settings, recover_queue = recover_settings)
+            recover_backup(SCHEDULER_BACKUP_FILE; recover_settings = recover_settings, recover_queue = recover_queue)
         end
     end
 
     if isfile(filepath)
-        recover_backup(filepath; recover_settings = recover_settings, recover_queue = recover_settings)
+        recover_backup(filepath; recover_settings = recover_settings, recover_queue = recover_queue)
     end
 
     delete_old && isfile(SCHEDULER_BACKUP_FILE) && rm(SCHEDULER_BACKUP_FILE, force=true)
@@ -98,6 +98,7 @@ function backup()
         job_queue = deepcopy(JOB_QUEUE)
         for job in job_queue
             job.task = nothing
+            job._func = nothing
             if job.state in (QUEUING, RUNNING)
                 job.state = CANCELLED
             end
@@ -106,6 +107,7 @@ function backup()
         job_queue_ok = deepcopy(JOB_QUEUE_OK)
         for job in job_queue_ok
             job.task = nothing
+            job._func = nothing
         end
         append!(job_queue_ok, job_queue)
         # clean old file

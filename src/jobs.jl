@@ -15,15 +15,6 @@ format_stdxxx_file(x::AbstractString) = convert(String, x)
 format_stdxxx_file(x::IOStream) = x.name[7:end-1]
 format_stdxxx_file(x) = ""
 
-function check_ncpu_mem(ncpu::Int64, mem::Int64)
-    if ncpu < 1
-        error("ncpu < 1 is not supported for Job")
-    end
-    if mem < 0
-        error("mem < 1 is not supported for Job")
-    end
-end
-
 """
     Job(command::Base.AbstractCmd; stdout=nothing, stderr=nothing, append::Bool=false, kwargs...)
     Job(f::Function; kwargs...)
@@ -37,23 +28,27 @@ end
 
 # Common Keyword Arguments (kwargs...)
 
- - `name::String = ""`: job name.
- - `user::String = ""`: user that job belongs to.
- - `ncpu::Int64 = 1`: number of CPU this job is about to use.
- - `mem::Int64 = 0`: number of memory this job is about to use (supports TB, GB, MB, KB, B=1).
- - `schedule_time::Union{DateTime,Period} = DateTime(0)`: The expected time to run.
- - `dependency`: defer job until specified jobs reach specified state (QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST). PAST is the super set of DONE, FAILED, CANCELLED, which means the job will not run in the future. Eg: `DONE => job`, `[DONE => job1; PAST => job2]`.
+- `name::String = ""`: job name.
+- `user::String = ""`: user that job belongs to.
+- `ncpu::Int64 = 1`: number of CPU this job is about to use.
+- `mem::Int64 = 0`: number of memory this job is about to use (supports TB, GB, MB, KB, B=1).
+- `schedule_time::Union{DateTime,Period} = DateTime(0)`: The expected time to run.
+- `dependency`: defer job until specified jobs reach specified state (QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST). PAST is the super set of DONE, FAILED, CANCELLED, which means the job will not run in the future. Eg: `DONE => job`, `[DONE => job1; PAST => job2]`.
 
+ > The default state is DONE, so `DONE => job` can be simplified to `job`.
  > To be compatible with old versions, you can also use job id (Int): `[DONE => job.id]`.
 
- - `wall_time::Period = Week(1)`: wall clock time limit.
- - `priority::Int = 20`: lower means higher priority.
+- `wall_time::Period = Year(1)`: wall clock time limit. Jobs will be terminated after running for this period.
+- `priority::Int = 20`: lower means higher priority.
+
+- `cron::Cron = Cron(:none)`: job recurring at specfic date and time. See more at [`Cron`](@ref).
+- `until::Union{DateTime,Period} = DateTime(9999,1,1)`: stop job recurring `until` date and time.
 
 # Experimental Keyword Arguments - Output Redirection:
 
- - `stdout=nothing`: redirect stdout to the file.
- - `stderr=nothing`: redirect stderr to the file.
- - `append::Bool=false`: append the stdout or stderr or not.
+- `stdout=nothing`: redirect stdout to the file.
+- `stderr=nothing`: redirect stderr to the file.
+- `append::Bool=false`: append the stdout or stderr or not.
 
 !!! note
     Redirecting in Julia are not thread safe, so unexpected redirection might be happen if you are running programs in different `Tasks` simultaneously (multi-threading).
@@ -69,6 +64,8 @@ mutable struct Job
     start_time::DateTime
     stop_time::DateTime
     wall_time::Period
+    cron::Cron
+    until::DateTime
     state::Symbol
     priority::Int
     dependency::Vector{Pair{Symbol,Union{Int64, Job}}}
@@ -76,52 +73,12 @@ mutable struct Job
     stdout_file::String
     stderr_file::String
     _thread_id::Int
+    _func::Union{Function,Nothing}
 
-    # original
-    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::DateTime, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, dependency::Vector, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String)
-        if !(typeof(wall_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
-            error("Job.wall_time is not one of Union{Millisecond,Second,Minute,Hour,Day,Week}")
-        end
+    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::ST, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String, _thread_id::Int = 0, _func = task.code) where {ST<:Union{DateTime,Period}}
         check_ncpu_mem(ncpu, mem)
-        dependency = convert(Vector{Pair{Symbol,Union{Int64, Job}}}, dependency)
-        new(id, name, user, ncpu, mem, schedule_time, create_time, start_time, stop_time, wall_time, state, priority, dependency, task, stdout_file, stderr_file, 0)
-    end
-
-    # schedule_time::Period
-    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::Period, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, dependency::Vector, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String)
-        if !(typeof(wall_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
-            error("Job.wall_time is not one of Union{Millisecond,Second,Minute,Hour,Day,Week}")
-        end
-        if !(typeof(schedule_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
-            error("Job.schedule_time is not one of Union{DateTime,Millisecond,Second,Minute,Hour,Day,Week}")
-        end
-        check_ncpu_mem(ncpu, mem)
-        dependency = convert(Vector{Pair{Symbol,Union{Int64, Job}}}, dependency)
-        new(id, name, user, ncpu, mem, now() + schedule_time, create_time, start_time, stop_time, wall_time, state, priority, dependency, task, stdout_file, stderr_file, 0)
-    end
-
-    # dependency::Pair{Symbol,Int64}
-    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::DateTime, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, dependency::Pair{Symbol,T}, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String) where T
-        if !(typeof(wall_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
-            error("Job.wall_time is not one of Union{Millisecond,Second,Minute,Hour,Day,Week}")
-        end
-        check_ncpu_mem(ncpu, mem)
-        dependency = Pair{Symbol,Union{Int64, Job}}[dependency]
-        new(id, name, user, ncpu, mem, schedule_time, create_time, start_time, stop_time, wall_time, state, priority, dependency, task, stdout_file, stderr_file, 0)
-    end
-
-    # schedule_time::Period
-    # dependency::Pair{Symbol,Int64}
-    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::Period, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, state::Symbol, priority::Int, dependency::Pair{Symbol,T}, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String) where T
-        if !(typeof(wall_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
-            error("Job.wall_time is not one of Union{Millisecond,Second,Minute,Hour,Day,Week}")
-        end
-        if !(typeof(schedule_time) <: Union{Millisecond,Second,Minute,Hour,Day,Week})
-            error("Job.schedule_time is not one of Union{DateTime,Millisecond,Second,Minute,Hour,Day,Week}")
-        end
-        check_ncpu_mem(ncpu, mem)
-        dependency = Pair{Symbol,Union{Int64, Job}}[dependency]
-        new(id, name, user, ncpu, mem, now() + schedule_time, create_time, start_time, stop_time, wall_time, state, priority, dependency, task, stdout_file, stderr_file, 0)
+        check_priority(priority)
+        new(id, name, user, ncpu, mem, period2datetime(schedule_time), create_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout_file, stderr_file, _thread_id, _func)
     end
 end
 
@@ -134,18 +91,20 @@ function Job(task::Task;
     ncpu::Int64 = 1,
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
-    wall_time::Period = Week(1),
+    wall_time::Period = Year(1),
+    cron::Cron = Cron(:none),
+    until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
     dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1
-        @warn "ncpu != 1 for Job(task::Task) is not fully supported by JobScheduler. If a task uses multi-threads, it is recommended to split it into different jobs. Job: $name." maxlog=1
+        @warn "ncpu > 1 for Job(task::Task) is not fully supported by JobScheduler. If a task uses multi-threads, it is recommended to split it into different jobs. Job: $name." maxlog=1
     end
     task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
         task.code()
     end
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task2, "", "")
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, "", "")
 end
 
 function Job(f::Function;
@@ -154,18 +113,20 @@ function Job(f::Function;
     ncpu::Int64 = 1,
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
-    wall_time::Period = Week(1),
+    wall_time::Period = Year(1),
+    cron::Cron = Cron(:none),
+    until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
     dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
-    if ncpu != 1
-        @warn "ncpu != 1 for Job(task::Task) is not fully supported by JobScheduler. If a task uses multi-threads, it is recommended to split it into different jobs. Job: $name." maxlog=1
+    if ncpu > 1
+        @warn "ncpu > 1 for Job(f::Function) is not fully supported by JobScheduler. If a function uses multi-threads, it is recommended to split it into different jobs. Job: $name." maxlog=1
     end
     task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
         f()
     end
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task2, "", "")
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, "", "")
 end
 
 function Job(command::Base.AbstractCmd;
@@ -174,7 +135,9 @@ function Job(command::Base.AbstractCmd;
     ncpu::Int64 = 1,
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
-    wall_time::Period = Week(1),
+    wall_time::Period = Year(1),
+    cron::Cron = Cron(:none),
+    until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
     dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
@@ -184,7 +147,44 @@ function Job(command::Base.AbstractCmd;
     end
     stdout_file = format_stdxxx_file(stdout)
     stderr_file = format_stdxxx_file(stderr)
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task, stdout_file, stderr_file)
+end
+
+
+period2datetime(t::DateTime) = t
+period2datetime(t::Period) = now() + t
+
+function check_ncpu_mem(ncpu::Int64, mem::Int64)
+    if ncpu < 0
+        error("ncpu < 0 is not supported for Job")
+    elseif ncpu == 0
+        @warn("Job with ncpu == 0")
+    end
+    if mem < 0
+        error("mem < 0 is not supported for Job")
+    end
+end
+
+function check_priority(priority::Int)
+    if priority < -9999 || priority > 9999
+        error("abs(priority) > 9999 is not supported for Job")
+    end
+end
+
+function convert_dependency(dependency::Vector{Pair{Symbol,Union{Int64, Job}}})
+    dependency
+end
+function convert_dependency(dependency::Vector)
+    Pair{Symbol,Union{Int64, Job}}[convert_dependency_element(d) for d in dependency]
+end
+function convert_dependency(dependency)
+    Pair{Symbol,Union{Int64, Job}}[convert_dependency_element(dependency)]
+end
+function convert_dependency_element(p::Pair{Symbol,T}) where T  # do not specify T's type!!!
+    p
+end
+function convert_dependency_element(job::T) where T <: Union{Int64, Job}
+    DONE => job
 end
 
 """
@@ -241,4 +241,17 @@ function solve_optimized_ncpu(default::Int; njob::Int = 1, total_cpu::Int = JobS
     else
         return max(1, default)
     end
+end
+
+"""
+    next_recur_job(j::Job) -> Union{Job, Nothing}
+
+Based on `j.cron` and `j.until`, return a new recurring `Job` or `nothing`.
+"""
+function next_recur_job(j::Job)
+    schedule_time = tonext(j.stop_time, j.cron)
+    if isnothing(schedule_time) || schedule_time > j.until
+        return nothing
+    end
+    Job(generate_id(), j.name, j.user, j.ncpu, j.mem, schedule_time, now(), DateTime(0), DateTime(0), j.wall_time, j.cron, j.until, QUEUING, j.priority, j.dependency, Task(() -> Base.invokelatest(j._func)), j.stdout_file, j.stderr_file, 0, j._func)
 end

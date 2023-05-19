@@ -2,7 +2,7 @@
 
 function julia_program_warn(::JuliaProgram)
     if nthreads() == 1
-        @warn "Submitting a JuliaProgram with 1-threaded Julia session is not recommended because it might block schedulers. Starting Julia with multi-threads is suggested. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads" maxlog=1
+        @warn "Submitting a JuliaProgram with 1-threaded Julia session is not recommended because it might block schedulers and parallel jobs. Starting Julia with multi-threads is suggested. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads" maxlog=1
     end
 end
 julia_program_warn(::CmdProgram) = nothing
@@ -25,7 +25,9 @@ function Job(p::Program;
     ncpu::Int64 = 1,
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
-    wall_time::Period = Week(1),
+    wall_time::Period = Year(1),
+    cron::Cron = Cron(:none),
+    until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
     dependency = Vector{Pair{Symbol,Union{Int64,Job}}}(),
     stdout = nothing,
@@ -74,7 +76,7 @@ function Job(p::Program;
     stdout_file = format_stdxxx_file(stdout)
     stderr_file = format_stdxxx_file(stderr)
 
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, QUEUING, priority, dependency, task, stdout_file, stderr_file)
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task, stdout_file, stderr_file)
 end
 
 function Job(p::Program, inputs; kwargs...)

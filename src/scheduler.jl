@@ -105,6 +105,10 @@ end
     submit!(job::Job)
 
 Submit the job. If `job.create_time == 0000-01-01T00:00:00 (default)`, it will change to the time of submission.
+
+> `submit!(Job(...))` can be simplified to `submit!(...)`. They are equivalent.
+
+See also [`Job`](@ref)
 """
 function submit!(job::Job)
     global JOB_QUEUE
@@ -153,6 +157,10 @@ function submit!(job::Job)
     end
 
     return job
+end
+
+function submit!(args...; kwargs...)
+    submit!(Job(args...; kwargs...))
 end
 
 """
@@ -267,6 +275,7 @@ function unsafe_cancel!(job::Job)
         end
         job.state
     finally
+        # TODO: what if InterruptException did not stop the job?
         free_thread(job)
         return job.state
     end
@@ -298,12 +307,13 @@ function update_queue!()
     # step 1: update running jobs' states
     update_state!()
     # step 2: migrate finished jobs to JOB_QUEUE_OK from JOB_QUEUE
+    # and submit finished recurring jobs
     migrate_finished_jobs!()
     # step 3: compute current CPU/MEM usage
     used_ncpu, used_mem = current_usage()
     ncpu_available = SCHEDULER_MAX_CPU - used_ncpu
     mem_available = SCHEDULER_MAX_MEM - used_mem
-    # step 4: sort by priority
+    # step 4: sort by (ncpu == 0) + state (RUNNING) + priority
     update_queue_priority!()
     # step 5: run queuing jobs
     run_queuing_jobs(ncpu_available, mem_available)
@@ -317,9 +327,8 @@ function cancel_jobs_reaching_wall_time!()
     try
         for job in JOB_QUEUE
             if job.state === RUNNING
-                elapsed_time =  now() - job.start_time
-                remaining_time = Millisecond(job.wall_time) - elapsed_time
-                if remaining_time.value < 0
+                wall_time = job.start_time + job.wall_time
+                if wall_time < now()
                     unsafe_cancel!(job)  # cannot call cancel! because lock is on
                 end
             end
@@ -335,6 +344,8 @@ end
     unsafe_update_state!(job::Job)
 
 Update the state of `job` from `job.task` when `job.state === :running`.
+
+If a repeative job is PAST, submit a new job.
 
 Caution: it is unsafe and should only be called within lock.
 """
@@ -363,6 +374,8 @@ end
     update_state!()
 
 Update the state of each `job` in JOB_QUEUE from `job.task` when `job.state === :running`.
+
+If a repeative job is PAST, submit a new job.
 """
 function update_state!()
     global JOB_QUEUE
@@ -386,7 +399,21 @@ function migrate_finished_jobs!()
     wait_for_lock()
     try
         finished_indices = map(j -> !(j.state === QUEUING || j.state === RUNNING), JOB_QUEUE)
-        append!(JOB_QUEUE_OK, JOB_QUEUE[finished_indices])
+        finished_indices = findall(finished_indices)
+        finished_jobs = @view(JOB_QUEUE[finished_indices])
+        append!(JOB_QUEUE_OK, finished_jobs)
+
+        # if recurring job is DONE, submit new
+        for j in finished_jobs
+            if j.state === DONE
+                next_job = next_recur_job(j)
+                if isnothing(next_job)
+                    continue
+                end
+                push!(JOB_QUEUE, next_job)
+            end
+        end
+
         deleteat!(JOB_QUEUE, finished_indices)
     catch e
         rethrow(e)
@@ -422,12 +449,18 @@ function current_usage()
     return cpu_usage, mem_usage
 end
 
+function compute_priority_rank(job::Job)
+    job.priority + 
+    ifelse(job.ncpu == 0 && job.schedule_time < now(), -100000, 0) +   # run this job immediately
+    ifelse(job.state == RUNNING, -10000, 0)
+end
+
 function update_queue_priority!()
     global JOB_QUEUE
     @debug "update_queue_priority!()"
     wait_for_lock()
     try
-        sort!(JOB_QUEUE, by=get_priority)
+        sort!(JOB_QUEUE, by=compute_priority_rank)
     catch e
         rethrow(e)
     finally
@@ -443,8 +476,11 @@ function run_queuing_jobs(ncpu_available::Int, mem_available::Int)
     wait_for_lock()
     try
         for job in JOB_QUEUE
-            ncpu_available < 1 && break
-            mem_available  < 1 && break
+            if job.ncpu > 0
+                # job with ncpu == 0 and schedule_time < now() is at top of JOB_QUEUE
+                ncpu_available < 1 && break
+                mem_available  < 0 && break
+            end
             if job.state === QUEUING && job.schedule_time < now() && job.ncpu <= ncpu_available && job.mem <= mem_available && is_dependency_ok(job)
                 if unsafe_run!(job)
                     ncpu_available -= job.ncpu

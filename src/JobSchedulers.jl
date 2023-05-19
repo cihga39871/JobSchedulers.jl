@@ -10,6 +10,10 @@ using JLD2
 using Pipelines
 using OrderedCollections
 
+include("bit.jl")
+include("job_recur.jl")
+export Cron
+
 include("jobs.jl")
 export Job, result, solve_optimized_ncpu
 

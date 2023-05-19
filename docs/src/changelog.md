@@ -1,5 +1,14 @@
 # Changelog
 
+v0.8.0
+
+- Feat: `ncpu == 0` can set to a `Job`, but a warning message shows.
+- Feat: `dependency = DONE => job_A`: to be simplified to `dependency = job_A` or `dependency = job_A.id`.
+- Feat: Simplify `Job()` methods.
+- Feat: `submit!(Job(...))`: to be simplified to `submit!(...)`.
+- Feat: schedule repetitive jobs using `Cron` until a specific date and time: `Job(cron = Cron(0,0,*,*,*,*), until = Year(1))`. It is  inspired by Linux-based crontab.
+- Change: `Job()`: default wall time value increase to `Year(1)` from `Week(1)`. 
+
 v0.7.12
 
 - Compat: Pipelines v0.9, 0.10 (new), 1 (not published).
@@ -9,7 +18,7 @@ v0.7.11
 
 - Update: Term to v2.
 - Feat: Set a lower loop interval of nthreads > 2.
-- Feat: Move scheduler_start() in __init__
+- Feat: Move `scheduler_start()` in `__init__()`.
 
 v0.7.10
 
