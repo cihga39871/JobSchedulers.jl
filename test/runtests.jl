@@ -108,11 +108,10 @@ using Test
 			wall_time = Hour(1),        # The maximum time to run the job. (Cancel job after reaching wall time.)
 			priority = 20,              # Lower number = higher priority.
 			dependency = [              # Defer job until some jobs reach some states.
-				command_job,
-				DONE => task_job
+				dep2,
+				DONE => job_with_dep2
 			]
 		)
-		submit!(job_with_args)
 
 		wait_queue(show_progress = true)
 	end
