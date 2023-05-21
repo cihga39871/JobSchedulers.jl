@@ -45,8 +45,6 @@ using Test
 		submit!(jobx)
 		cancel!(jobx)
 
-
-
 		job2 = Job(@task(begin
 			while true
 				println(now())
@@ -98,7 +96,23 @@ using Test
 		submit!(job_with_dep3)
 		submit!(@task(begin
 			println("job_no_cpu ok")
-			end), name="dep: job_with_dep", priority = 20, ncpu = 0)
+		end), name="dep: job_with_dep", priority = 20, ncpu = 0)
+
+		job_with_args = Job(
+			@task(begin println("job_with_args done"); "result" end); # Task to run
+			name = "job with args",               # job name.
+			user = "me",                # Job owner.
+			ncpu = 1,                   # Number of CPU required.
+			mem = 1KB,                  # Number of memory required (unit: TB, GB, MB, KB, B).
+			schedule_time = Second(3),  # Run after 3 seconds; can be ::DateTime or ::Period.
+			wall_time = Hour(1),        # The maximum time to run the job. (Cancel job after reaching wall time.)
+			priority = 20,              # Lower number = higher priority.
+			dependency = [              # Defer job until some jobs reach some states.
+				command_job,
+				DONE => task_job
+			]
+		)
+		submit!(job_with_args)
 
 		wait_queue(show_progress = true)
 	end

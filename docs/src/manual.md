@@ -10,8 +10,12 @@ using JobSchedulers, Dates
 ## Scheduler control
 
 ```julia
+scheduler_stop()
+# [ Info: Scheduler stops.
+
 scheduler_start()
-# [ Info: Scheduler starts.
+# ┌ Warning: Scheduler was interrupted or done. Restart.
+# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:38
 
 scheduler_status()
 # ┌ Info: Scheduler is running.
@@ -22,7 +26,6 @@ scheduler_status()
 # └   SCHEDULER_TASK = Task (runnable) @0x00007fe205052e60
 # :running
 
-scheduler_stop()
 ```
 
 ## Scheduler settings
@@ -85,7 +88,7 @@ set_scheduler(
 # :running
 ```
 
-## Job controls
+## Create a Job
 
 A `Job` is the wrapper of `AbstractCmd`, `Function` or `Task`:
 
@@ -112,21 +115,23 @@ job_with_args = Job(
     wall_time = Hour(1),        # The maximum time to run the job. (Cancel job after reaching wall time.)
     priority = 20,              # Lower number = higher priority.
     dependency = [              # Defer job until some jobs reach some states.
-        DONE => command_job,
-        DONE => task_job.id
+        command_job,
+        DONE => task_job
     ]
 )
 # Job:
-#   id            → 3603962603799412
+#   id            → 4645128769531704
 #   name          → "job with args"
 #   user          → "me"
 #   ncpu          → 1
 #   mem           → 1024
-#   schedule_time → 2022-11-18 11:35:08
+#   schedule_time → 2023-05-21 08:37:23
 #   create_time   → 0000-01-01 00:00:00
 #   start_time    → 0000-01-01 00:00:00
 #   stop_time     → 0000-01-01 00:00:00
 #   wall_time     → 1 hour
+#   cron          → Cron(:none)
+#   until         → 9999-01-01 00:00:00
 #   state         → :queuing
 #   priority      → 20
 #   dependency    → 2 jobs
@@ -134,6 +139,7 @@ job_with_args = Job(
 #   stdout_file   → ""
 #   stderr_file   → ""
 #   _thread_id    → 0
+#   _func         → #12
 ```
 
 > `dependency` argument in `Job(...)` controls when to start a job.
@@ -143,6 +149,10 @@ job_with_args = Job(
 > STATE is one of `DONE`, `FAILED`, `CANCELLED`, `QUEUING`, `RUNNING`, `PAST`.  
 > The first 5 states are real job states.  
 > `PAST` is the super set of `DONE`, `FAILED`, `CANCELLED`, which means the job will not run in the future.
+>
+> `DONE => job` can be simplified to `job` from v0.8.
+
+## Submit a Job
 
 Submit a job to queue:
 
@@ -150,13 +160,20 @@ Submit a job to queue:
 submit!(command_job)
 submit!(task_job)
 submit!(job_with_args)
+
+# submit!(Job(...)) can be simplified to submit!(...) (from v0.8)
+job = submit!(@task(println("job")), priority = 0)
 ```
+
+## Cancel a Job
 
 Cancel or interrupt a job:
 
 ```julia
 cancel!(command_job)
 ```
+
+## Get a Job's Result
 
 Get the returned result:
 
@@ -165,9 +182,82 @@ result(job_with_args)
 # "result"
 ```
 
+## Recurring/repetitive Job
+
+From JobSchedulers v0.8, users can submit recurring jobs using Linux-based **Crontab**-like methods.
+
+Two new fields (arguments) of `Job` is introduced: `Job(cron::Cron, until::Union{DateTime,Period})`.
+
+- `cron::Cron` creates a [`Cron`](@ref) object. It extends Linux's crontab and allows repeat every XX seconds. You can use your favorate `*`, `-`, `,` syntax just like crontab. Other features please see [`Cron`](@ref).
+
+- `until::Union{DateTime,Period})`: stop job recurring until date and time.
+
+Construction:
+
+```julia
+Cron(second, minute, hour, day_of_month, month, day_of_week)
+```
+
+Examples:
+
+```julia
+Cron()
+# Cron(every minute at 0 second)
+
+Cron(0,0,0,1,1,0)
+Cron(:yearly)
+Cron(:annually)
+# Cron(at 0:0:0 on day-of-month 1 in Jan)
+
+Cron(0,0,0,1,*,*)
+Cron(:monthly)
+# Cron(at 0:0:0 on day-of-month 1)
+
+Cron(0,0,0,*,*,1)
+Cron(:weekly)
+# Cron(at 0:0:0 on Mon)
+
+Cron(0,0,0,*,'*',"*") # * is equivalent to '*', and "*" in Cron.
+Cron(:daily)
+Cron(:midnight)
+# Cron(at 0:0:0)
+
+Cron(0,0,*,*,*,*)
+Cron(:hourly)
+# Cron(at 0 minute, 0 second)
+
+Cron(0,0,0,0,0,0) # never repeat
+Cron(:none)       # never repeat
+# Cron(:none)
+
+Cron(0,0,0,*,*,"*/2")
+# Cron(at 0:0:0 on Tue,Thu,Sat)
+
+Cron(0,0,0,*,*,"1-7/2")
+Cron(0,0,0,0,0,"1-7/2")
+# Cron(at 0:0:0 on Mon,Wed,Fri,Sun)
+
+Cron(0,0,0,1,"1-12/3",*)
+# Cron(at 0:0:0 on day-of-month 1 in Jan,Apr,Jul,Oct)
+
+Cron(30,4,"1,3-5",1,*,*)
+# Cron(at 4 minute, 30 second past 1,3,4,5 hours on day-of-month 1)
+
+# repeatly print time every 5 seconds, until current time plus 20 seconds
+recurring_job = submit!(cron = Cron("*/5", *, *, *, *, *), until = Second(20)) do
+    println(now())
+end
+# 2023-05-21T09:22:12.568
+# 2023-05-21T09:22:15.055
+# 2023-05-21T09:22:20.005
+# 2023-05-21T09:22:25.022
+# 2023-05-21T09:22:30.037
+```
+
 ## Queue
 
-Show queue (all jobs):
+Show all jobs:
+
 ```julia
 queue(:all)      # or:
 queue(all=true)  # or:
@@ -205,26 +295,31 @@ queue(DONE)
 #                                                         11 columns omitted
 ```
 
-`queue(...)` and `all_queue()` can also used to filter job name and user. Please find out more by typing `?queue` and `?all_queue` in REPL.
+`queue(...)` and `all_queue()` can also used to filter job name and user.
+
+See more at [`queue`](@ref), and [`all_queue`](@ref).
 
 ## Job query
 
-Get `Job` object by providing job ID.
+Get `Job` object by providing job ID, or access the index of queue:
 
 ```julia
-job_query(3603962563817452)  # or:
-queue(3603962563817452)
+job_query(4645344816210967)  # or:
+queue(4645344816210967)
+queue(:all)[1]
 # Job:
-#   id            → 3603962563817452
+#   id            → 4645344816210967
 #   name          → ""
 #   user          → ""
 #   ncpu          → 1
 #   mem           → 0
 #   schedule_time → 0000-01-01 00:00:00
-#   create_time   → 2022-11-18 11:35:30
-#   start_time    → 2022-11-18 11:35:30
-#   stop_time     → 2022-11-18 11:35:30
-#   wall_time     → 1 week
+#   create_time   → 2023-05-21 09:32:24
+#   start_time    → 2023-05-21 09:32:24
+#   stop_time     → 2023-05-21 09:32:25
+#   wall_time     → 1 year
+#   cron          → Cron(:none)
+#   until         → 9999-01-01 00:00:00
 #   state         → :done
 #   priority      → 20
 #   dependency    → []
@@ -232,19 +327,23 @@ queue(3603962563817452)
 #   stdout_file   → ""
 #   stderr_file   → ""
 #   _thread_id    → 0
+#   _func         → #22
 ```
 
-## Wait for all jobs and progress meter
+## Wait for jobs and progress meter
 
-Wait for all jobs in `queue()` finished using `wait_queue(; show_progress::Bool)`.
+Wait for jobs finished using [`wait_queue`](@ref).
 
-If `show_progress = true`, a fancy progress meter will display.
 
 ```julia
 wait_queue()
 # no output
 
+# If `show_progress = true`, a fancy progress meter will display.
 wait_queue(show_progress = true)
+
+# stop waiting when <= 2 jobs are queuing or running.
+wait_queue(show_progress = true, exit_num_jobs = 2)
 ```
 ![progress meter](assets/progress_meter.png)
 

@@ -55,8 +55,6 @@ include("progress_computing.jl")
 include("progress_view.jl")
 export queue_progress
 
-local SCHEDULER_TASK
-
 
 function __init__()
     # initiating THREAD_POOL

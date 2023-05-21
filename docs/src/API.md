@@ -24,6 +24,14 @@ cancel!
 result
 ```
 
+## Cron: Job Recur/Repeat
+```@docs
+Cron
+JobSchedulers.cron_value_parse
+Dates.tonext(::DateTime, ::Cron)
+JobSchedulers.date_based_on
+```
+
 ## Queue
 ```@docs
 queue
@@ -31,7 +39,7 @@ all_queue
 job_query
 ```
 
-## Wait For All Jobs
+## Wait For Jobs
 ```@docs
 wait_queue
 ```

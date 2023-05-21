@@ -7,7 +7,8 @@ v0.8.0
 - Feat: Simplify `Job()` methods.
 - Feat: `submit!(Job(...))`: to be simplified to `submit!(...)`.
 - Feat: schedule repetitive jobs using `Cron` until a specific date and time: `Job(cron = Cron(0,0,*,*,*,*), until = Year(1))`. It is  inspired by Linux-based crontab.
-- Change: `Job()`: default wall time value increase to `Year(1)` from `Week(1)`. 
+- Change: `Job()`: default wall time value increase to `Year(1)` from `Week(1)`.
+- Change: `SCHEDULER_TASK` is now a `Base.RefValue{Task}` rather than undefined or `Task`.
 
 v0.7.12
 

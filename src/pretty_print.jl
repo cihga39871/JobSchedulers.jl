@@ -96,12 +96,12 @@ all_queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}) = queue(:a
     fs = $(fieldnames(Job))
     fs_string = $(map(string, fieldnames(Job)))
     max_byte = $(maximum(length, map(string, fieldnames(Job))))
-    println(io, "Job:")
+    result = "Job:\n"
     for (i,f) in enumerate(fs)
-        print(io, "  ", f, " " ^ (max_byte - length(fs_string[i])), " → ")
-        print(io, simplify(getfield(job, f)))
-        println(io)
+        result *= string("  ", f, " " ^ (max_byte - length(fs_string[i])) * " → ")
+        result *= simplify(getfield(job, f), true) * "\n"
     end
+    print(io, result)
 end
 
 function Base.show(io::IO, job::Job)
@@ -112,7 +112,7 @@ function Base.show(io::IO, ::MIME"text/plain", job_queue::Vector{Job};
     allrows::Bool = !get(io, :limit, false),
     allcols::Bool = !get(io, :limit, false)
 )
-    field_order = [:state, :id, :name, :user, :ncpu, :mem, :start_time, :stop_time, :schedule_time, :create_time, :wall_time, :priority, :dependency, :stdout_file, :stderr_file, :task, :_thread_id]
+    field_order = [:state, :id, :name, :user, :ncpu, :mem, :start_time, :stop_time, :schedule_time, :create_time, :wall_time, :priority, :cron, :dependency, :stdout_file, :stderr_file, :task, :_thread_id]
     mat = [JobSchedulers.simplify(getfield(j,f)) for j in job_queue, f in field_order]
 
     if allcols && allrows
@@ -130,14 +130,14 @@ end
 
 
 
-simplify(x::Symbol) = ":$x"
-simplify(x::Int) = string(x)
-simplify(x::AbstractString) = "\"$x\""
-simplify(x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS")
-function simplify(deps::Vector{Pair{Symbol,Union{Int64, Job}}})
+simplify(x::Symbol, detail::Bool = false) = ":$x"
+simplify(x::Int, detail::Bool = false) = string(x)
+simplify(x::AbstractString, detail::Bool = false) = "\"$x\""
+simplify(x::DateTime, detail::Bool = false) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS")
+function simplify(deps::Vector{Pair{Symbol,Union{Int64, Job}}}, detail::Bool = false)
     n_dep = length(deps)
     if n_dep == 0
-        :([])
+        "[]"
     elseif n_dep == 1
         dep = deps[1]
         id = if dep.second isa Int
@@ -150,8 +150,24 @@ function simplify(deps::Vector{Pair{Symbol,Union{Int64, Job}}})
         "$n_dep jobs"
     end
 end
-simplify(x::Task) = "Task"
-simplify(x) = string(x)
+simplify(x::Task, detail::Bool = false) = "Task"
+function simplify(c::Cron, detail::Bool = false)
+    date_based = date_based_on(c)
+    if date_based === :none
+        return detail ? "Cron(:none)" : ""
+    end
+    if !detail
+        return "Defined"
+    end
+    time_str = get_time_description(c)
+    date_str = get_date_description(c)
+    if length(date_str) == 0
+        return "Cron($time_str)"
+    else
+        return "Cron($time_str $date_str)"
+    end
+end
+simplify(x, detail::Bool = false) = string(x)
 
 #### JSON conversion
 @eval function Base.Dict(job::Job)

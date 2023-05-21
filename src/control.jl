@@ -1,23 +1,23 @@
 
 # TODO atexit(f) to store the job history.
-
+const SCHEDULER_TASK = Base.RefValue{Task}()
 
 function new_scheduler_task()
     global SCHEDULER_TASK
-    SCHEDULER_TASK = @task scheduler()
+    SCHEDULER_TASK[] = @task scheduler()
     @static if :sticky in fieldnames(Task)
         # make the scheduler task sticky to threadid == 1
         if nthreads() > 1
             # sticky: disallow task migration which was introduced in 1.7
             @static if VERSION >= v"1.7"
-                SCHEDULER_TASK.sticky = true
+                SCHEDULER_TASK[].sticky = true
             else
-                SCHEDULER_TASK.sticky = false
+                SCHEDULER_TASK[].sticky = false
             end    
-            ccall(:jl_set_task_tid, Cvoid, (Any, Cint), SCHEDULER_TASK, 0)
+            ccall(:jl_set_task_tid, Cvoid, (Any, Cint), SCHEDULER_TASK[], 0)
         end
     end
-    SCHEDULER_TASK
+    SCHEDULER_TASK[]
 end
 
 """
@@ -28,25 +28,25 @@ Start the job scheduler.
 function scheduler_start(; verbose=true)
     global SCHEDULER_TASK
 
-    if !isdefined(@__MODULE__, :SCHEDULER_TASK)
+    if !isassigned(SCHEDULER_TASK)
         new_scheduler_task()
     end
 
     set_scheduler_while_loop(true) # scheduler task won't stop
 
-    if istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
+    if istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
         verbose && @warn "Scheduler was interrupted or done. Restart."
         new_scheduler_task()
-        schedule(SCHEDULER_TASK)
-        while !istaskstarted(SCHEDULER_TASK)
+        schedule(SCHEDULER_TASK[])
+        while !istaskstarted(SCHEDULER_TASK[])
     		sleep(0.05)
     	end
-    elseif istaskstarted(SCHEDULER_TASK) # if done, started is also true
+    elseif istaskstarted(SCHEDULER_TASK[]) # if done, started is also true
         verbose && @info "Scheduler is running."
     else
         verbose && @info "Scheduler starts."
-        schedule(SCHEDULER_TASK)
-        while !istaskstarted(SCHEDULER_TASK)
+        schedule(SCHEDULER_TASK[])
+        while !istaskstarted(SCHEDULER_TASK[])
     		sleep(0.05)
     	end
     end
@@ -60,13 +60,13 @@ Stop the job scheduler.
 function scheduler_stop(; verbose=true)
     global SCHEDULER_TASK
 
-    if !isdefined(@__MODULE__, :SCHEDULER_TASK)
+    if !isassigned(SCHEDULER_TASK)
         verbose && @warn "Scheduler is not running."
-    elseif istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
+    elseif istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
         verbose && @warn "Scheduler is not running."
-    elseif istaskstarted(SCHEDULER_TASK) # if done, started is also true
+    elseif istaskstarted(SCHEDULER_TASK[]) # if done, started is also true
         set_scheduler_while_loop(false) # scheduler task stop after the next loop
-        while !(istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK))
+        while !(istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[]))
             sleep(0.2)
         end
         verbose && @info "Scheduler stops."
@@ -86,18 +86,17 @@ function scheduler_status(; verbose=true)
     global SCHEDULER_MAX_MEM
     global SCHEDULER_UPDATE_SECOND
     global JOB_QUEUE_MAX_LENGTH
-    global SCHEDULER_TASK
-    if !isdefined(@__MODULE__, :SCHEDULER_TASK)
+    if !isassigned(SCHEDULER_TASK)
         verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
         :not_running
-    elseif istaskfailed(SCHEDULER_TASK) || istaskdone(SCHEDULER_TASK)
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK
+    elseif istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
         :not_running
-    elseif istaskstarted(SCHEDULER_TASK)
-        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK
+    elseif istaskstarted(SCHEDULER_TASK[])
+        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
         :running
     else
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
         :not_running
     end
 end
@@ -229,19 +228,21 @@ function set_scheduler(;
 end
 
 """
-    wait_queue(;show_progress = false)
+    wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
 
 Wait for all jobs in `queue()` become finished.
 
 - `show_progress = true`, job progress will show.
 
+- `exit_num_jobs::Int`: exit when `queue()` has less than `Int` number of jobs. It is useful to ignore some jobs that are always running or recurring.
+
 See also: [`queue_progress`](@ref).
 """
-function wait_queue(;show_progress::Bool = false)
+function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
     if show_progress
-        queue_progress()
+        queue_progress(exit_num_jobs = exit_num_jobs)
     else
-        while length(JOB_QUEUE) > 0 && scheduler_status(verbose=false) === RUNNING
+        while length(JOB_QUEUE) > exit_num_jobs && scheduler_status(verbose=false) === RUNNING
             sleep(SCHEDULER_UPDATE_SECOND)
         end
         if scheduler_status(verbose=false) != RUNNING

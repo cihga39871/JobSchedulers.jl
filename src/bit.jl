@@ -14,7 +14,7 @@ function bitcheckbounds(uint::Unsigned, i::Int)
 end
 
 @inline function bitgetindex(uint::UInt64, i::Int)
-    @boundscheck uint64checkbounds(i)
+    @boundscheck bitcheckbounds(uint, i)
     unsafe_bitgetindex(uint, i)
 end
 
@@ -72,4 +72,18 @@ function bitfindnext(uint::UInt64, start::Integer, r::UnitRange{Int64}; not_foun
     else
         return next
     end
+end
+
+
+function bitsfind(uint::UInt64, r::UnitRange{Int64}; empty_add_0::Bool = false)
+    res = Vector{Int64}()
+    for i in r
+        if bitgetindex(uint, i)
+            push!(res, i)
+        end
+    end
+    if empty_add_0 && length(res) == 0
+        push!(res, 0)
+    end
+    res
 end

@@ -66,13 +66,15 @@ end
 """
     queue_progress(;remove_tmp_files::Bool = true, kwargs...)
     queue_progress(stdout_tmp::IO, stderr_tmp::IO;
-    group_seperator = r": *", wait_second_for_new_jobs::Int = 1, loop::Bool = true)
+    group_seperator = r": *", wait_second_for_new_jobs::Int = 1, loop::Bool = true, exit_num_jobs::Int = 0)
 
 - `group_seperator`: delim to split `(job::Job).name` to group and specific job names.
 
-- `wait_second_for_new_jobs`: if `auto_exit`, and all jobs are PAST, not quiting `queue_progress` immediately but wait for a period. If new jobs are submitted, not quiting `queue_progress`.
+- `wait_second_for_new_jobs::Int`: if `auto_exit`, and all jobs are PAST, not quiting `queue_progress` immediately but wait for a period. If new jobs are submitted, not quiting `queue_progress`.
 
-- `loop`: if false, only show the current progress and exit. 
+- `loop::Bool`: if false, only show the current progress and exit. 
+
+- `exit_num_jobs::Int`: exit when `queue()` has less than `Int` number of jobs. It is useful to ignore some jobs that are always running or recurring.
 """
 function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
 
@@ -113,7 +115,7 @@ function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
 end
 
 function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
-    group_seperator = r": *", wait_second_for_new_jobs::Int = 1, loop::Bool = true)
+    group_seperator = r": *", wait_second_for_new_jobs::Int = 1, loop::Bool = true, exit_num_jobs::Int = 0)
 
     is_in_terminal = Pipelines.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
     if !is_in_terminal
@@ -193,16 +195,22 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
             # end
 
             # handle auto exit
-            if length(queue()) == 0
+            if !loop
+                break
+            end
+
+            if scheduler_status(verbose=false) !== RUNNING
+                @error "Exit progress bar because the scheduer is not running!"
+                scheduler_status()
+                break
+            end
+
+            if length(queue()) <= exit_num_jobs
                 sleep(wait_second_for_new_jobs)
-                if length(queue()) == 0
+                if length(queue()) <= exit_num_jobs
                     break
                     # T.alt_screen(false)
                 end
-            end
-
-            if !loop
-                break
             end
 
             sleep(0.1)

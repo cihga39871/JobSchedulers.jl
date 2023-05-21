@@ -6,14 +6,14 @@
     @test JobSchedulers.cron_value_parse(0x0000000000000001) == 0x0000000000000001
     @test JobSchedulers.cron_value_parse([1,3,5,7,9]) == 0x00000000000002aa
     @test JobSchedulers.cron_value_parse("1,3,5,7,9") == 0x00000000000002aa
-    @test JobSchedulers.cron_value_parse("1-9/2") == 0x0000000000000154
+    @test JobSchedulers.cron_value_parse("1-9/2") == 0x00000000000002aa
     @test JobSchedulers.cron_value_parse("*/4") == 0x1111111111111111
     @test JobSchedulers.cron_value_parse("*/3") == 0x9249249249249249
     @test JobSchedulers.cron_value_parse("*/2") == 0x5555555555555555
     @test JobSchedulers.cron_value_parse("*/1") == 0xffffffffffffffff
     @test JobSchedulers.cron_value_parse("*") == 0xffffffffffffffff
     @test JobSchedulers.cron_value_parse("1-5,7,7,4") == 0x00000000000000be
-    @test JobSchedulers.cron_value_parse("1-5,7,7,4/2") == 0x0000000000000014
+    @test JobSchedulers.cron_value_parse("1-5,7,7,4/2") == 0x00000000000000aa
     @test JobSchedulers.cron_value_parse("0-5,7,7,4") == 0x00000000000000bf
     @test JobSchedulers.cron_value_parse('*') == 0xffffffffffffffff
     @test JobSchedulers.cron_value_parse([1,3,5, "7,9"]) == 0x00000000000002aa
@@ -92,14 +92,14 @@ end
 @testset "Recur jobs" begin
     j = Job(
         name = "recur print date time $(rand(UInt))",
-        cron = Cron("*/5", *,*,*,*,*)
+        cron = Cron("*/2", *,*,*,*,*)
     ) do 
         println("--- Recur Job Start at $(now())")
         return now()
     end
     submit!(j)
 
-    sleep(10)
+    sleep(4)
     j_new = queue(:done)[end]
     @test j.id < j_new.id && j.name == j_new.name
     JobSchedulers.wait_for_lock()

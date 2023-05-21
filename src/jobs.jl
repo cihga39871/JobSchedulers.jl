@@ -75,7 +75,7 @@ mutable struct Job
     _thread_id::Int
     _func::Union{Function,Nothing}
 
-    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::ST, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String, _thread_id::Int = 0, _func = task.code) where {ST<:Union{DateTime,Period}}
+    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::ST, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String, _thread_id::Int = 0, _func = task.code) where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
         check_ncpu_mem(ncpu, mem)
         check_priority(priority)
         new(id, name, user, ncpu, mem, period2datetime(schedule_time), create_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout_file, stderr_file, _thread_id, _func)

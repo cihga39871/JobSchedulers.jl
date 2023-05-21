@@ -1,16 +1,4 @@
 
-"""
-    mutable struct Cron
-        second::UInt64
-        minute::UInt64
-        hour::UInt64
-        day_of_month::UInt64
-        month::UInt64
-        day_of_week::UInt64
-    end
-
-`Cron` stores the schedule of a repeative `Job`, inspired by Linux-based `crontab`(5) table.
-"""
 mutable struct Cron
     second::UInt64
     minute::UInt64
@@ -41,6 +29,8 @@ end
         day_of_week = '*',
     )
 
+`Cron` stores the schedule of a repeative `Job`, inspired by Linux-based `crontab`(5) table.
+
 Jobs are executed by JobScheduler when the second, minute, and hour fields match the current time, and when at least one of the two day fields (day of month & month, or day of week) match the current time.
 
 ## When an argument is an `Int64`:
@@ -62,7 +52,7 @@ Ranges of numbers are allowed. Ranges are two numbers separated with a hyphen. T
 
 Lists are allowed. A list is a set of numbers (or ranges) separated by commas. Examples: `"1,2,5,9"`, `"0-4,8-12"`.
 
-Step values can be used in conjunction with ranges. Following a range with `/<number>` specifies skips of the number's value through the range. For example, `"0-23/2"` can be used in the `hour` argument to specify Job execution every other hour (the alternative in the V7 standard is `"0,2,4,6,8,10,12,14,16,18,20,22"`). Steps are also permitted after an asterisk, so if you want to say ``every two hours``, just use `"*/2"`.
+Step values can be used in conjunction with ranges. Following a range with `/<number>` specifies skips of the number's value through the range. For example, `"0-23/2"` can be used in the `hour` argument to specify Job execution every other hour (the alternative is `"0,2,4,6,8,10,12,14,16,18,20,22"`). Steps are also permitted after an asterisk, so if you want to say ``every two hours``, just use `"*/2"`.
 
 ## When an argument is a `Vector`:
 
@@ -70,7 +60,7 @@ Step values can be used in conjunction with ranges. Following a range with `/<nu
 
 ## When an argument is a `UInt64`:
 
-`UInt64` is the internal type of `Cron` fileds. All the previous types will be converted to a `UInt64` bit array. The bit array starts from index 0 to 63.
+`UInt64` is the internal type of `Cron` fileds. All the previous types will be converted to a `UInt64` bit array. The start index of the bit array is 0. Bits outside of the allowed values (see the table above) are ignored.
 """
 function Cron(; 
     second = 0x0000000000000001, 
@@ -173,7 +163,10 @@ end
     if step > 64 || step < 1
         error("Cron: cannot parse /$step in $value: valid step range is 1-64.")
     end
-    return cron_value_ranges_parse(ranges) & stepmasks[step]
+    range_uint = cron_value_ranges_parse(ranges)
+    offset = trailing_zeros(range_uint)
+    step_mask = stepmasks[step] << offset
+    return range_uint & step_mask
 end
 
 @inline function cron_value_parse(value::Char)  # "0-4,8-12,5/2"
@@ -348,26 +341,47 @@ end
     return sec > second(dt)
 end
 
+@inline function is_every_second(c::Cron)
+    c.second & 0x0fffffffffffffff == 0x0fffffffffffffff
+end
+
+@inline function is_every_minute(c::Cron)
+    c.minute & 0x0fffffffffffffff == 0x0fffffffffffffff
+end
+
+@inline function is_every_hour(c::Cron)
+    c.hour & 0x0000000000ffffff == 0x0000000000ffffff
+end
+
 @inline function is_same_day(dt::DateTime, dom, mon, dow)
     dow == dayofweek(dt) || (dom == day(dt) && mon == month(dt))
 end
 
-@inline function is_any_day_of_week(c::Cron)
+@inline function is_every_day_of_week(c::Cron)
     c.day_of_week & 0x00000000000000fe == 0x00000000000000fe
 end
 @inline function is_none_day_of_week(c::Cron)
     c.day_of_week & 0x00000000000000fe == 0
 end
 
-@inline function is_any_month_day(c::Cron)
-    (c.month & 0x0000000000001ffe == 0x0000000000001ffe) && (c.day_of_month & 0x00000000fffffffe == 0x00000000fffffffe)
+@inline function is_every_month(c::Cron)
+    (c.month & 0x0000000000001ffe == 0x0000000000001ffe)
+end
+@inline function is_every_day_of_month(c::Cron)
+    (c.day_of_month & 0x00000000fffffffe == 0x00000000fffffffe)
+end
+
+@inline function is_every_month_day(c::Cron)
+    is_every_month(c) && is_every_day_of_month(c)
 end
 @inline function is_none_month_day(c::Cron)
     (c.month & 0x0000000000001ffe == 0) || (c.day_of_month & 0x00000000fffffffe == 0)
 end
 
-@inline function is_any_day(c::Cron)
-    is_any_day_of_week(c) || is_any_month_day(c)
+
+
+@inline function is_every_day(c::Cron)
+    is_every_day_of_week(c) || is_every_month_day(c)
 end
 
 @inline function is_one_at(uint::UInt64, idx::Int64)
@@ -390,11 +404,11 @@ end
 """
     date_based_on(c::Cron) -> Symbol
 
-Whether date of `c` is based on `:dayofweek`, `:monthday`, `:everyday`, `:both`.
+Whether date of `c` is based on `:dayofweek`, `:monthday`, `:everyday`, `:both`, or `:none`.
 """
 function date_based_on(c::Cron)
-    if is_any_day_of_week(c)
-        if is_any_month_day(c)
+    if is_every_day_of_week(c)
+        if is_every_month_day(c)
             :everyday
         else
             if is_none_month_day(c)
@@ -404,7 +418,7 @@ function date_based_on(c::Cron)
             end
         end
     else # dow
-        if is_any_month_day(c)
+        if is_every_month_day(c)
             if is_none_day_of_week(c)
                 :everyday
             else
@@ -424,6 +438,127 @@ function date_based_on(c::Cron)
                     :both
                 end
             end
+        end
+    end
+end
+
+# pretty print
+function Base.show(io::IO, ::MIME"text/plain", c::Cron)
+    return print(io, simplify(c, true))
+end
+
+function get_time_description(c::Cron)
+    every_sec = is_every_second(c)
+    every_min = is_every_minute(c)
+    every_hour = is_every_hour(c)
+    
+    seconds = bitsfind(c.second, 0:59, empty_add_0 = true)
+    minutes = bitsfind(c.minute, 0:59, empty_add_0 = true)
+    hours = bitsfind(c.hour, 0:23, empty_add_0 = true)
+
+    if length(seconds) == length(minutes) == length(hours) == 1
+        return "at $(hours[1]):$(minutes[1]):$(seconds[1])"
+    end
+
+    str = if every_min
+        if every_sec
+            "every second"
+        else
+            sec_str = get_second_description(seconds)
+            "every minute at $sec_str"
+        end
+    else
+        min_str = get_minute_description(minutes)
+        if every_sec
+            "every second at $min_str"
+        else
+            sec_str = get_second_description(seconds)
+            "at $min_str, $sec_str"
+        end
+    end
+
+    if !every_hour
+        hour_str = get_hour_description(hours)
+        str *= " past $hour_str"
+    end
+    str
+end
+
+function get_second_description(seconds::Vector{Int64})
+    if length(seconds) == 0
+        "0 second"
+    elseif length(seconds) == 1
+        "$(seconds[1]) second"
+    else
+        str = join(seconds, ",")
+        "$(str) seconds"
+    end
+end
+function get_minute_description(minutes::Vector{Int64})
+    if length(minutes) == 0
+        "0 minute"
+    elseif length(minutes) == 1
+        "$(minutes[1]) minute"
+    else
+        str = join(minutes, ",")
+        "$(str) minutes"
+    end
+end
+function get_hour_description(hours::Vector{Int64})
+    if length(hours) == 0
+        "0 hour"
+    elseif length(hours) == 1
+        "$(hours[1]) hour"
+    else
+        str = join(hours, ",")
+        "$(str) hours"
+    end
+end
+
+function get_date_description(c::Cron)
+    based = date_based_on(c)
+    if based === :everyday
+        return ""
+    elseif based === :dayofweek
+        dow_str = get_dow_description(c)
+        return "on $dow_str"
+    elseif based === :monthday
+        monthday_str = get_monthday_description(c)
+        return monthday_str
+    else
+        dow_str = get_dow_description(c)
+        monthday_str = get_monthday_description(c)
+        return "on $dow_str or $monthday_str"
+    end
+end
+
+function get_dow_description(c::Cron)
+    dows = bitsfind(c.day_of_week, 1:7)
+    human_readables = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    dows2 = human_readables[dows]
+    str = join(dows2, ",")
+end
+
+function get_monthday_description(c::Cron)
+    if is_every_month(c)
+        if is_every_day_of_month(c)
+            ""
+        else
+            days = bitsfind(c.day_of_month, 1:31)
+            day_str = join(days, ",")
+            "on day-of-month $day_str"
+        end
+    else
+        months = bitsfind(c.month, 1:12)
+        human_readables = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        months2 = human_readables[months]
+        mon_str = join(months2, ",")
+        if is_every_day_of_month(c)
+            "everyday in $mon_str"
+        else
+            days = bitsfind(c.day_of_month, 1:31)
+            day_str = join(days, ",")
+            "on day-of-month $day_str in $mon_str"
         end
     end
 end
