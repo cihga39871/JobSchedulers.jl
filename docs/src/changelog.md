@@ -1,5 +1,9 @@
 # Changelog
 
+v0.8.1
+
+- Fix: scheduler() handles errors and InteruptExceptions more wisely. (Thanks to @fivegrant, #7)
+
 v0.8.0
 
 - Feat: `ncpu == 0` can set to a `Job`, but a warning message shows.
