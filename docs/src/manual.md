@@ -369,7 +369,7 @@ Find the optimized number of CPU for a job.
 
 ## Compatibility with Pipelines.jl
 
-[Pipelines.jl]: https://cihga39871.github.io/Pipelines.jl/dev/	"Pipelines.jl: A lightweight Julia package for computational pipelines and workflows."
+[Pipelines.jl](https://cihga39871.github.io/Pipelines.jl/dev/): A lightweight Julia package for computational pipelines and workflows.
 
 You can also create a `Job` by using `Program` types from Pipelines.jl:
 
