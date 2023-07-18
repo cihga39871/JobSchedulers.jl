@@ -1,5 +1,12 @@
 # Changelog
 
+v0.8.2
+
+- Feat: not replace `Base.istaskfailed`. Use `istaskfailed2` instead.
+- Feat: recurring job: job does not immediately after submit, except manually set `Job(..., schedule_time)`. (#8)
+- Feat: no double printing stacktrace when a job failed. 
+- Feat: progress bar: dim job count == 0. (#9)
+
 v0.8.1
 
 - Fix: scheduler() handles errors and InteruptExceptions more wisely. (Thanks to @fivegrant, #7)

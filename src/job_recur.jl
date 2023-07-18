@@ -72,6 +72,18 @@ function Cron(;
     Cron(second, minute, hour, day_of_month, month, day_of_week)
 end
 
+function Base.:(==)(c1::Cron, c2::Cron)
+    if c1 === c2
+        return true
+    end
+    c1.second == c2.second &&
+    c1.minute == c2.minute &&
+    c1.hour == c2.hour &&
+    c1.day_of_month == c2.day_of_month &&
+    c1.month == c2.month &&
+    c1.day_of_week == c1.day_of_week
+end
+
 """
     Cron(special::Symbol)
 

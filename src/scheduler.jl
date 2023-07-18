@@ -61,11 +61,14 @@ function wait_for_lock()
 end
 
 """
-    istaskfailed(t::Task)
+    istaskfailed2(t::Task)
 
 Extend `Base.istaskfailed` to fit Pipelines and JobSchedulers packages, which will return a `StackTraceVector` in `t.result`, while Base considered it as `:done`. The function checks the situation and modifies the real task status and other properties.
 """
-function Base.istaskfailed(t::Task)
+function istaskfailed2(t::Task)
+    if Base.istaskfailed(t)
+        return true
+    end
     @static if hasfield(Task, :_state)
         if t._state === 0x02 # Base.task_state_failed
             return true
@@ -148,6 +151,16 @@ function submit!(job::Job)
         if job.create_time == DateTime(0)
             job.create_time = now()
         end
+        
+        # job recur: set schedule_time
+        if job.schedule_time == DateTime(0) && date_based_on(job.cron) !== :none
+            next_time = tonext(now(), job.cron)
+            if isnothing(next_time)
+                error("Cannot submit the job: no date and time matching its $(job.cron)")
+            else
+                job.schedule_time = next_time
+            end
+        end
 
         push!(JOB_QUEUE, job)
     catch e
@@ -193,7 +206,7 @@ function unsafe_run!(job::Job) :: Bool
         true
     catch e
         # check status when fail
-        if Pipelines.istaskfailed(job.task)
+        if istaskfailed2(job.task)
             if job.state !== CANCELLED
                 job.state = FAILED
                 @error "A job has failed: $(job.id)" exception=job.task.result
@@ -248,7 +261,7 @@ function unsafe_cancel!(job::Job)
     end
 
     # no need to cancel finished ones
-    if Pipelines.istaskfailed(job.task)
+    if istaskfailed2(job.task)
         if job.state !== CANCELLED
             job.state = FAILED
             # job.task.result isa Exception, notify errors
@@ -360,15 +373,15 @@ function unsafe_update_state!(job::Job)
     global FAILED
     if job.state === RUNNING
         task_state = job.task.state
-        if task_state === DONE
+        if istaskfailed2(job.task)
+            job.stop_time = now()
+            free_thread(job)
+            @error "A job failed: $(job.id): $(job.name)" # exception=job.task.result
+            job.state = FAILED
+        elseif task_state === DONE
             job.stop_time = now()
             free_thread(job)
             job.state = DONE
-        elseif task_state === FAILED
-            job.stop_time = now()
-            free_thread(job)
-            @error "A job has failed: $(job.id): $(job.name)" exception=job.task.result
-            job.state = FAILED
         end
     else
         job.state

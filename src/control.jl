@@ -34,7 +34,7 @@ function scheduler_start(; verbose=true)
 
     set_scheduler_while_loop(true) # scheduler task won't stop
 
-    if istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
+    if Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
         verbose && @warn "Scheduler was interrupted or done. Restart."
         new_scheduler_task()
         schedule(SCHEDULER_TASK[])
@@ -62,11 +62,11 @@ function scheduler_stop(; verbose=true)
 
     if !isassigned(SCHEDULER_TASK)
         verbose && @warn "Scheduler is not running."
-    elseif istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
+    elseif Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
         verbose && @warn "Scheduler is not running."
     elseif istaskstarted(SCHEDULER_TASK[]) # if done, started is also true
         set_scheduler_while_loop(false) # scheduler task stop after the next loop
-        while !(istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[]))
+        while !(Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[]))
             sleep(0.2)
         end
         verbose && @info "Scheduler stops."
@@ -89,7 +89,7 @@ function scheduler_status(; verbose=true)
     if !isassigned(SCHEDULER_TASK)
         verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
         :not_running
-    elseif istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
+    elseif Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
         verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
         :not_running
     elseif istaskstarted(SCHEDULER_TASK[])

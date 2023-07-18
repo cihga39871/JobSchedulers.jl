@@ -389,6 +389,8 @@ function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_termina
     return row
 end
 
+zero_dim(num::Int, text) = num == 0 ? @dim(text) : text
+
 function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true, group_seperator_at_begining = r"^: *")
     width_progress = w ÷ 4
     if width_progress < 12
@@ -417,10 +419,10 @@ function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup
     
     width_counts = length(running) + length(failed) + length(cancelled) + length(done) + length(total) + 8
     if is_in_terminal
-        text_counts = @dim("[") * @green(running) * @dim(", ") *
-                            @red(failed) * 
-                            @yellow("+" * cancelled) * 
-                            @dim(", ") * done * "/"*
+        text_counts = @dim("[") * @green(zero_dim(job_group.running, running)) * @dim(", ") *
+                            @red(zero_dim(job_group.failed, failed)) * 
+                            @yellow(zero_dim(job_group.cancelled, "+" * cancelled)) * 
+                            @dim(", ") * zero_dim(job_group.done, done) * "/"*
                             @bold(total) * @dim("]")
     else
         text_counts = "[" * running * ", " *
