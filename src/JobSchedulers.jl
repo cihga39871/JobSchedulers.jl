@@ -66,8 +66,6 @@ function __init__()
     global SCHEDULER_MAX_CPU = default_ncpu()
     global SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
     global SCHEDULER_UPDATE_SECOND = ifelse(nthreads() > 1, 0.01, 0.05)
-
-    scheduler_start(verbose=false)
 end
 
 end
