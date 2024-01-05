@@ -57,6 +57,10 @@ export queue_progress
 
 
 function __init__()
+    # Fixing precompilation hangs due to open tasks or IO
+    # https://docs.julialang.org/en/v1/devdocs/precompile_hang/
+    ccall(:jl_generating_output, Cint, ()) == 1 && return nothing
+
     # initiating THREAD_POOL
     ccall(:jl_generating_output, Cint, ()) == 1 && return nothing
     c = Channel{Int}(nthreads() - 1)
