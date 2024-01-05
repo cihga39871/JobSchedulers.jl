@@ -10,6 +10,8 @@ using JLD2
 using Pipelines
 using OrderedCollections
 
+using PrecompileTools
+
 include("bit.jl")
 include("job_recur.jl")
 export Cron
@@ -62,7 +64,6 @@ function __init__()
     ccall(:jl_generating_output, Cint, ()) == 1 && return nothing
 
     # initiating THREAD_POOL
-    ccall(:jl_generating_output, Cint, ()) == 1 && return nothing
     c = Channel{Int}(nthreads() - 1)
     THREAD_POOL[] = c
     foreach(i -> put!(c, i), 2:nthreads())  # the thread 1 is reserved for JobScheduler, when nthreads > 2
@@ -72,6 +73,10 @@ function __init__()
     global SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
     global SCHEDULER_UPDATE_SECOND = ifelse(nthreads() > 1, 0.01, 0.05)
     scheduler_start(verbose=false)
+end
+
+if Base.VERSION >= v"1.8"
+    include("precompile_workload.jl")
 end
 
 end
