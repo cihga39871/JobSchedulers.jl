@@ -58,6 +58,7 @@ export queue_progress
 
 function __init__()
     # initiating THREAD_POOL
+    ccall(:jl_generating_output, Cint, ()) == 1 && return nothing
     c = Channel{Int}(nthreads() - 1)
     THREAD_POOL[] = c
     foreach(i -> put!(c, i), 2:nthreads())  # the thread 1 is reserved for JobScheduler, when nthreads > 2
@@ -66,7 +67,6 @@ function __init__()
     global SCHEDULER_MAX_CPU = default_ncpu()
     global SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
     global SCHEDULER_UPDATE_SECOND = ifelse(nthreads() > 1, 0.01, 0.05)
-
     scheduler_start(verbose=false)
 end
 
