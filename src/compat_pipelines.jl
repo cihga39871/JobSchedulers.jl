@@ -33,9 +33,12 @@ function Job(p::Program;
     stdout = nothing,
     stderr = nothing,
     dir::AbstractString = "",
+    _warn::Bool = true,
     kwargs...
 )
-    julia_program_warn(p)
+    if _warn
+        julia_program_warn(p)
+    end
 
     inputs, outputs, kws = Pipelines.parse_program_args(p; kwargs...)
     inputs, outputs = Pipelines.xxputs_completion_and_check(p, inputs, outputs)
@@ -110,12 +113,12 @@ program_close_io = JuliaProgram(
 Close `io` after `job` is in PAST status (either DONE/FAILED/CANCELLED). It is userful if jobs uses `::IO` as `stdout` or `stderr`, because the program will not close `::IO` manually!
 """
 function close_in_future(io::IO, job::Job)
-    close_job = Job(program_close_io, "io" => io, touch_run_id_file=false, dependency = [PAST => job.id])
+    close_job = Job(program_close_io, "io" => io, touch_run_id_file=false, dependency = [PAST => job])
     submit!(close_job)
     close_job
 end
 function close_in_future(io::IO, jobs::Vector{Job})
-    deps = [PAST => x.id for x in jobs]
+    deps = [PAST => x for x in jobs]
     close_job = Job(program_close_io, "io" => io, touch_run_id_file=false, dependency = deps)
     submit!(close_job)
     close_job

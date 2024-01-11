@@ -22,17 +22,21 @@
     kk = :xxx
     b = false
     commonargs = (touch_run_id_file = b, verbose = :min)
-    Job(jp; input=kk, input2=22, optional_arg=:sym, output=i, priority=10, commonargs...)
+    Job(jp; _warn = false, input=kk, input2=22, optional_arg=:sym, output=i, priority=10, commonargs...)
     
-    scheduler_status()
+    # scheduler_start(verbose=false)
 
     job = Job(@task(begin; sleep(2); println("highpriority"); end), name="high_priority", priority = 0)
-    display(job)
 
     dep1 = Job(() -> println("jobwithdep"), name="dep1", 
         dependency = job, schedule_time = Second(1), cron = Cron(second = *), until = Second(3)
     )
     
+    show(devnull, MIME("text/plain"), job)
+    show(devnull, MIME("text/plain"), [job; dep1])
+    
+    show(devnull, job)
+    show(devnull, [job; dep1])
 
     j_stdout = Job(ncpu = 1) do 
         for i = 1:3
@@ -76,4 +80,8 @@
     
     c6 = Cron(30, 45, 20, "*/2", *, *)
     JobSchedulers.tonext(DateTime(2023,1,2,20,45,00), c6) == DateTime(2023,1,2,20,45,30)
+
+    # wait_queue()
+    # scheduler_stop(verbose=false)
+    nothing
 end

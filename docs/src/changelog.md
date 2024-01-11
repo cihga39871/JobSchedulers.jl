@@ -1,5 +1,13 @@
 # Changelog
 
+v0.8.4
+
+- Update: remove print-to-stdout statements during precompilation.
+
+v0.8.3
+
+- Compat: fix precompilation runs forever in Julia v1.10.
+
 v0.8.2
 
 - Feat: not replace `Base.istaskfailed`. Use `istaskfailed2` instead.
