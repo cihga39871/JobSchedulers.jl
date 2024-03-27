@@ -30,7 +30,7 @@ format_stdxxx_file(x) = ""
 
 - `name::String = ""`: job name.
 - `user::String = ""`: user that job belongs to.
-- `ncpu::Int64 = 1`: number of CPU this job is about to use.
+- `ncpu::Real = 1.0`: number of CPU this job is about to use (can be `Float64`, eg: `1.5` will use 150% CPU).
 - `mem::Int64 = 0`: number of memory this job is about to use (supports TB, GB, MB, KB, B=1).
 - `schedule_time::Union{DateTime,Period} = DateTime(0)`: The expected time to run.
 - `dependency`: defer job until specified jobs reach specified state (QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST). PAST is the super set of DONE, FAILED, CANCELLED, which means the job will not run in the future. Eg: `DONE => job`, `[DONE => job1; PAST => job2]`.
@@ -57,10 +57,10 @@ mutable struct Job
     id::Int64
     name::String
     user::String
-    ncpu::Int64
+    ncpu::Float64
     mem::Int64
     schedule_time::DateTime
-    create_time::DateTime
+    submit_time::DateTime
     start_time::DateTime
     stop_time::DateTime
     wall_time::Period
@@ -75,10 +75,10 @@ mutable struct Job
     _thread_id::Int
     _func::Union{Function,Nothing}
 
-    function Job(id::Int64, name::String, user::String, ncpu::Int64, mem::Int64, schedule_time::ST, create_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String, _thread_id::Int = 0, _func = task.code) where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
+    function Job(id::Int64, name::String, user::String, ncpu::Real, mem::Int64, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String, _thread_id::Int = 0, _func = task.code) where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
         check_ncpu_mem(ncpu, mem)
         check_priority(priority)
-        new(id, name, user, ncpu, mem, period2datetime(schedule_time), create_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout_file, stderr_file, _thread_id, _func)
+        new(id, name, user, Float64(ncpu), mem, period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout_file, stderr_file, _thread_id, _func)
     end
 end
 
@@ -88,7 +88,7 @@ end
 function Job(task::Task;
     name::AbstractString = "",
     user::AbstractString = "",
-    ncpu::Int64 = 1,
+    ncpu::Real = 1.0,
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
@@ -98,7 +98,7 @@ function Job(task::Task;
     dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
-    if ncpu > 1
+    if ncpu > 1.001
         @warn "ncpu > 1 for Job(task::Task) is not fully supported by JobScheduler. If a task uses multi-threads, it is recommended to split it into different jobs. Job: $name." maxlog=1
     end
     task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
@@ -110,7 +110,7 @@ end
 function Job(f::Function;
     name::AbstractString = "",
     user::AbstractString = "",
-    ncpu::Int64 = 1,
+    ncpu::Real = 1.0,
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
@@ -120,7 +120,7 @@ function Job(f::Function;
     dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
-    if ncpu > 1
+    if ncpu > 1.001
         @warn "ncpu > 1 for Job(f::Function) is not fully supported by JobScheduler. If a function uses multi-threads, it is recommended to split it into different jobs. Job: $name." maxlog=1
     end
     task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
@@ -132,7 +132,7 @@ end
 function Job(command::Base.AbstractCmd;
     name::AbstractString = "",
     user::AbstractString = "",
-    ncpu::Int64 = 1,
+    ncpu::Real = 1.0,
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
@@ -154,11 +154,13 @@ end
 period2datetime(t::DateTime) = t
 period2datetime(t::Period) = now() + t
 
-function check_ncpu_mem(ncpu::Int64, mem::Int64)
+function check_ncpu_mem(ncpu::Real, mem::Int64)
     if ncpu < 0
-        error("ncpu < 0 is not supported for Job")
+        error("ncpu < 0 is not supported for Job.")
     elseif ncpu == 0
-        @warn("Job with ncpu == 0")
+        @warn "Job with ncpu == 0." maxlog=1
+    elseif 0.001 <= ncpu <= 0.999
+        @warn "Job with 0 < ncpu < 1. This job will also bind to one available thread. Other jobs cannot use binded threads." maxlog=1
     end
     if mem < 0
         error("mem < 0 is not supported for Job")
@@ -253,5 +255,6 @@ function next_recur_job(j::Job)
     if isnothing(schedule_time) || schedule_time > j.until
         return nothing
     end
+    # This job needs to be submitted using push!(new_job, JOB_QUEUE), cannot be submitted by submit!(new_job)
     Job(generate_id(), j.name, j.user, j.ncpu, j.mem, schedule_time, now(), DateTime(0), DateTime(0), j.wall_time, j.cron, j.until, QUEUING, j.priority, j.dependency, Task(() -> Base.invokelatest(j._func)), j.stdout_file, j.stderr_file, 0, j._func)
 end

@@ -1,5 +1,12 @@
 # Changelog
 
+v0.9.0
+
+- Change: `ncpu` now also accepts `Float64`, but if `0 < ncpu < 1`, job still binds to one thread and other jobs cannot use binded threads.
+- Change: `Job`'s field name `:create_time` is changed to `:submit_time`.
+- Change: check duplicate job when submitting: check `submit_time == DateTime(0)`, rather than recursively check existing jobs in `JOB_QUEUE`.
+- Feat: showing `queue()` is better.
+
 v0.8.4
 
 - Update: remove print-to-stdout statements during precompilation.

@@ -7,28 +7,20 @@ If you need to run multiple heavy Julia tasks, it is recommended to [start Julia
 using JobSchedulers, Dates
 ```
 
-## Scheduler control
+## Scheduler settings
+
+Check the current status of scheduler:
 
 ```julia
-scheduler_stop()
-# [ Info: Scheduler stops.
-
-scheduler_start()
-# ┌ Warning: Scheduler was interrupted or done. Restart.
-# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:38
-
 scheduler_status()
 # ┌ Info: Scheduler is running.
 # │   SCHEDULER_MAX_CPU = 32
-# │   SCHEDULER_MAX_MEM = 121278191616
+# │   SCHEDULER_MAX_MEM = "169.6 GB"
 # │   SCHEDULER_UPDATE_SECOND = 0.05
 # │   JOB_QUEUE_MAX_LENGTH = 10000
 # └   SCHEDULER_TASK = Task (runnable) @0x00007fe205052e60
 # :running
-
 ```
-
-## Scheduler settings
 
 Set the **maximum CPU** that the scheduler can use. If starting Julia with multi-threads, the maximum CPU is `nthreads() - 1`.
 
@@ -53,7 +45,7 @@ set_scheduler_max_mem(4194304KB)
 set_scheduler_max_mem(4294967296B)
 # 4294967296
 set_scheduler_max_mem(0.5)          # use 50% of total memory
-# 67370055680
+# 101166391296
 ```
 
 Set the update interval of job queue:
@@ -81,7 +73,7 @@ set_scheduler(
 )
 # ┌ Info: Scheduler is running.
 # │   SCHEDULER_MAX_CPU = 16
-# │   SCHEDULER_MAX_MEM = 67370055680
+# │   SCHEDULER_MAX_MEM = "94.2 GB"
 # │   SCHEDULER_UPDATE_SECOND = 0.03
 # │   JOB_QUEUE_MAX_LENGTH = 10000
 # └   SCHEDULER_TASK = Task (runnable) @0x00007fd239184fe0
@@ -120,18 +112,18 @@ job_with_args = Job(
     ]
 )
 # Job:
-#   id            → 4645128769531704
+#   id            → 6407186212753787
 #   name          → "job with args"
 #   user          → "me"
-#   ncpu          → 1
-#   mem           → 1024
-#   schedule_time → 2023-05-21 08:37:23
-#   create_time   → 0000-01-01 00:00:00
-#   start_time    → 0000-01-01 00:00:00
-#   stop_time     → 0000-01-01 00:00:00
+#   ncpu          → 1.0
+#   mem           → 1.0 KB
+#   schedule_time → 13:11:45
+#   submit_time   → na
+#   start_time    → na
+#   stop_time     → na
 #   wall_time     → 1 hour
 #   cron          → Cron(:none)
-#   until         → 9999-01-01 00:00:00
+#   until         → forever
 #   state         → :queuing
 #   priority      → 20
 #   dependency    → 2 jobs
@@ -247,10 +239,10 @@ Cron(30,4,"1,3-5",1,*,*)
 recurring_job = submit!(cron = Cron("*/5", *, *, *, *, *), until = Second(20)) do
     println(now())
 end
-# 2023-05-21T09:22:15.055
-# 2023-05-21T09:22:20.005
-# 2023-05-21T09:22:25.022
-# 2023-05-21T09:22:30.037
+# 2024-03-27T13:14:00.060
+# 2024-03-27T13:14:05.010
+# 2024-03-27T13:14:10.023
+# 2024-03-27T13:14:15.044
 ```
 
 ## Queue
@@ -262,14 +254,14 @@ queue(:all)      # or:
 queue(all=true)  # or:
 all_queue()
 # 3-element Vector{Job}:
-# ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬────────
-# │ Row │ state │               id │            name │ user │ ncpu │  mem  ⋯
-# ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼────────
-# │   1 │ :done │ 3603962559801309 │              "" │   "" │    1 │    0  ⋯
-# │   2 │ :done │ 3603962563817452 │              "" │   "" │    1 │    0  ⋯
-# │   3 │ :done │ 3603962603799412 │ "job with args" │ "me" │    1 │ 1024  ⋯
-# └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴────────
-#                                                         11 columns omitted
+# ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬─────────
+# │ Row │ state │               id │            name │ user │ ncpu │    mem ⋯
+# ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼─────────
+# │   1 │ :done │ 6407185876240603 │              "" │   "" │  1.0 │    0 B ⋯
+# │   2 │ :done │ 6407185955263382 │              "" │   "" │  1.0 │    0 B ⋯
+# │   3 │ :done │ 6407186212753787 │ "job with args" │ "me" │  1.0 │ 1.0 KB ⋯
+# └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴─────────
+#                                                           9 columns omitted
 ```
 
 Show queue (running and queuing jobs only):
@@ -277,6 +269,10 @@ Show queue (running and queuing jobs only):
 ```julia
 queue()
 # 0-element Vector{Job}:
+# ┌─────┬───────┬────┬──────┬──────┬──────┬─────┬──────────┬────────────┬────
+# │ Row │ state │ id │ name │ user │ ncpu │ mem │ priority │ dependency │ s ⋯
+# └─────┴───────┴────┴──────┴──────┴──────┴─────┴──────────┴────────────┴────
+#                                                           7 columns omitted
 ```
 
 Show queue using a job state (`QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED`, or `PAST`):
@@ -284,17 +280,30 @@ Show queue using a job state (`QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED
 ```julia
 queue(DONE)
 # 3-element Vector{Job}:
-# ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬────────
-# │ Row │ state │               id │            name │ user │ ncpu │  mem  ⋯
-# ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼────────
-# │   1 │ :done │ 3603962559801309 │              "" │   "" │    1 │    0  ⋯
-# │   2 │ :done │ 3603962563817452 │              "" │   "" │    1 │    0  ⋯
-# │   3 │ :done │ 3603962603799412 │ "job with args" │ "me" │    1 │ 1024  ⋯
-# └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴────────
-#                                                         11 columns omitted
+# ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬─────────
+# │ Row │ state │               id │            name │ user │ ncpu │    mem ⋯
+# ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼─────────
+# │   1 │ :done │ 6407185876240603 │              "" │   "" │  1.0 │    0 B ⋯
+# │   2 │ :done │ 6407185955263382 │              "" │   "" │  1.0 │    0 B ⋯
+# │   3 │ :done │ 6407186212753787 │ "job with args" │ "me" │  1.0 │ 1.0 KB ⋯
+# └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴─────────
+#                                                           9 columns omitted
 ```
 
-`queue(...)` and `all_queue()` can also used to filter job name and user.
+Show queue using a `String` or `Regex` to match job name or user:
+
+```julia
+queue("me")
+queue("with args")
+queue(r"job.*")
+# 1-element Vector{Job}:
+# ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬─────────
+# │ Row │ state │               id │            name │ user │ ncpu │    mem ⋯
+# ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼─────────
+# │   1 │ :done │ 6407186212753787 │ "job with args" │ "me" │  1.0 │ 1.0 KB ⋯
+# └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴─────────
+#                                                           9 columns omitted
+```
 
 See more at [`queue`](@ref), and [`all_queue`](@ref).
 
@@ -303,22 +312,22 @@ See more at [`queue`](@ref), and [`all_queue`](@ref).
 Get `Job` object by providing job ID, or access the index of queue:
 
 ```julia
-job_query(4645344816210967)  # or:
-queue(4645344816210967)
+job_query(6407186212753787)  # or:
+queue(6407186212753787)
 queue(:all)[1]
 # Job:
-#   id            → 4645344816210967
-#   name          → ""
-#   user          → ""
-#   ncpu          → 1
-#   mem           → 0
-#   schedule_time → 0000-01-01 00:00:00
-#   create_time   → 2023-05-21 09:32:24
-#   start_time    → 2023-05-21 09:32:24
-#   stop_time     → 2023-05-21 09:32:25
-#   wall_time     → 1 year
+#   id            → 6407186212753787
+#   name          → "job with args"
+#   user          → "me"
+#   ncpu          → 1.0
+#   mem           → 1.0 KB
+#   schedule_time → 13:11:45
+#   submit_time   → 13:12:46
+#   start_time    → 13:12:46
+#   stop_time     → 13:12:46
+#   wall_time     → 1 hour
 #   cron          → Cron(:none)
-#   until         → 9999-01-01 00:00:00
+#   until         → forever
 #   state         → :done
 #   priority      → 20
 #   dependency    → []
@@ -326,7 +335,7 @@ queue(:all)[1]
 #   stdout_file   → ""
 #   stderr_file   → ""
 #   _thread_id    → 0
-#   _func         → #22
+#   _func         → #12
 ```
 
 ## Wait for jobs and progress meter
@@ -345,6 +354,28 @@ wait_queue(show_progress = true)
 wait_queue(show_progress = true, exit_num_jobs = 2)
 ```
 ![progress meter](assets/progress_meter.png)
+
+## Scheduler control
+
+Scheduler is automatically started after v0.7.11.
+
+```julia
+scheduler_stop()
+# [ Info: Scheduler stops.
+
+scheduler_start()
+# ┌ Warning: Scheduler was interrupted or done. Restart.
+# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:38
+
+scheduler_status()
+# ┌ Info: Scheduler is running.
+# │   SCHEDULER_MAX_CPU = 32
+# │   SCHEDULER_MAX_MEM = "169.6 GB"
+# │   SCHEDULER_UPDATE_SECOND = 0.05
+# │   JOB_QUEUE_MAX_LENGTH = 10000
+# └   SCHEDULER_TASK = Task (runnable) @0x00007fe205052e60
+# :running
+```
 
 ## Find optimized `ncpu` that a Job can use
 
@@ -395,8 +426,6 @@ julia> ?Job
 ```julia
 using Pipelines, JobSchedulers
 
-scheduler_start()
-
 p = CmdProgram(
     inputs = ["IN1", "IN2"],
     outputs = "OUT",
@@ -407,7 +436,7 @@ p = CmdProgram(
 #   id_file          → 
 #   info_before      → auto
 #   info_after       → auto
-#   cmd_dependencies → CmdDependency[]
+#   cmd_dependencies → <empty>
 #   arg_inputs       → IN1 :: Any (required)
 #                      IN2 :: Any (required)
 #   validate_inputs  → do_nothing
@@ -417,8 +446,7 @@ p = CmdProgram(
 #   arg_outputs      → OUT :: Any (required)
 #   validate_outputs → do_nothing
 #   wrap_up          → do_nothing
-#   arg_forward      → Pair{String, Symbol}[]
-
+#   arg_forward      → <empty>
 
 ### native Pipelines.jl method to run the program
 run(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false) # touch_run_id_file = false means do not create a file which indicates the job is done and avoids re-run.
@@ -430,16 +458,18 @@ run(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false) # touch_run
 ### run the program by submitting to JobSchedulers.jl
 program_job = Job(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)
 # Job:
-#   id            → 3603980229784158
+#   id            → 6407224068474142
 #   name          → "Command Program"
 #   user          → ""
-#   ncpu          → 1
-#   mem           → 0
-#   schedule_time → 0000-01-01 00:00:00
-#   create_time   → 0000-01-01 00:00:00
-#   start_time    → 0000-01-01 00:00:00
-#   stop_time     → 0000-01-01 00:00:00
-#   wall_time     → 1 week
+#   ncpu          → 1.0
+#   mem           → 0 B
+#   schedule_time → na
+#   submit_time   → na
+#   start_time    → na
+#   stop_time     → na
+#   wall_time     → 1 year
+#   cron          → Cron(:none)
+#   until         → forever
 #   state         → :queuing
 #   priority      → 20
 #   dependency    → []
@@ -447,6 +477,7 @@ program_job = Job(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = fals
 #   stdout_file   → ""
 #   stderr_file   → ""
 #   _thread_id    → 0
+#   _func         → #87
 
 submit!(program_job)
 # inputs are: in1 and 2
@@ -454,7 +485,7 @@ submit!(program_job)
 
 # get the returned result
 result(program_job)
-# (true, Dict("OUT" => "out"))
+# (true, Dict{String, Any}("OUT" => "out"))
 ```
 
 ## Backup

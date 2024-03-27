@@ -22,7 +22,7 @@ See also: [`run`](@ref)
 function Job(p::Program;
     name::AbstractString = p.name,
     user::AbstractString = "",
-    ncpu::Int64 = 1,
+    ncpu::Real = 1.0,
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
@@ -60,7 +60,7 @@ function Job(p::Program;
                 end
             elseif pair.second == :ncpu
                 if ncpu == 1
-                    ncpu = val isa Number ? Int(val) : parse(Int, val)
+                    ncpu = val isa Number ? Float64(val) : parse(Float64, val)
                 end
             elseif pair.second == :mem
                 if mem == 0

@@ -87,16 +87,16 @@ function scheduler_status(; verbose=true)
     global SCHEDULER_UPDATE_SECOND
     global JOB_QUEUE_MAX_LENGTH
     if !isassigned(SCHEDULER_TASK)
-        verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
+        verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
         :not_running
     elseif Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
         :not_running
     elseif istaskstarted(SCHEDULER_TASK[])
-        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
+        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
         :running
     else
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
         :not_running
     end
 end

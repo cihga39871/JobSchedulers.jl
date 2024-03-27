@@ -107,7 +107,7 @@ end
 """
     submit!(job::Job)
 
-Submit the job. If `job.create_time == 0000-01-01T00:00:00 (default)`, it will change to the time of submission.
+Submit the job. If `job.submit_time == 0000-01-01T00:00:00 (default)`, it will change to the time of submission.
 
 > `submit!(Job(...))` can be simplified to `submit!(...)`. They are equivalent.
 
@@ -140,16 +140,12 @@ function submit!(job::Job)
     @debug "submit!(job::Job) id=$(job.id) name=$(job.name)"
     wait_for_lock()
     try
-        # check duplicate submission (queuing)
-        for existing_job in JOB_QUEUE
-            if existing_job === job
-                error("Cannot re-submit the same job! Job ID: $(job.id)")
-            end
-        end
-
         # job.state = QUEUING
-        if job.create_time == DateTime(0)
-            job.create_time = now()
+        if job.submit_time == DateTime(0)
+            job.submit_time = now()
+        else
+            # duplicate submission
+            error("Cannot re-submit the same job! Job ID: $(job.id). Name: $(job.name)")
         end
         
         # job recur: set schedule_time
@@ -448,7 +444,7 @@ end
 function current_usage()
     global JOB_QUEUE
     global RUNNING
-    cpu_usage = 0
+    cpu_usage = 0.0
     mem_usage = 0
     @debug "current_usage()"
     wait_for_lock()
@@ -487,19 +483,19 @@ function update_queue_priority!()
     return
 end
 
-function run_queuing_jobs(ncpu_available::Int, mem_available::Int)
+function run_queuing_jobs(ncpu_available::Real, mem_available::Int)
     global JOB_QUEUE
     global QUEUING
-    @debug "run_queuing_jobs($ncpu_available::Int, $mem_available::Int)"
+    @debug "run_queuing_jobs($ncpu_available::Real, $mem_available::Int)"
     wait_for_lock()
     try
         for job in JOB_QUEUE
             if job.ncpu > 0
                 # job with ncpu == 0 and schedule_time < now() is at top of JOB_QUEUE
-                ncpu_available < 1 && break
+                ncpu_available < 0.999 && break  # ncpu::Float64, can be inaccurate
                 mem_available  < 0 && break
             end
-            if job.state === QUEUING && job.schedule_time < now() && job.ncpu <= ncpu_available && job.mem <= mem_available && is_dependency_ok(job)
+            if job.state === QUEUING && job.schedule_time < now() && job.ncpu <= ncpu_available + 0.001 && job.mem <= mem_available && is_dependency_ok(job)  # # ncpu::Float64, can be inaccurate
                 if unsafe_run!(job)
                     ncpu_available -= job.ncpu
                     mem_available  -= job.mem

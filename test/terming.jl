@@ -48,3 +48,7 @@ submit!(j_stdout)
 submit!(j_stderr)
 submit!(j_stdlog)
 wait_queue(show_progress = true)
+
+queue(:all)
+queue()
+show(stdout, "text/plain", JobSchedulers.JOB_QUEUE_OK)

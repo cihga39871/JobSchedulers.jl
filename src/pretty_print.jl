@@ -99,7 +99,11 @@ all_queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}) = queue(:a
     result = "Job:\n"
     for (i,f) in enumerate(fs)
         result *= string("  ", f, " " ^ (max_byte - length(fs_string[i])) * " → ")
-        result *= simplify(getfield(job, f), true) * "\n"
+        if f === :mem
+            result *= simplify_memory(getfield(job, f), true) * "\n"
+        else
+            result *= simplify(getfield(job, f), true) * "\n"
+        end
     end
     print(io, result)
 end
@@ -112,8 +116,25 @@ function Base.show(io::IO, ::MIME"text/plain", job_queue::Vector{Job};
     allrows::Bool = !get(io, :limit, false),
     allcols::Bool = !get(io, :limit, false)
 )
-    field_order = [:state, :id, :name, :user, :ncpu, :mem, :start_time, :stop_time, :schedule_time, :create_time, :wall_time, :priority, :cron, :dependency, :stdout_file, :stderr_file, :task, :_thread_id]
+    field_order = [:state, :id, :name, :user, :ncpu, :mem, :priority, :dependency, :start_time, :stop_time, :schedule_time, :submit_time, :wall_time, :cron, :until]
     mat = [JobSchedulers.simplify(getfield(j,f)) for j in job_queue, f in field_order]
+    mat = hcat(
+        [JobSchedulers.simplify(getfield(j, :state)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :id)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :name)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :user)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :ncpu)) for j in job_queue],
+        [JobSchedulers.simplify_memory(getfield(j, :mem)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :priority)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :dependency)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :start_time)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :stop_time)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :schedule_time)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :submit_time)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :wall_time)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :cron)) for j in job_queue],
+        [JobSchedulers.simplify(getfield(j, :until)) for j in job_queue],
+    )
 
     if allcols && allrows
         crop = :none
@@ -133,7 +154,18 @@ end
 simplify(x::Symbol, detail::Bool = false) = ":$x"
 simplify(x::Int, detail::Bool = false) = string(x)
 simplify(x::AbstractString, detail::Bool = false) = "\"$x\""
-simplify(x::DateTime, detail::Bool = false) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS")
+simplify(x::Float64, detail::Bool = false) = string(round(x, digits=1))
+function simplify(x::DateTime, detail::Bool = false)
+    if Date(x) == today()
+        Dates.format(x, dateformat"HH:MM:SS")
+    elseif x == DateTime(0)
+        "na"
+    elseif Year(x) == Year(9999)
+        "forever"
+    else
+        Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS")
+    end
+end
 function simplify(deps::Vector{Pair{Symbol,Union{Int64, Job}}}, detail::Bool = false)
     n_dep = length(deps)
     if n_dep == 0
@@ -169,6 +201,24 @@ function simplify(c::Cron, detail::Bool = false)
 end
 simplify(x, detail::Bool = false) = string(x)
 
+@eval function simplify_memory(mem::Int, detail::Bool = false)
+    if mem < 1024
+        "$mem B"
+    elseif mem < $(1024^2)
+        mem_unit = simplify(mem / 1024)
+        "$mem_unit KB"
+    elseif mem < $(1024^3)
+        mem_unit = simplify(mem / $(1024^2))
+        "$mem_unit MB"
+    elseif mem < $(1024^4)
+        mem_unit = simplify(mem / $(1024^3))
+        "$mem_unit GB"
+    else
+        mem_unit = simplify(mem / $(1024^4))
+        "$mem_unit TB"
+    end
+end
+
 #### JSON conversion
 @eval function Base.Dict(job::Job)
     fs = $(fieldnames(Job))
@@ -183,7 +233,7 @@ end
 #TODO: update new fields. Check compatibility with existing programs
 function JSON.Writer.json(job::Job)
     """
-    {"id":$(job.id),"state":"$(job.state)","name":"$(job.name)","user":"$(job.user)","ncpu":$(job.ncpu),"create_time":"$(job.create_time)","start_time":"$(job.start_time)","stop_time":"$(job.stop_time)","wall_time":"$(job.wall_time)","priority":$(job.priority),"stdout_file":"$(job.stdout_file)","stderr_file":"$(job.stderr_file)"}"""
+    {"id":$(job.id),"state":"$(job.state)","name":"$(job.name)","user":"$(job.user)","ncpu":$(job.ncpu),"submit_time":"$(job.submit_time)","start_time":"$(job.start_time)","stop_time":"$(job.stop_time)","wall_time":"$(job.wall_time)","priority":$(job.priority),"stdout_file":"$(job.stdout_file)","stderr_file":"$(job.stderr_file)"}"""
 end
 
 function json_queue(;all=false)

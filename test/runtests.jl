@@ -102,7 +102,7 @@ using Test
 			@task(begin println("job_with_args done"); "result" end); # Task to run
 			name = "job with args",               # job name.
 			user = "me",                # Job owner.
-			ncpu = 1,                   # Number of CPU required.
+			ncpu = 1.6,                 # Number of CPU required.
 			mem = 1KB,                  # Number of memory required (unit: TB, GB, MB, KB, B).
 			schedule_time = Second(3),  # Run after 3 seconds; can be ::DateTime or ::Period.
 			wall_time = Hour(1),        # The maximum time to run the job. (Cancel job after reaching wall time.)
@@ -265,7 +265,7 @@ using Test
 		@test job.ncpu == 3
 		@test job.mem == 666
 
-		job.ncpu = 1
+		job.ncpu = 0.5
 		submit!(job)
 		while job.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
 			sleep(1)

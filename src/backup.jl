@@ -192,7 +192,7 @@ end
 function is_same_job(a::Job, b::Job)
     a.id == b.id &&
     a.schedule_time == b.schedule_time &&
-    a.create_time == b.create_time &&
+    a.submit_time == b.submit_time &&
     a.start_time == b.start_time &&
     a.stop_time == b.stop_time &&
     a.name == b.name &&

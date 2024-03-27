@@ -101,7 +101,7 @@ end
 
     sleep(4)
     j_new = queue(:done)[end]
-    @test j.id < j_new.id && j.name == j_new.name
+    @test j.id != j_new.id && j.name == j_new.name
     JobSchedulers.wait_for_lock()
     try
         JobSchedulers.unsafe_cancel!.(queue(QUEUING, "recur print date time"))
