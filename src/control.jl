@@ -1,6 +1,7 @@
 
 # TODO atexit(f) to store the job history.
 const SCHEDULER_TASK = Base.RefValue{Task}()
+const SCHEDULER_REACTIVATION_TASK = Base.RefValue{Task}()
 
 function new_scheduler_task()
     global SCHEDULER_TASK
@@ -19,6 +20,23 @@ function new_scheduler_task()
     end
     SCHEDULER_TASK[]
 end
+function new_scheduler_reactivation_task()
+    global SCHEDULER_REACTIVATION_TASK
+    SCHEDULER_REACTIVATION_TASK[] = @task scheduler_reactivation()
+    @static if :sticky in fieldnames(Task)
+        # make the scheduler task sticky to threadid == 1
+        if nthreads() > 1
+            # sticky: disallow task migration which was introduced in 1.7
+            @static if VERSION >= v"1.7"
+                SCHEDULER_REACTIVATION_TASK[].sticky = true
+            else
+                SCHEDULER_REACTIVATION_TASK[].sticky = false
+            end    
+            ccall(:jl_set_task_tid, Cvoid, (Any, Cint), SCHEDULER_REACTIVATION_TASK[], 0)
+        end
+    end
+    SCHEDULER_REACTIVATION_TASK[]
+end
 
 """
     scheduler_start()
@@ -27,9 +45,13 @@ Start the job scheduler.
 """
 function scheduler_start(; verbose=true)
     global SCHEDULER_TASK
+    global SCHEDULER_REACTIVATION_TASK
 
     if !isassigned(SCHEDULER_TASK)
         new_scheduler_task()
+    end
+    if !isassigned(SCHEDULER_REACTIVATION_TASK)
+        new_scheduler_reactivation_task()
     end
 
     set_scheduler_while_loop(true) # scheduler task won't stop
@@ -39,16 +61,33 @@ function scheduler_start(; verbose=true)
         new_scheduler_task()
         schedule(SCHEDULER_TASK[])
         while !istaskstarted(SCHEDULER_TASK[])
-    		sleep(0.05)
-    	end
+            sleep(0.05)
+        end
     elseif istaskstarted(SCHEDULER_TASK[]) # if done, started is also true
         verbose && @info "Scheduler is running."
     else
         verbose && @info "Scheduler starts."
         schedule(SCHEDULER_TASK[])
         while !istaskstarted(SCHEDULER_TASK[])
-    		sleep(0.05)
-    	end
+            sleep(0.05)
+        end
+    end
+
+    if Base.istaskfailed(SCHEDULER_REACTIVATION_TASK[]) || istaskdone(SCHEDULER_REACTIVATION_TASK[])
+        verbose && @warn "Scheduler reactication was interrupted or done. Restart."
+        new_scheduler_reactivation_task()
+        schedule(SCHEDULER_REACTIVATION_TASK[])
+        while !istaskstarted(SCHEDULER_REACTIVATION_TASK[])
+            sleep(0.05)
+        end
+    elseif istaskstarted(SCHEDULER_REACTIVATION_TASK[]) # if done, started is also true
+        verbose && @info "Scheduler reactication is running."
+    else
+        verbose && @info "Scheduler reactication starts."
+        schedule(SCHEDULER_REACTIVATION_TASK[])
+        while !istaskstarted(SCHEDULER_REACTIVATION_TASK[])
+            sleep(0.05)
+        end
     end
 end
 
@@ -59,6 +98,7 @@ Stop the job scheduler.
 """
 function scheduler_stop(; verbose=true)
     global SCHEDULER_TASK
+    global SCHEDULER_REACTIVATION_TASK
 
     if !isassigned(SCHEDULER_TASK)
         verbose && @warn "Scheduler is not running."
@@ -66,8 +106,10 @@ function scheduler_stop(; verbose=true)
         verbose && @warn "Scheduler is not running."
     elseif istaskstarted(SCHEDULER_TASK[]) # if done, started is also true
         set_scheduler_while_loop(false) # scheduler task stop after the next loop
+        scheduler_need_action()
         while !(Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[]))
             sleep(0.2)
+            scheduler_need_action()
         end
         verbose && @info "Scheduler stops."
     else
@@ -84,19 +126,18 @@ function scheduler_status(; verbose=true)
     global SCHEDULER_TASK
     global SCHEDULER_MAX_CPU
     global SCHEDULER_MAX_MEM
-    global SCHEDULER_UPDATE_SECOND
     global JOB_QUEUE_MAX_LENGTH
-    if !isassigned(SCHEDULER_TASK)
-        verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH
+    if !isassigned(SCHEDULER_TASK) || !isassigned(SCHEDULER_REACTIVATION_TASK)
+        verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE_MAX_LENGTH
         :not_running
-    elseif Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
+    elseif Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[]) || Base.istaskfailed(SCHEDULER_REACTIVATION_TASK[]) || istaskdone(SCHEDULER_REACTIVATION_TASK[]) 
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
         :not_running
-    elseif istaskstarted(SCHEDULER_TASK[])
-        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
+    elseif istaskstarted(SCHEDULER_TASK[]) || istaskstarted(SCHEDULER_REACTIVATION_TASK[])
+        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
         :running
     else
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) SCHEDULER_UPDATE_SECOND JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[]
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
         :not_running
     end
 end
@@ -107,6 +148,7 @@ end
 Set the update interval of scheduler.
 """
 function set_scheduler_update_second(s::Float64 = 0.6)
+    @warn "set_scheduler_update_second(s) is no longer required. The Job's scheduler updates when needed automatically." maxlog=1
     s <= 0.001 && error("schedular update interval cannot be less than 0.001.")
     global SCHEDULER_UPDATE_SECOND = s
 end

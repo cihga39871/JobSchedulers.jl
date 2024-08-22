@@ -4,18 +4,19 @@ const MB = 1024KB
 const GB = 1024MB
 const TB = 1024GB
 
-SCHEDULER_MAX_CPU = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS
-SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
-SCHEDULER_UPDATE_SECOND = 0.05
+SCHEDULER_MAX_CPU::Int = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS
+SCHEDULER_MAX_MEM::Int = round(Int, Sys.total_memory() * 0.9)
+SCHEDULER_UPDATE_SECOND::Float64 = 0.05
 
 const JOB_QUEUE = Vector{Job}()
-JOB_QUEUE_LOCK = SpinLock()
+const JOB_QUEUE_LOCK = SpinLock()
 const JOB_QUEUE_OK = Vector{Job}()  # jobs not queuing
-JOB_QUEUE_MAX_LENGTH = 10000
+JOB_QUEUE_MAX_LENGTH::Int = 10000
 
-SCHEDULER_BACKUP_FILE = ""
+SCHEDULER_BACKUP_FILE::String = ""
 
-SCHEDULER_WHILE_LOOP = true
+SCHEDULER_WHILE_LOOP::Bool = true
+
 """
     set_scheduler_while_loop(b::Bool)
 
@@ -40,14 +41,14 @@ function release_lock()
     @debug "               release_lock() end    $JOB_QUEUE_LOCK"
 end
 
-SLEEP_HANDELED_TIME = 10
+SLEEP_HANDELED_TIME::Int = 10
 function wait_for_lock()
     global JOB_QUEUE_LOCK
     global SLEEP_HANDELED_TIME
     @debug "               wait_for_lock() start $JOB_QUEUE_LOCK"
     while !trylock(JOB_QUEUE_LOCK)
         try
-            sleep(0.05)
+            sleep(0)
         catch ex
             SLEEP_HANDELED_TIME -= 1
             if SLEEP_HANDELED_TIME < 0
@@ -163,6 +164,7 @@ function submit!(job::Job)
         rethrow(e)
     finally
         release_lock()
+        scheduler_need_action()
     end
 
     return job
@@ -175,7 +177,9 @@ end
 """
     unsafe_run!(job::Job) :: Bool
 
-Jump the queue and run `job` immediately, no matter what other jobs are running or waiting. If successful initiating to run, return `true`, else `false`.
+Jump the queue and run `job` immediately, no matter what other jobs are running or waiting. If successful initiating to run, return `true`, else `false`. 
+
+Caution: it will not trigger `scheduler_need_action()`.
 """
 function unsafe_run!(job::Job) :: Bool
     global QUEUING
@@ -235,6 +239,7 @@ function cancel!(job::Job)
         rethrow(e)
     finally
         release_lock()
+        scheduler_need_action()
     end
     res
 end
@@ -243,6 +248,8 @@ end
     unsafe_cancel!(job::Job)
 
 Caution: it is unsafe and should only be called within lock. Do not call from other module.
+
+Caution: it will not trigger `scheduler_need_action()`.
 """
 function unsafe_cancel!(job::Job)
     global CANCELLED
@@ -292,18 +299,76 @@ end
 
 
 ### Scheduler main
+const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
+const SCHEDULER_ACTION_LOCK = SpinLock()
 
-function scheduler()
+function scheduler_need_action()
+    global SCHEDULER_ACTION
+    global SCHEDULER_ACTION_LOCK
+
+    isready(SCHEDULER_ACTION[]) && return  # isready means already ready for action
+
+    lock(SCHEDULER_ACTION_LOCK) do 
+        if !isready(SCHEDULER_ACTION[]) && !isready(SCHEDULER_ACTION[]) # will take action, no need to repeat
+            put!(SCHEDULER_ACTION[], 1)
+        end
+    end
+    nothing
+end
+
+function scheduler_reactivation()
     global SCHEDULER_UPDATE_SECOND
     global SCHEDULER_WHILE_LOOP
+    global SLEEP_HANDELED_TIME
+
     while SCHEDULER_WHILE_LOOP
-        @debug "scheduler() new loop"
-        update_queue!()
         try
-            sleep(SCHEDULER_UPDATE_SECOND)
+            scheduler_need_action()
+            sleep(0.5)
         catch ex
             if isa(ex, InterruptException) && isinteractive()  # if someone sends ctrl + C to sleep, scheduler wont stop in interactive mode
-                @warn "JobScheduler.scheduler(): interruption signal received but suppressed. To stop scheduler, please use JobSchedulers.set_scheduler_while_loop(false)"
+                SLEEP_HANDELED_TIME -= 1
+                if SLEEP_HANDELED_TIME < 0
+                    rethrow(ex)
+                else
+                    @warn "JobScheduler.scheduler() catched a InterruptException during wait. Max time to catch: $SLEEP_HANDELED_TIME. To stop the scheduler, please use JobSchedulers.set_scheduler_while_loop(false), or send InterruptException $SLEEP_HANDELED_TIME more times." exception=ex
+                end
+            else
+                set_scheduler_while_loop(false)
+                throw(ex)
+            end
+        end
+        
+    end
+end
+
+
+"""
+    scheduler()
+
+The function of running Job's scheduler. It needs to be called by `scheduler_start()`, rather than calling directly.
+"""
+function scheduler()
+    global SCHEDULER_WHILE_LOOP
+    global SCHEDULER_ACTION
+    global SCHEDULER_ACTION_LOCK
+    global SLEEP_HANDELED_TIME
+
+    while SCHEDULER_WHILE_LOOP
+        @debug "scheduler() new loop"
+        
+        try
+            wait(SCHEDULER_ACTION[])
+            take!(SCHEDULER_ACTION[])
+            update_queue!()
+        catch ex
+            if isa(ex, InterruptException) && isinteractive()  # if someone sends ctrl + C to sleep, scheduler wont stop in interactive mode
+                SLEEP_HANDELED_TIME -= 1
+                if SLEEP_HANDELED_TIME < 0
+                    rethrow(ex)
+                else
+                    @warn "JobScheduler.scheduler() catched a InterruptException during wait. Max time to catch: $SLEEP_HANDELED_TIME. To stop the scheduler, please use JobSchedulers.set_scheduler_while_loop(false), or send InterruptException $SLEEP_HANDELED_TIME more times." exception=ex
+                end
             else
                 set_scheduler_while_loop(false)
                 throw(ex)
@@ -354,6 +419,13 @@ function cancel_jobs_reaching_wall_time!()
     end
 end
 
+function unsafe_update_as_failed!(job::Job)
+    job.stop_time = now()
+    free_thread(job)
+    @error "A job failed: $(job.id): $(job.name)" # exception=job.task.result
+    job.state = FAILED
+end
+
 """
     unsafe_update_state!(job::Job)
 
@@ -370,10 +442,7 @@ function unsafe_update_state!(job::Job)
     if job.state === RUNNING
         task_state = job.task.state
         if istaskfailed2(job.task)
-            job.stop_time = now()
-            free_thread(job)
-            @error "A job failed: $(job.id): $(job.name)" # exception=job.task.result
-            job.state = FAILED
+            unsafe_update_as_failed!(job)
         elseif task_state === DONE
             job.stop_time = now()
             free_thread(job)

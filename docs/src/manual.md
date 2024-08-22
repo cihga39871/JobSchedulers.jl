@@ -7,79 +7,6 @@ If you need to run multiple heavy Julia tasks, it is recommended to [start Julia
 using JobSchedulers, Dates
 ```
 
-## Scheduler settings
-
-Check the current status of scheduler:
-
-```julia
-scheduler_status()
-# ┌ Info: Scheduler is running.
-# │   SCHEDULER_MAX_CPU = 32
-# │   SCHEDULER_MAX_MEM = "169.6 GB"
-# │   SCHEDULER_UPDATE_SECOND = 0.05
-# │   JOB_QUEUE_MAX_LENGTH = 10000
-# └   SCHEDULER_TASK = Task (runnable) @0x00007fe205052e60
-# :running
-```
-
-Set the **maximum CPU** that the scheduler can use. If starting Julia with multi-threads, the maximum CPU is `nthreads() - 1`.
-
-```julia
-set_scheduler_max_cpu()     # use all available CPUs
-# 32
-set_scheduler_max_cpu(4)    # use 4 CPUs
-# 4
-set_scheduler_max_cpu(0.5)  # use 50% of CPUs
-# 16
-```
-
-Set the **maximum RAM** the scheduler can use:
-
-```julia
-set_scheduler_max_mem()             # use 80% of total memory
-# 107792089088
-
-set_scheduler_max_mem(4GB)          # use 4GB memory
-set_scheduler_max_mem(4096MB)
-set_scheduler_max_mem(4194304KB)
-set_scheduler_max_mem(4294967296B)
-# 4294967296
-set_scheduler_max_mem(0.5)          # use 50% of total memory
-# 101166391296
-```
-
-Set the update interval of job queue:
-
-```julia
-set_scheduler_update_second(0.03)  # update job queue every 0.3 seconds
-# 0.03
-```
-
-Set the maximum number of finished jobs:
-
-```julia
-set_scheduler_max_job(10000)  # If number of finished jobs > 10000, the oldest ones will be removed.
-# 10000                       # It does not affect queuing or running jobs.
-```
-
-Set the previous setting in one function:
-
-```julia
-set_scheduler(
-    max_cpu = JobSchedulers.SCHEDULER_MAX_CPU,
-    max_mem = JobSchedulers.SCHEDULER_MAX_MEM,
-    update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND,
-    max_job = JobSchedulers.JOB_QUEUE_MAX_LENGTH
-)
-# ┌ Info: Scheduler is running.
-# │   SCHEDULER_MAX_CPU = 16
-# │   SCHEDULER_MAX_MEM = "94.2 GB"
-# │   SCHEDULER_UPDATE_SECOND = 0.03
-# │   JOB_QUEUE_MAX_LENGTH = 10000
-# └   SCHEDULER_TASK = Task (runnable) @0x00007fd239184fe0
-# :running
-```
-
 ## Create a Job
 
 A `Job` is the wrapper of `AbstractCmd`, `Function` or `Task`:
@@ -128,8 +55,8 @@ job_with_args = Job(
 #   priority      → 20
 #   dependency    → 2 jobs
 #   task          → Task
-#   stdout_file   → ""
-#   stderr_file   → ""
+#   stdout        → nothing
+#   stderr        → nothing
 #   _thread_id    → 0
 #   _func         → #12
 ```
@@ -332,8 +259,8 @@ queue(:all)[1]
 #   priority      → 20
 #   dependency    → []
 #   task          → Task
-#   stdout_file   → ""
-#   stderr_file   → ""
+#   stdout        → nothing
+#   stderr        → nothing
 #   _thread_id    → 0
 #   _func         → #12
 ```
@@ -474,8 +401,8 @@ program_job = Job(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = fals
 #   priority      → 20
 #   dependency    → []
 #   task          → Task
-#   stdout_file   → ""
-#   stderr_file   → ""
+#   stdout        → nothing
+#   stderr        → nothing
 #   _thread_id    → 0
 #   _func         → #87
 
@@ -486,6 +413,79 @@ submit!(program_job)
 # get the returned result
 result(program_job)
 # (true, Dict{String, Any}("OUT" => "out"))
+```
+
+## Scheduler settings
+
+Check the current status of scheduler:
+
+```julia
+scheduler_status()
+# ┌ Info: Scheduler is running.
+# │   SCHEDULER_MAX_CPU = 32
+# │   SCHEDULER_MAX_MEM = "169.6 GB"
+# │   SCHEDULER_UPDATE_SECOND = 0.05
+# │   JOB_QUEUE_MAX_LENGTH = 10000
+# └   SCHEDULER_TASK = Task (runnable) @0x00007fe205052e60
+# :running
+```
+
+Set the **maximum CPU** that the scheduler can use. If starting Julia with multi-threads, the maximum CPU is `nthreads() - 1`.
+
+```julia
+set_scheduler_max_cpu()     # use all available CPUs
+# 32
+set_scheduler_max_cpu(4)    # use 4 CPUs
+# 4
+set_scheduler_max_cpu(0.5)  # use 50% of CPUs
+# 16
+```
+
+Set the **maximum RAM** the scheduler can use:
+
+```julia
+set_scheduler_max_mem()             # use 80% of total memory
+# 107792089088
+
+set_scheduler_max_mem(4GB)          # use 4GB memory
+set_scheduler_max_mem(4096MB)
+set_scheduler_max_mem(4194304KB)
+set_scheduler_max_mem(4294967296B)
+# 4294967296
+set_scheduler_max_mem(0.5)          # use 50% of total memory
+# 101166391296
+```
+
+Set the update interval of job queue:
+
+```julia
+set_scheduler_update_second(0.03)  # update job queue every 0.3 seconds
+# 0.03
+```
+
+Set the maximum number of finished jobs:
+
+```julia
+set_scheduler_max_job(10000)  # If number of finished jobs > 10000, the oldest ones will be removed.
+# 10000                       # It does not affect queuing or running jobs.
+```
+
+Set the previous setting in one function:
+
+```julia
+set_scheduler(
+    max_cpu = JobSchedulers.SCHEDULER_MAX_CPU,
+    max_mem = JobSchedulers.SCHEDULER_MAX_MEM,
+    update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND,
+    max_job = JobSchedulers.JOB_QUEUE_MAX_LENGTH
+)
+# ┌ Info: Scheduler is running.
+# │   SCHEDULER_MAX_CPU = 16
+# │   SCHEDULER_MAX_MEM = "94.2 GB"
+# │   SCHEDULER_UPDATE_SECOND = 0.03
+# │   JOB_QUEUE_MAX_LENGTH = 10000
+# └   SCHEDULER_TASK = Task (runnable) @0x00007fd239184fe0
+# :running
 ```
 
 ## Backup

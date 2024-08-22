@@ -91,11 +91,19 @@ all_queue(id::Int64) = job_query(id)
 all_queue(state::Symbol) = queue(state)
 all_queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}) = queue(:all, needle)
 
+const JOB_PUBLIC_NAMES = tuple(filter!(x -> string(x)[1] != '_', collect(fieldnames(Job)))...)
+function Base.propertynames(j::Job, private::Bool=false)
+    if private
+        fieldnames(Job)
+    else
+        JOB_PUBLIC_NAMES
+    end
+end
 
 @eval function Base.show(io::IO, ::MIME"text/plain", job::Job)
-    fs = $(fieldnames(Job))
-    fs_string = $(map(string, fieldnames(Job)))
-    max_byte = $(maximum(length, map(string, fieldnames(Job))))
+    fs = JOB_PUBLIC_NAMES
+    fs_string = $(map(string, JOB_PUBLIC_NAMES))
+    max_byte = $(maximum(length, map(string, JOB_PUBLIC_NAMES)))
     result = "Job:\n"
     for (i,f) in enumerate(fs)
         result *= string("  ", f, " " ^ (max_byte - length(fs_string[i])) * " → ")
@@ -233,7 +241,7 @@ end
 #TODO: update new fields. Check compatibility with existing programs
 function JSON.Writer.json(job::Job)
     """
-    {"id":$(job.id),"state":"$(job.state)","name":"$(job.name)","user":"$(job.user)","ncpu":$(job.ncpu),"submit_time":"$(job.submit_time)","start_time":"$(job.start_time)","stop_time":"$(job.stop_time)","wall_time":"$(job.wall_time)","priority":$(job.priority),"stdout_file":"$(job.stdout_file)","stderr_file":"$(job.stderr_file)"}"""
+    {"id":$(job.id),"state":"$(job.state)","name":"$(job.name)","user":"$(job.user)","ncpu":$(job.ncpu),"submit_time":"$(job.submit_time)","start_time":"$(job.start_time)","stop_time":"$(job.stop_time)","wall_time":"$(job.wall_time)","priority":$(job.priority),"stdout":"$(job.stdout)","stdout":"$(job.stdout)"}"""
 end
 
 function json_queue(;all=false)

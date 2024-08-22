@@ -70,16 +70,25 @@ function Job(p::Program;
         end
     end
 
-    task = @task run(p; 
+    f() = run(p; 
         _do_parse_program_args=false, 
         _do_xxputs_completion_and_check=false,
         inputs=inputs, outputs=outputs, stdout=stdout, stderr=stderr, dir=abspath(dir), 
         kws...
     )
-    stdout_file = format_stdxxx_file(stdout)
-    stderr_file = format_stdxxx_file(stderr)
 
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task, stdout_file, stderr_file)
+    task = @task begin
+        try
+            f()
+        catch e
+            unsafe_update_as_failed!(job)
+            rethrow(e)
+        finally
+            scheduler_need_action()
+        end
+    end
+
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task, stdout, stderr, 0, f, false)
 end
 
 function Job(p::Program, inputs; kwargs...)
@@ -107,19 +116,22 @@ program_close_io = JuliaProgram(
 )
 
 """
-    close_in_future(io::IO, job::Job)
-    close_in_future(io::IO, jobs::Vector{Job})
+    close_in_future(io::IO, job::Job; kwargs...)
+    close_in_future(io::IO, jobs::Vector{Job}; kwargs...)
 
 Close `io` after `job` is in PAST status (either DONE/FAILED/CANCELLED). It is userful if jobs uses `::IO` as `stdout` or `stderr`, because the program will not close `::IO` manually!
+
+`kwargs...` include keyword arguments of `Job(::BaseAbstractCmd, ...)` and `run(::Program, ...)`.
+
 """
-function close_in_future(io::IO, job::Job)
-    close_job = Job(program_close_io, "io" => io, touch_run_id_file=false, dependency = [PAST => job])
+function close_in_future(io::IO, job::Job; kwargs...)
+    close_job = Job(program_close_io, "io" => io, kwargs..., touch_run_id_file=false, dependency = [PAST => job])
     submit!(close_job)
     close_job
 end
-function close_in_future(io::IO, jobs::Vector{Job})
+function close_in_future(io::IO, jobs::Vector{Job}; kwargs...)
     deps = [PAST => x for x in jobs]
-    close_job = Job(program_close_io, "io" => io, touch_run_id_file=false, dependency = deps)
+    close_job = Job(program_close_io, "io" => io, kwargs..., touch_run_id_file=false, dependency = deps)
     submit!(close_job)
     close_job
 end

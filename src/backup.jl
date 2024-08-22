@@ -130,7 +130,6 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
     global SCHEDULER_BACKUP_FILE
     global SCHEDULER_MAX_CPU
     global SCHEDULER_MAX_MEM
-    global SCHEDULER_UPDATE_SECOND
     global JOB_QUEUE_MAX_LENGTH
     global JOB_QUEUE
     global JOB_QUEUE_OK
@@ -144,13 +143,12 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
         return
     end
 
-    @load filepath scheduler_max_cpu scheduler_max_mem scheduler_update_second job_queue_max_length job_queue_ok
+    @load filepath scheduler_max_cpu scheduler_max_mem job_queue_max_length job_queue_ok
 
     if recover_settings
         @info "Settings recovered from the backup file ($filepath)"
         set_scheduler_max_cpu(scheduler_max_cpu)
         set_scheduler_max_mem(scheduler_max_mem)
-        set_scheduler_update_second(scheduler_update_second)
         set_scheduler_max_job(job_queue_max_length)
     end
 

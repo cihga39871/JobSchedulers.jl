@@ -11,8 +11,20 @@ const BAR_LEFT = "▕"
 const BAR_RIGHT = "▎"
 const BLOCK = "█"
 
-CPU_RUNNING = 0
-MEM_RUNNING = 0
+CPU_RUNNING::Int = 0
+MEM_RUNNING::Int = 0
+
+GROUP_SEPERATOR::Regex = r": *"
+
+"""
+    set_group_seperator(group_seperator::Regex)
+
+Set the group seperator. Group seperator is used to group the names of Jobs.
+"""
+function set_group_seperator(group_seperator::Regex)
+    global GROUP_SEPERATOR = group_seperator
+end
+
 
 """
     mutable struct JobGroup
@@ -103,15 +115,18 @@ function clear_job_groups!(; delete::Bool = false)
 end
 
 """
-    get_group(job::Job, group_seperator = r": *")
+    get_group(job::Job, group_seperator = GROUP_SEPERATOR)
+    get_group(name::AbstractString, group_seperator = GROUP_SEPERATOR)
 
 Return `nested_group_names::Vector{String}`. 
 
 Eg: If `job.name` is `"A: B: 1232"`, return `["A", "A: B", "A: B: 1232"]`
 """
-function get_group(job::Job, group_seperator = r": *")
-    g = String(split(job.name, group_seperator; limit = 2)[1])
-    return g
+function get_group(job::Job, group_seperator = GROUP_SEPERATOR)
+    get_group(job.name, group_seperator)
+end
+function get_group(name::AbstractString, group_seperator = GROUP_SEPERATOR)
+    String(split(name, group_seperator; limit = 2)[1])
 end
 
 function add_job_to_group!(g::JobGroup, j::Job)
@@ -164,7 +179,7 @@ function compute_other_job_group!(groups_shown::Vector{JobGroup})
     OTHER_JOB_GROUP
 end
 
-function queue_summary(;group_seperator = r": *")
+function queue_summary(;group_seperator = GROUP_SEPERATOR)
     queue_update = false
     wait_for_lock()
     try

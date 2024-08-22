@@ -9,12 +9,6 @@ function generate_id()
     time_value + rand_value
 end
 
-format_stdxxx_file(::Nothing) = ""
-format_stdxxx_file(x::String) = x
-format_stdxxx_file(x::AbstractString) = convert(String, x)
-format_stdxxx_file(x::IOStream) = x.name[7:end-1]
-format_stdxxx_file(x) = ""
-
 """
     Job(command::Base.AbstractCmd; stdout=nothing, stderr=nothing, append::Bool=false, kwargs...)
     Job(f::Function; kwargs...)
@@ -70,15 +64,17 @@ mutable struct Job
     priority::Int
     dependency::Vector{Pair{Symbol,Union{Int64, Job}}}
     task::Union{Task,Nothing}
-    stdout_file::String
-    stderr_file::String
+    stdout::Union{IO,AbstractString,Nothing}
+    stderr::Union{IO,AbstractString,Nothing}
     _thread_id::Int
     _func::Union{Function,Nothing}
+    _need_redirect::Bool
+    _group::String
 
-    function Job(id::Int64, name::String, user::String, ncpu::Real, mem::Int64, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout_file::String, stderr_file::String, _thread_id::Int = 0, _func = task.code) where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
+    function Job(id::Int64, name::String, user::String, ncpu::Real, mem::Int64, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout::Union{IO,AbstractString,Nothing}, stderr::Union{IO,AbstractString,Nothing}, _thread_id::Int, _func::Union{Function,Nothing}, _need_redirect::Bool = check_need_redirect(stdout, stderr), _group = get_group(name)) where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
         check_ncpu_mem(ncpu, mem)
         check_priority(priority)
-        new(id, name, user, Float64(ncpu), mem, period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout_file, stderr_file, _thread_id, _func)
+        new(id, name, user, Float64(ncpu), mem, period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout, stderr, _thread_id, _func, _need_redirect, _group)
     end
 end
 
@@ -99,12 +95,37 @@ function Job(task::Task;
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
-        @warn "ncpu > 1 for Job(task::Task) is not fully supported by JobScheduler. If a task uses multi-threads, it is recommended to split it into different jobs. Job: $name." maxlog=1
+        @warn "ncpu > 1 for Job(task::Task) is not fully supported by JobScheduler. If a task uses multi-threads (except for running threaded commands), it is recommended to split it into different jobs. Job: $name." maxlog=1
     end
-    task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
-        task.code()
+    
+
+    need_redirect = check_need_redirect(stdout, stderr)
+
+    if need_redirect
+        task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
+            try
+                task.code()
+            catch e
+                unsafe_update_as_failed!(job)
+                rethrow(e)
+            finally
+                scheduler_need_action()
+            end
+        end
+    else
+        task2 = @task begin
+            try
+                task.code()
+            catch e
+                unsafe_update_as_failed!(job)
+                rethrow(e)
+            finally
+                scheduler_need_action()
+            end
+        end
     end
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, "", "")
+
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, stdout, stderr, 0, task.code, need_redirect)
 end
 
 function Job(f::Function;
@@ -121,12 +142,36 @@ function Job(f::Function;
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
-        @warn "ncpu > 1 for Job(f::Function) is not fully supported by JobScheduler. If a function uses multi-threads, it is recommended to split it into different jobs. Job: $name." maxlog=1
+        @warn "ncpu > 1 for Job(f::Function) is not fully supported by JobScheduler. If a function uses multi-threads (except for running threaded commands), it is recommended to split it into different jobs. Job: $name." maxlog=1
     end
-    task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
-        f()
+
+    need_redirect = check_need_redirect(stdout, stderr)
+    
+    if need_redirect
+        task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
+            try
+                f()
+            catch e
+                unsafe_update_as_failed!(job)
+                rethrow(e)
+            finally
+                scheduler_need_action()
+            end
+        end
+    else
+        task2 = @task begin
+            try
+                f()
+            catch e
+                unsafe_update_as_failed!(job)
+                rethrow(e)
+            finally
+                scheduler_need_action()
+            end
+        end
     end
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, "", "")
+
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, "", "", 0, f, need_redirect)
 end
 
 function Job(command::Base.AbstractCmd;
@@ -142,12 +187,35 @@ function Job(command::Base.AbstractCmd;
     dependency = Vector{Pair{Symbol,Int64}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
-    task = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
-        run(command)
+    f() = run(command)
+
+    need_redirect = check_need_redirect(stdout, stderr)
+
+    if need_redirect
+        task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
+            try
+                f()
+            catch e
+                unsafe_update_as_failed!(job)
+                rethrow(e)
+            finally
+                scheduler_need_action()
+            end
+        end
+    else
+        task2 = @task begin
+            try
+                f()
+            catch e
+                unsafe_update_as_failed!(job)
+                rethrow(e)
+            finally
+                scheduler_need_action()
+            end
+        end
     end
-    stdout_file = format_stdxxx_file(stdout)
-    stderr_file = format_stdxxx_file(stderr)
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task, stdout_file, stderr_file)
+
+    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, stdout, stderr, 0, f, need_redirect)
 end
 
 
@@ -172,6 +240,14 @@ function check_priority(priority::Int)
         error("abs(priority) > 9999 is not supported for Job")
     end
 end
+
+check_need_redirect(stdout::Nothing, stderr::Nothing) = false
+check_need_redirect(stdout, stderr) = check_need_redirect(stdout) && check_need_redirect(stderr)
+
+check_need_redirect(file::AbstractString) = file != ""
+check_need_redirect(io::IO) = true
+check_need_redirect(x::Nothing) = false
+check_need_redirect(x::Any) = error("$x is not valid for redirecting IO: not IO, file_path::AbstractString, or nothing.")
 
 function convert_dependency(dependency::Vector{Pair{Symbol,Union{Int64, Job}}})
     dependency
@@ -256,5 +332,33 @@ function next_recur_job(j::Job)
         return nothing
     end
     # This job needs to be submitted using push!(new_job, JOB_QUEUE), cannot be submitted by submit!(new_job)
-    Job(generate_id(), j.name, j.user, j.ncpu, j.mem, schedule_time, now(), DateTime(0), DateTime(0), j.wall_time, j.cron, j.until, QUEUING, j.priority, j.dependency, Task(() -> Base.invokelatest(j._func)), j.stdout_file, j.stderr_file, 0, j._func)
+
+    job = Job(generate_id(), j.name, j.user, j.ncpu, j.mem, schedule_time, now(), DateTime(0), DateTime(0), j.wall_time, j.cron, j.until, QUEUING, j.priority, j.dependency, nothing, j.stdout, j.stderr, 0, j._func, j._need_redirect, j._group)
+
+    if job._need_redirect
+        task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
+            try
+                Base.invokelatest(job._func)
+            catch e
+                unsafe_update_as_failed!(job)
+                rethrow(e)
+            finally
+                scheduler_need_action()
+            end
+        end
+    else
+        task2 = @task begin
+            try
+                Base.invokelatest(job._func)
+            catch e
+                unsafe_update_as_failed!(job)
+                rethrow(e)
+            finally
+                scheduler_need_action()
+            end
+        end
+    end
+
+    job.task = task2
+    job
 end

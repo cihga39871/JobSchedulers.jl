@@ -68,6 +68,9 @@ function __init__()
     THREAD_POOL[] = c
     foreach(i -> put!(c, i), 2:nthreads())  # the thread 1 is reserved for JobScheduler, when nthreads > 2
 
+    # initiating scheduler action Channel.
+    SCHEDULER_ACTION[] = Channel{Int}(1)
+
     # SCHEDULER_MAX_CPU must be the same as THREAD_POOL (if nthreads > 1), or the scheduler will stop.
     global SCHEDULER_MAX_CPU = default_ncpu()
     global SCHEDULER_MAX_MEM = round(Int, Sys.total_memory() * 0.9)
