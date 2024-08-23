@@ -42,6 +42,7 @@ job_query
 ## Wait For Jobs
 ```@docs
 wait_queue
+wait
 ```
 
 ## Optimize CPU Usage

@@ -22,10 +22,17 @@ queue(id::Int)                -> Job
 function queue(;all::Bool=false)
     global JOB_QUEUE
     global JOB_QUEUE_OK
-    if all
-        [JOB_QUEUE; JOB_QUEUE_OK]
-    else
-        copy(JOB_QUEUE)
+    wait_for_lock()
+    try
+        if all
+            [JOB_QUEUE; JOB_QUEUE_OK]
+        else
+            copy(JOB_QUEUE)
+        end
+    catch e
+        rethrow(e)
+    finally
+        release_lock()
     end
 end
 
@@ -36,7 +43,14 @@ function queue(state::Symbol)
         q = queue(all=true)
         filter!(job -> job.state == state, q)
     elseif state == PAST
-        copy(JOB_QUEUE_OK)
+        wait_for_lock()
+        try
+            copy(JOB_QUEUE_OK)
+        catch e
+            rethrow(e)
+        finally
+            release_lock()
+        end
     else
         queue(all=true)
         @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."
@@ -47,7 +61,14 @@ end
 function queue(needle::Union{AbstractString,AbstractPattern,AbstractChar})
     global JOB_QUEUE
     global JOB_QUEUE_OK
-    dt = [JOB_QUEUE; JOB_QUEUE_OK]
+    wait_for_lock()
+    dt = try
+        [JOB_QUEUE; JOB_QUEUE_OK]
+    catch e
+        rethrow(e)
+    finally
+        release_lock()
+    end
     filter!(r -> occursin(needle, r.name) || occursin(needle, r.user), dt)
 end
 
@@ -58,7 +79,14 @@ function queue(state::Symbol, needle::Union{AbstractString,AbstractPattern,Abstr
         dt = queue(all=true)
         filter!(x -> x.state == state, dt)
     elseif state == PAST
-        dt = copy(JOB_QUEUE_OK)
+        wait_for_lock()
+        dt = try
+            copy(JOB_QUEUE_OK)
+        catch e
+            rethrow(e)
+        finally
+            release_lock()
+        end
     else
         dt = queue(all=true)
         @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."

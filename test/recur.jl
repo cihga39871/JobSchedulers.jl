@@ -103,12 +103,7 @@ end
     j_new = queue(:done)[end]
     show(queue("recur print"))
     @test j.id != j_new.id && j.name == j_new.name
-    JobSchedulers.wait_for_lock()
-    try
-        JobSchedulers.unsafe_cancel!.(queue(QUEUING, "recur print date time"))
-    catch e
-        rethrow(e)
-    finally
-        JobSchedulers.release_lock()
-    end
+    
+    cancel!.(queue(QUEUING, "recur print date time"))
+    
 end

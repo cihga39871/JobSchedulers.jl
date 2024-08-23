@@ -267,6 +267,13 @@ queue(:all)[1]
 
 ## Wait for jobs and progress meter
 
+Wait for a specific job(s):
+
+```julia
+wait(j::Job)
+wait(js::Vector{Job})
+```
+
 Wait for jobs finished using [`wait_queue`](@ref).
 
 
