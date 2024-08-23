@@ -1,5 +1,8 @@
 # Changelog
 
+TODO v0.10.0
+- Feat: `@submit!` like syntax to wrap like a normal Julia code. 
+
 v0.10.0
 
 - Deprecate: `SCHEDULER_UPDATE_SECOND` and `set_scheduler_update_second()` are no longer required. Changing them will have no effect on the scheduler.
