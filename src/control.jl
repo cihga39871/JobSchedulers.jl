@@ -56,37 +56,22 @@ function scheduler_start(; verbose=true)
 
     set_scheduler_while_loop(true) # scheduler task won't stop
 
-    if Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
-        verbose && @warn "Scheduler was interrupted or done. Restart."
-        new_scheduler_task()
-        schedule(SCHEDULER_TASK[])
-        while !istaskstarted(SCHEDULER_TASK[])
-            sleep(0.05)
-        end
-    elseif istaskstarted(SCHEDULER_TASK[]) # if done, started is also true
-        verbose && @info "Scheduler is running."
-    else
-        verbose && @info "Scheduler starts."
-        schedule(SCHEDULER_TASK[])
-        while !istaskstarted(SCHEDULER_TASK[])
-            sleep(0.05)
-        end
-    end
-
-    if Base.istaskfailed(SCHEDULER_REACTIVATION_TASK[]) || istaskdone(SCHEDULER_REACTIVATION_TASK[])
-        verbose && @warn "Scheduler reactication was interrupted or done. Restart."
-        new_scheduler_reactivation_task()
-        schedule(SCHEDULER_REACTIVATION_TASK[])
-        while !istaskstarted(SCHEDULER_REACTIVATION_TASK[])
-            sleep(0.05)
-        end
-    elseif istaskstarted(SCHEDULER_REACTIVATION_TASK[]) # if done, started is also true
-        verbose && @info "Scheduler reactication is running."
-    else
-        verbose && @info "Scheduler reactication starts."
-        schedule(SCHEDULER_REACTIVATION_TASK[])
-        while !istaskstarted(SCHEDULER_REACTIVATION_TASK[])
-            sleep(0.05)
+    for (task, name) in [SCHEDULER_TASK => "Scheduler task", SCHEDULER_REACTIVATION_TASK => "Scheduler reactivation task"]
+        if Base.istaskfailed(task[]) || istaskdone(task[])
+            verbose && @warn "$name was interrupted or done. Restart."
+            task === SCHEDULER_TASK ? new_scheduler_task() : new_scheduler_reactivation_task()
+            schedule(task[])
+            while !istaskstarted(task[])
+                sleep(0.05)
+            end
+        elseif istaskstarted(task[]) # if done, started is also true
+            verbose && @info "$name is running."
+        else
+            verbose && @info "$name starts."
+            schedule(task[])
+            while !istaskstarted(task[])
+                sleep(0.05)
+            end
         end
     end
 end
@@ -100,20 +85,22 @@ function scheduler_stop(; verbose=true)
     global SCHEDULER_TASK
     global SCHEDULER_REACTIVATION_TASK
 
-    if !isassigned(SCHEDULER_TASK)
-        verbose && @warn "Scheduler is not running."
-    elseif Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[])
-        verbose && @warn "Scheduler is not running."
-    elseif istaskstarted(SCHEDULER_TASK[]) # if done, started is also true
-        set_scheduler_while_loop(false) # scheduler task stop after the next loop
-        scheduler_need_action()
-        while !(Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[]))
-            sleep(0.2)
+    for (task, name) in [SCHEDULER_TASK => "Scheduler task", SCHEDULER_REACTIVATION_TASK => "Scheduler reactivation task"]
+        if !isassigned(task)
+            verbose && @warn "$name is not running."
+        elseif Base.istaskfailed(task[]) || istaskdone(task[])
+            verbose && @warn "$name is not running."
+        elseif istaskstarted(task[]) # if done, started is also true
+            set_scheduler_while_loop(false) # scheduler task stop after the next loop
             scheduler_need_action()
+            while !(Base.istaskfailed(task[]) || istaskdone(task[]))
+                sleep(0.2)
+                scheduler_need_action()
+            end
+            verbose && @info "$name stops."
+        else
+            verbose && @warn "$name is not running."
         end
-        verbose && @info "Scheduler stops."
-    else
-        verbose && @warn "Scheduler is not running."
     end
 end
 
