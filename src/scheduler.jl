@@ -309,7 +309,7 @@ function scheduler_need_action()
     isready(SCHEDULER_ACTION[]) && return  # isready means already ready for action
 
     lock(SCHEDULER_ACTION_LOCK) do 
-        if !isready(SCHEDULER_ACTION[]) && !isready(SCHEDULER_ACTION[]) # will take action, no need to repeat
+        if !isready(SCHEDULER_ACTION[]) # will take action, no need to repeat
             put!(SCHEDULER_ACTION[], 1)
         end
     end
