@@ -100,9 +100,9 @@ end
     submit!(j)
 
     sleep(4)
-    j_new = queue(:done)[end]
-    show(queue("recur print"))
-    @test j.id != j_new.id && j.name == j_new.name
+    js = queue("recur print date time")
+    j_new = js[end]
+    @test length(js) >= 2 && j.id != j_new.id && j.name == j_new.name
     
     cancel!.(queue(QUEUING, "recur print date time"))
     

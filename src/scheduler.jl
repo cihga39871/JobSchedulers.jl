@@ -9,7 +9,7 @@ SCHEDULER_MAX_MEM::Int = round(Int, Sys.total_memory() * 0.9)
 SCHEDULER_UPDATE_SECOND::Float64 = 0.05
 
 const JOB_QUEUE = Vector{Job}()
-const JOB_QUEUE_LOCK = SpinLock()
+const JOB_QUEUE_LOCK = ReentrantLock()
 const JOB_QUEUE_OK = Vector{Job}()  # jobs not queuing
 JOB_QUEUE_MAX_LENGTH::Int = 10000
 
@@ -160,8 +160,6 @@ function submit!(job::Job)
         end
 
         push!(JOB_QUEUE, job)
-    catch e
-        rethrow(e)
     finally
         release_lock()
         scheduler_need_action()
@@ -300,7 +298,8 @@ end
 
 ### Scheduler main
 const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
-const SCHEDULER_ACTION_LOCK = SpinLock()
+const SCHEDULER_ACTION_LOCK = ReentrantLock()
+RUNNING_MAX_IDX::Int = 0
 
 function scheduler_need_action()
     global SCHEDULER_ACTION
@@ -381,42 +380,36 @@ end
 
 function update_queue!()
     global SCHEDULER_MAX_CPU
-    # step 0: cancel jobs if run time > wall time
-    cancel_jobs_reaching_wall_time!()
-    # step 1: update running jobs' states
-    update_state!()
-    # step 2: migrate finished jobs to JOB_QUEUE_OK from JOB_QUEUE
-    # and submit finished recurring jobs
-    migrate_finished_jobs!()
-    # step 3: compute current CPU/MEM usage
-    used_ncpu, used_mem = current_usage()
-    ncpu_available = SCHEDULER_MAX_CPU - used_ncpu
-    mem_available = SCHEDULER_MAX_MEM - used_mem
-    # step 4: sort by (ncpu == 0) + state (RUNNING) + priority
-    update_queue_priority!()
-    # step 5: run queuing jobs
-    run_queuing_jobs(ncpu_available, mem_available)
-end
-
-function cancel_jobs_reaching_wall_time!()
     global JOB_QUEUE
     global RUNNING
-    @debug "cancel_jobs_reaching_wall_time!()"
+    global RUNNING_MAX_IDX
+    # step 0: cancel jobs if run time > wall time
     wait_for_lock()
     try
-        for job in JOB_QUEUE
+        for i in 1:RUNNING_MAX_IDX
+            job = JOB_QUEUE[i]
             if job.state === RUNNING
                 wall_time = job.start_time + job.wall_time
                 if wall_time < now()
                     unsafe_cancel!(job)  # cannot call cancel! because lock is on
                 end
             end
+
+            # step 1: update running jobs' states
+            unsafe_update_state!(job)
         end
-    catch e
-        rethrow(e)
     finally
         release_lock()
     end
+
+    # step 2: migrate finished jobs to JOB_QUEUE_OK from JOB_QUEUE
+    # and submit finished recurring jobs
+    migrate_finished_jobs!()
+
+    # step 3: compute current CPU/MEM usage
+    # step 4: sort by (ncpu == 0) + state (RUNNING) + priority
+    # step 5: run queuing jobs
+    run_queuing_jobs()
 end
 
 function unsafe_update_as_failed!(job::Job)
@@ -453,41 +446,37 @@ function unsafe_update_state!(job::Job)
     end
 end
 
-"""
-    update_state!()
-
-Update the state of each `job` in JOB_QUEUE from `job.task` when `job.state === :running`.
-
-If a repeative job is PAST, submit a new job.
-"""
-function update_state!()
-    global JOB_QUEUE
-    @debug "update_state!()"
-    wait_for_lock()
-    try
-        foreach(unsafe_update_state!, JOB_QUEUE)
-    catch e
-        rethrow(e)
-    finally
-        release_lock()
-    end
-    return
-end
+# only be used in `migrate_finished_jobs!`
+const finished_indices = Vector{Int}()
 
 function migrate_finished_jobs!()
     global JOB_QUEUE
     global JOB_QUEUE_OK
     global JOB_QUEUE_MAX_LENGTH
+    global finished_indices
+    global RUNNING_MAX_IDX
     @debug "migrate_finished_jobs!()"
     wait_for_lock()
     try
-        finished_indices = map(j -> !(j.state === QUEUING || j.state === RUNNING), JOB_QUEUE)
-        finished_indices = findall(finished_indices)
-        finished_jobs = @view(JOB_QUEUE[finished_indices])
-        append!(JOB_QUEUE_OK, finished_jobs)
+        empty!(finished_indices)
+        for i in 1:RUNNING_MAX_IDX
+            job = JOB_QUEUE[i]
+            if job.state === QUEUING || job.state === RUNNING
+                continue
+            else
+                push!(finished_indices, i)
+            end
+        end
 
-        # if recurring job is DONE, submit new
+        finished_jobs = @view(JOB_QUEUE[finished_indices])
+
         for j in finished_jobs
+            # only append named or failed jobs
+            if !isempty(j.name) || j.state === FAILED
+                push!(JOB_QUEUE_OK, j)
+            end
+            
+            # if recurring job is DONE, submit new
             if j.state === DONE
                 next_job = next_recur_job(j)
                 if isnothing(next_job)
@@ -498,38 +487,14 @@ function migrate_finished_jobs!()
         end
 
         deleteat!(JOB_QUEUE, finished_indices)
-    catch e
-        rethrow(e)
+
+        # delete JOB_QUEUE_OK if too many
+        n_delete = length(JOB_QUEUE_OK) - JOB_QUEUE_MAX_LENGTH
+        n_delete > 0 && deleteat!(JOB_QUEUE_OK, 1:n_delete)
     finally
         release_lock()
     end
-
-    # delete JOB_QUEUE_OK if too many
-    n_delete = length(JOB_QUEUE_OK) - JOB_QUEUE_MAX_LENGTH
-    n_delete > 0 && deleteat!(JOB_QUEUE_OK, 1:n_delete)
     return
-end
-
-function current_usage()
-    global JOB_QUEUE
-    global RUNNING
-    cpu_usage = 0.0
-    mem_usage = 0
-    @debug "current_usage()"
-    wait_for_lock()
-    try
-        for job in JOB_QUEUE
-            if job.state === RUNNING
-                cpu_usage += job.ncpu
-                mem_usage += job.mem
-            end
-        end
-    catch e
-        rethrow(e)
-    finally
-        release_lock()
-    end
-    return cpu_usage, mem_usage
 end
 
 function compute_priority_rank(job::Job)
@@ -538,45 +503,71 @@ function compute_priority_rank(job::Job)
     ifelse(job.state == RUNNING, -10000, 0)
 end
 
-function update_queue_priority!()
-    global JOB_QUEUE
-    @debug "update_queue_priority!()"
-    wait_for_lock()
-    try
-        sort!(JOB_QUEUE, by=compute_priority_rank)
-    catch e
-        rethrow(e)
-    finally
-        release_lock()
-    end
-    return
-end
-
-function run_queuing_jobs(ncpu_available::Real, mem_available::Int)
+function run_queuing_jobs()
     global JOB_QUEUE
     global QUEUING
-    @debug "run_queuing_jobs($ncpu_available::Real, $mem_available::Int)"
+    global RUNNING_MAX_IDX
+    @debug "run_queuing_jobs"
     wait_for_lock()
     try
-        for job in JOB_QUEUE
-            if job.ncpu > 0
-                # job with ncpu == 0 and schedule_time < now() is at top of JOB_QUEUE
-                ncpu_available < 0.999 && break  # ncpu::Float64, can be inaccurate
-                mem_available  < 0 && break
-            end
-            if job.state === QUEUING && job.schedule_time < now() && job.ncpu <= ncpu_available + 0.001 && job.mem <= mem_available && is_dependency_ok(job)  # # ncpu::Float64, can be inaccurate
-                if unsafe_run!(job)
-                    ncpu_available -= job.ncpu
-                    mem_available  -= job.mem
-                end
+        # current usage
+        used_ncpu = 0.0
+        used_mem = 0
+        for i in 1:min(RUNNING_MAX_IDX, length(JOB_QUEUE))  # RUNNING_MAX_IDX might be less because of migrate_finished_jobs!
+            job = JOB_QUEUE[i]
+            if job.state === RUNNING
+                used_ncpu += job.ncpu
+                used_mem += job.mem
             end
         end
-    catch e
-        rethrow(e)
+        ncpu_available = SCHEDULER_MAX_CPU - used_ncpu
+        mem_available = SCHEDULER_MAX_MEM - used_mem
+
+        # update queue priority
+        # from now, RUNNING_MAX_IDX cannot be used in `for i in 1:RUNNING_MAX_IDX` and need to update when running a job
+        sort!(JOB_QUEUE, by=compute_priority_rank)
+        RUNNING_MAX_IDX = 0
+
+        njob = length(JOB_QUEUE)
+        i = 1
+        while i <= njob
+            job = JOB_QUEUE[i]
+            if job.ncpu != 0
+                break
+            end
+            # job.ncpu == 0
+            if job.state === RUNNING
+                RUNNING_MAX_IDX = i
+            elseif job.state === QUEUING && job.schedule_time < now() && job.mem <= mem_available && is_dependency_ok(job)
+                unsafe_run!(job)
+                # ncpu_available -= job.ncpu
+                mem_available  -= job.mem
+                RUNNING_MAX_IDX = i
+            end
+            i += 1
+        end
+
+        # job.ncpu > 0
+        while i <= njob
+            ncpu_available < 0.999 && break  # ncpu::Float64, can be inaccurate
+            mem_available  < 0 && break
+
+            job = JOB_QUEUE[i]
+            if job.state === RUNNING
+                RUNNING_MAX_IDX = i
+            elseif job.state === QUEUING && job.schedule_time < now() && job.ncpu <= ncpu_available + 0.001 && job.mem <= mem_available && is_dependency_ok(job)  # # ncpu::Float64, can be inaccurate
+                unsafe_run!(job)
+                ncpu_available -= job.ncpu
+                mem_available  -= job.mem
+                RUNNING_MAX_IDX = i
+            end
+            i += 1
+        end
+
     finally
         release_lock()
     end
-    return ncpu_available, mem_available
+    nothing
 end
 
 """

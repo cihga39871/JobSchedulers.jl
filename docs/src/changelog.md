@@ -12,6 +12,8 @@ v0.10.0
 - Optimize: check whether a job needs IO redirection before wrapping in task. Also, avoid unecessary stack when wrapping a new job, avoiding recurring job's stack overflow due to creating new jobs.
 - Feat: Now people can `set_group_seperator(group_seperator::Regex=r": *")`. A group name will be given to `Job`. It is useful when showing progress meters.
 - Feat: New `wait(j::Job)` and `wait(js::Vector{Job})`.
+- Feat: only append failed or named Job to `JOB_QUEUE_OK`.
+- Fix: Change `SpinLock` to `ReentrantLock` for stability.
 
 v0.9.0
 
