@@ -22,7 +22,7 @@ end
 
 # Common Keyword Arguments (kwargs...)
 
-- `name::String = ""`: job name. Named jobs can be queried after job finished.
+- `name::String = ""`: job name.
 - `user::String = ""`: user that job belongs to.
 - `ncpu::Real = 1.0`: number of CPU this job is about to use (can be `Float64`, eg: `1.5` will use 150% CPU).
 - `mem::Int64 = 0`: number of memory this job is about to use (supports TB, GB, MB, KB, B=1).

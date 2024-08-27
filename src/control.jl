@@ -272,7 +272,7 @@ function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
         queue_progress(exit_num_jobs = exit_num_jobs)
     else
         while length(JOB_QUEUE) > exit_num_jobs && scheduler_status(verbose=false) === RUNNING
-            sleep(0)
+            sleep(SCHEDULER_UPDATE_SECOND)
         end
         if scheduler_status(verbose=false) != RUNNING
             @error "Scheduler was not running. Jump out from wait_queue()"
