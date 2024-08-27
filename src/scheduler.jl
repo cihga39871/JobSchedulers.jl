@@ -9,7 +9,7 @@ SCHEDULER_MAX_MEM::Int = round(Int, Sys.total_memory() * 0.9)
 SCHEDULER_UPDATE_SECOND::Float64 = 0.05
 
 const JOB_QUEUE = Vector{Job}()
-const JOB_QUEUE_LOCK = SpinLock()
+const JOB_QUEUE_LOCK = ReentrantLock()
 const JOB_QUEUE_OK = Vector{Job}()  # jobs not queuing
 JOB_QUEUE_MAX_LENGTH::Int = 10000
 
@@ -300,7 +300,7 @@ end
 
 ### Scheduler main
 const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
-const SCHEDULER_ACTION_LOCK = SpinLock()
+const SCHEDULER_ACTION_LOCK = ReentrantLock()
 
 function scheduler_need_action()
     global SCHEDULER_ACTION
