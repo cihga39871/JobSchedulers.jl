@@ -5,6 +5,7 @@ TODO v0.10.0
 
 v0.10.0
 
+- **Feat/Optimize: Rewriting scheduler for 200~400X speed up. Scheduling 100,000 small tasks in 0.2 seconds using 24 threads.**
 - Deprecate: `SCHEDULER_UPDATE_SECOND` and `set_scheduler_update_second()` are no longer required. Changing them will have no effect on the scheduler.
 - Feat: Now, the scheduler updates when needed, and every 0.5 second. When specific events happen, `scheduler_need_action()` is used to trigger update of the scheduler. `SCHEDULER_REACTIVATION_TASK[]` is used to trigger `scheduler_need_action()` every 0.5 second because a regular check is needed for future jobs (defined by `j::Job.schedule_time`).
 - Change: `Job`'s fields `stdout_file::String` and `stderr_file::String` is changed to `stdout::Union{IO,AbstractString,Nothing}` and `stderr::Union{IO,AbstractString,Nothing}`.

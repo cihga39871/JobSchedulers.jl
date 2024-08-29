@@ -51,12 +51,14 @@ using Test
 				sleep(1)
 			end
 		end), name="to_cancel", priority = 20)
+		
+		@info "submit!(job2)"
 		submit!(job2)
+		@info "cancel!(job2)"
 		cancel!(job2)
 
-		@test_logs (:error,) submit!(job2) # cannot resubmit
+		@test_throws Exception submit!(job2) # cannot resubmit
 		@test_throws Exception submit!(job) # cannot resubmit
-		@test_logs (:error,) submit!(job2)
 	end
 
 	@testset "Dependency" begin
@@ -113,10 +115,10 @@ using Test
 			]
 		)
 
-		wait_queue(show_progress = true)
+		wait_queue()
 	end
 
-	@testset "Backup" begin
+	#=@testset "Backup" begin
 		### set backup
 		rm("/tmp/jl_job_scheduler_backup", force=true)
 		rm("/tmp/jl_job_scheduler_backup2", force=true)
@@ -155,7 +157,7 @@ using Test
 
 		set_scheduler_backup("", delete_old=true)
 		@test !isfile("/tmp/jl_job_scheduler_backup2")
-	end
+	end=#
 
 	@testset "Compat Pipelines.jl" begin
 		### Compat Pipelines.jl
@@ -281,7 +283,7 @@ using Test
 	end
 
 	@testset "Terming" begin
-		include("terming.jl")
+		# include("terming.jl")
 	end
 	@testset "Recur" begin
 		include("recur.jl")

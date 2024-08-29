@@ -1,5 +1,5 @@
 
-mutable struct Cron
+struct Cron
     second::UInt64
     minute::UInt64
     hour::UInt64
@@ -122,6 +122,10 @@ function Cron(special::Symbol)
     end
 end
 
+function Base.isempty(c::Cron)
+    c == cron_none
+end
+
 const stepmasks = map(1:64) do step
     final = 0x0000000000000000
     for i in 0:step:64
@@ -221,6 +225,8 @@ function cron_value_parse(value::Vector)
     end
     final
 end
+
+const cron_none = Cron(:none)
 
 """
     Dates.tonext(dt::DateTime, c::Cron) -> Union{DateTime, Nothing}

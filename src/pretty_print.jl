@@ -22,76 +22,104 @@ queue(id::Int)                -> Job
 function queue(;all::Bool=false)
     global JOB_QUEUE
     global JOB_QUEUE_OK
-    wait_for_lock()
-    try
-        if all
-            [JOB_QUEUE; JOB_QUEUE_OK]
-        else
-            copy(JOB_QUEUE)
-        end
-    catch e
-        rethrow(e)
-    finally
-        release_lock()
+    jobs = []
+
+    @debug "queue lock_running"
+    lock(JOB_QUEUE.lock_running) do
+        append!(jobs, JOB_QUEUE.running)
     end
+    @debug "queue lock_running ok"
+
+    @debug "queue lock_queuing"
+    lock(JOB_QUEUE.lock_queuing) do
+        append!(jobs, JOB_QUEUE.queuing_0cpu)
+        for js in values(JOB_QUEUE.queuing)
+            append!(jobs, js)
+        end
+        append!(jobs, JOB_QUEUE.future)
+    end
+    @debug "queue lock_queuing ok"
+
+
+    if all
+        @debug "queue lock_past"
+        lock(JOB_QUEUE.lock_past) do 
+            append!(jobs, JOB_QUEUE.failed)
+            append!(jobs, JOB_QUEUE.cancelled)
+            append!(jobs, JOB_QUEUE.done)
+        end
+        @debug "queue lock_past ok"
+    end
+    jobs
 end
 
 function queue(state::Symbol)
-    if state == :all
-        queue(all=true)
-    elseif state in [QUEUING, RUNNING, DONE, FAILED, CANCELLED]
-        q = queue(all=true)
-        filter!(job -> job.state == state, q)
-    elseif state == PAST
-        wait_for_lock()
-        try
-            copy(JOB_QUEUE_OK)
-        catch e
-            rethrow(e)
-        finally
-            release_lock()
-        end
-    else
-        queue(all=true)
-        @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."
+    if state === :all
+        return queue(all=true)
     end
+    
+    jobs = []
+    if state === QUEUING
+        @debug "queue lock_queuing"
+        lock(JOB_QUEUE.lock_queuing) do
+            append!(jobs, JOB_QUEUE.queuing_0cpu)
+            for js in values(JOB_QUEUE.queuing)
+                append!(jobs, js)
+            end
+            append!(jobs, JOB_QUEUE.future)
+        end
+        @debug "queue lock_queuing ok"
+    elseif state === RUNNING
+        @debug "queue lock_running"
+        lock(JOB_QUEUE.lock_running) do
+            append!(jobs, JOB_QUEUE.running)
+        end
+        @debug "queue lock_running ok"
+    elseif state === DONE
+        @debug "queue lock_past"
+        lock(JOB_QUEUE.lock_past) do 
+            append!(jobs, JOB_QUEUE.done)
+        end
+        @debug "queue lock_past ok"
+    elseif state === FAILED
+        @debug "queue lock_past"
+        lock(JOB_QUEUE.lock_past) do 
+            append!(jobs, JOB_QUEUE.failed)
+        end
+        @debug "queue lock_past ok"
+    elseif state === CANCELLED
+        @debug "queue lock_past"
+        lock(JOB_QUEUE.lock_past) do 
+            append!(jobs, JOB_QUEUE.cancelled)
+        end
+        @debug "queue lock_past ok"
+    elseif state === PAST
+        @debug "queue lock_past"
+        lock(JOB_QUEUE.lock_past) do 
+            append!(jobs, JOB_QUEUE.failed)
+            append!(jobs, JOB_QUEUE.cancelled)
+            append!(jobs, JOB_QUEUE.done)
+        end
+        @debug "queue lock_past ok"
+    else
+        @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."
+        return queue(all=true)
+    end
+
+    return jobs
 end
 
 
 function queue(needle::Union{AbstractString,AbstractPattern,AbstractChar})
     global JOB_QUEUE
     global JOB_QUEUE_OK
-    wait_for_lock()
-    dt = try
-        [JOB_QUEUE; JOB_QUEUE_OK]
-    catch e
-        rethrow(e)
-    finally
-        release_lock()
-    end
-    filter!(r -> occursin(needle, r.name) || occursin(needle, r.user), dt)
+    jobs = queue(all=true)
+    filter!(r -> occursin(needle, r.name) || occursin(needle, r.user), jobs)
 end
 
 function queue(state::Symbol, needle::Union{AbstractString,AbstractPattern,AbstractChar})
-    if state == :all
-        dt = queue(needle)
-    elseif state in [QUEUING, RUNNING, DONE, FAILED, CANCELLED]
-        dt = queue(all=true)
-        filter!(x -> x.state == state, dt)
-    elseif state == PAST
-        wait_for_lock()
-        dt = try
-            copy(JOB_QUEUE_OK)
-        catch e
-            rethrow(e)
-        finally
-            release_lock()
-        end
-    else
-        dt = queue(all=true)
-        @warn "state::Symbol is omitted because it is not one of QUEUING, RUNNING, DONE, FAILED, CANCELLED, or :all."
-    end
-    filter!(r -> occursin(needle, r.name) || occursin(needle, r.user), dt)
+    jobs = queue(state)
+    filter!(r -> occursin(needle, r.name) || occursin(needle, r.user), jobs)
 end
 function queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}, state::Symbol)
     queue(state, needle)

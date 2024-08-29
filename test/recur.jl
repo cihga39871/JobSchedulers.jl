@@ -100,10 +100,12 @@ end
     submit!(j)
 
     sleep(4)
+    cancel!.(queue(QUEUING, "recur print date time"))
+    
     j_new = queue(:done)[end]
-    show(queue("recur print"))
+    display(queue("recur print"))
     @test j.id != j_new.id && j.name == j_new.name
     
-    cancel!.(queue(QUEUING, "recur print date time"))
+    # cancel!.(queue(QUEUING, "recur print date time"))
     
 end

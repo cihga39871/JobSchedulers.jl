@@ -1,12 +1,15 @@
+
+const JOB_ID = Ref{Int}()
+const JOB_ID_INCREMENT_LOCK = ReentrantLock()
 """
     generate_id() :: Int64
 
 Generate ID. It is unique in most instances.
 """
 function generate_id()
-    time_value = (now().instant.periods.value - 63749462400000) << 16
-    rand_value = rand(UInt16)
-    time_value + rand_value
+    lock(JOB_ID_INCREMENT_LOCK) do
+        JOB_ID[] += 1
+    end
 end
 
 """
@@ -88,7 +91,7 @@ function Job(task::Task;
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
-    cron::Cron = Cron(:none),
+    cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
     dependency = Vector{Pair{Symbol,Int64}}(),
@@ -135,7 +138,7 @@ function Job(f::Function;
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
-    cron::Cron = Cron(:none),
+    cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
     dependency = Vector{Pair{Symbol,Int64}}(),
@@ -181,7 +184,7 @@ function Job(command::Base.AbstractCmd;
     mem::Int64 = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
-    cron::Cron = Cron(:none),
+    cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
     dependency = Vector{Pair{Symbol,Int64}}(),

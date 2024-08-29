@@ -2,7 +2,6 @@ using Terming
 using Term
 using Logging
 using Printf
-using OrderedCollections
 
 const T = Terming
 

@@ -8,7 +8,7 @@ using JSON
 using PrettyTables
 using JLD2
 using Pipelines
-using OrderedCollections
+using DataStructures
 
 using PrecompileTools
 
@@ -21,6 +21,8 @@ export Job, result, solve_optimized_ncpu
 
 
 include("thread_utils.jl")
+
+include("JobQueue.jl")
 
 
 include("scheduler.jl")
@@ -70,6 +72,9 @@ function __init__()
 
     # initiating scheduler action Channel.
     SCHEDULER_ACTION[] = Channel{Int}(1)
+
+    # initiating JOB ID
+    JOB_ID[] = (now().instant.periods.value - 63749462400000) << 16
 
     # SCHEDULER_MAX_CPU must be the same as THREAD_POOL (if nthreads > 1), or the scheduler will stop.
     global SCHEDULER_MAX_CPU = default_ncpu()

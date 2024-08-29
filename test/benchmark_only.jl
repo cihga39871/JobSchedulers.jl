@@ -1,3 +1,4 @@
+# all are running with 24 threads
 
 using .Threads
 function experiments_threads(a, K=10000)
@@ -33,12 +34,18 @@ function experiments_jobschedulers(a, K=10000)
     for i in 1:K
         submit!(f)
     end
-    @info "all submitted"
-    wait_queue()   
+    wait_queue()
     x
 end
 @time experiments_jobschedulers(1, 10) 
 
-@time experiments_jobschedulers(1, 10000)  #     0.023636 seconds (229.87 k allocations: 15.877 MiB)
-@time experiments_jobschedulers(1, 100000) #     0.915987 seconds (2.30 M allocations: 158.742 MiB, 6.47% gc time)
+@time experiments_jobschedulers(1, 10000)  
+# speed up 330X
+# v0.10   0.014750 seconds (145.62 k allocations: 12.526 MiB)
+# v0.9    4.871162 seconds (296.27 k allocations: 16.973 MiB)
+
+@time experiments_jobschedulers(1, 100000) 
+# speed up 216X
+# v0.10   0.240398 seconds (1.46 M allocations: 125.250 MiB, 15.57% gc time)
+# v0.9   52.003475 seconds (2.97 M allocations: 355.336 MiB, 0.20% gc time)
 

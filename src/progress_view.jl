@@ -66,7 +66,7 @@ end
 """
     queue_progress(;remove_tmp_files::Bool = true, kwargs...)
     queue_progress(stdout_tmp::IO, stderr_tmp::IO;
-    group_seperator = r": *", wait_second_for_new_jobs::Int = 1, loop::Bool = true, exit_num_jobs::Int = 0)
+    group_seperator = GROUP_SEPERATOR, wait_second_for_new_jobs::Int = 1, loop::Bool = true, exit_num_jobs::Int = 0)
 
 - `group_seperator`: delim to split `(job::Job).name` to group and specific job names.
 
@@ -115,7 +115,7 @@ function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
 end
 
 function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
-    group_seperator = r": *", wait_second_for_new_jobs::Int = 1, loop::Bool = true, exit_num_jobs::Int = 0)
+    group_seperator = GROUP_SEPERATOR, wait_second_for_new_jobs::Int = 1, loop::Bool = true, exit_num_jobs::Int = 0)
 
     is_in_terminal = Pipelines.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
     if !is_in_terminal
@@ -391,7 +391,7 @@ end
 
 zero_dim(num::Int, text) = num == 0 ? @dim(text) : text
 
-function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true, group_seperator_at_begining = r"^: *")
+function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true, group_seperator_at_begining = GROUP_SEPERATOR)
     width_progress = w ÷ 4
     if width_progress < 12
         width_progress = max(w ÷ 5, 5)
@@ -552,7 +552,7 @@ end
 #     return :nothing
 # end
 
-function normal_print_queue_progress(; group_seperator = r": *", wait_all_jobs = true)
+function normal_print_queue_progress(; group_seperator = GROUP_SEPERATOR, wait_all_jobs = true)
     if wait_all_jobs
         wait_queue(show_progress = false)
     end
@@ -564,11 +564,11 @@ function normal_print_queue_progress(; group_seperator = r": *", wait_all_jobs =
 end
 
 """
-    view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true, group_seperator_at_begining = r"^: *")
+    view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true, group_seperator_at_begining = GROUP_SEPERATOR)
 
 Update the whole screen view.
 """
-function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true, group_seperator_at_begining = r"^: *")
+function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true, group_seperator_at_begining = GROUP_SEPERATOR)
     empty!(groups_shown)
 
     is_in_terminal && T.clear()

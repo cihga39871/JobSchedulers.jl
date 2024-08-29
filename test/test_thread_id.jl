@@ -1,5 +1,5 @@
 @testset "Sticky test for multiple threads" begin
-    set_scheduler_update_second(0.05)
+    # set_scheduler_update_second(0.05)
 
     if scheduler_status() != :running
         scheduler_start()
