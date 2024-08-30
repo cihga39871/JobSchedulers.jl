@@ -33,6 +33,13 @@ end
 
 const DESTROY_UNNAMED_JOBS_WHEN_DONE = true
 
+"""
+    JobSchedulers.destroy_unnamed_jobs_when_done(b::Bool)
+
+!!! compat "JobSchedulers v0.10 update"
+
+    Before v0.10, all jobs will be saved to queue. However, since v0.10, unnamed jobs (`job.name == ""`) will not be saved if it **successfully** ran. If you want to save unnamed jobs, you can set using `JobSchedulers.destroy_unnamed_jobs_when_done(false)`.
+"""
 function destroy_unnamed_jobs_when_done(b::Bool)
     global DESTROY_UNNAMED_JOBS_WHEN_DONE = b
 end

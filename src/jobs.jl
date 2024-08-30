@@ -268,6 +268,15 @@ function convert_dependency_element(job::T) where T <: Union{Int64, Job}
     DONE => job
 end
 
+
+@inline isqueuing(  j::Job) = j.state === QUEUING
+@inline isrunning(  j::Job) = j.state === RUNNING
+@inline isdone(     j::Job) = j.state === DONE
+@inline iscancelled(j::Job) = j.state === CANCELLED
+@inline isfailed(   j::Job) = j.state === FAILED
+@inline ispast(     j::Job) = j.state === DONE || j.state === CANCELLED || j.state === FAILED
+
+
 """
     result(job::Job)
 

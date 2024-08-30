@@ -46,25 +46,28 @@ end
 `JobGroup` is computed when displaying a progress meter.
 """
 mutable struct JobGroup
+    name::String
+    jobs::Vector{Job}
     total::Int
     queuing::Int
     running::Int
     done::Int
     failed::Int
     cancelled::Int
-    eta::Millisecond
-    group_name::String
-    job_name::String
-    failed_job_names::Vector{String}
-    elapsed_times::Vector{Millisecond}
-    function JobGroup(group_name)
-        new(0, 0, 0, 0, 0, 0, Millisecond(0), group_name, "", String[], Millisecond[])
+    function JobGroup(name)
+        new(name, Vector{Job}(), 0, 0, 0, 0, 0, 0)
     end
 end
 
-ALL_JOB_GROUP = JobGroup("ALL JOBS")
-JOB_GROUPS = OrderedDict{String, JobGroup}()
-OTHER_JOB_GROUP = JobGroup("OTHERS")
+COMPUTING_JOB_GROUP::Bool = false
+
+const ALL_JOB_GROUP = JobGroup("ALL JOBS")
+const JOB_GROUPS = OrderedDict{String, JobGroup}()
+const OTHER_JOB_GROUP = JobGroup("OTHERS")
+
+function push_job_group!(j::Job)
+    
+end
 
 """
     fingerprint(g::JobGroup)
@@ -125,6 +128,7 @@ function get_group(job::Job, group_seperator = GROUP_SEPERATOR)
     get_group(job.name, group_seperator)
 end
 function get_group(name::AbstractString, group_seperator = GROUP_SEPERATOR)
+    isempty(name) && (return "") 
     String(split(name, group_seperator; limit = 2)[1])
 end
 

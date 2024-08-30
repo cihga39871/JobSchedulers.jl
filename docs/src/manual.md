@@ -4,7 +4,7 @@
 If you need to run multiple heavy Julia tasks, it is recommended to [start Julia with multi-threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads).
 
 ```julia
-using JobSchedulers, Dates
+using JobSchedulers
 ```
 
 ## Create a Job
@@ -39,12 +39,12 @@ job_with_args = Job(
     ]
 )
 # Job:
-#   id            → 6407186212753787
+#   id            → 7290168730386436
 #   name          → "job with args"
 #   user          → "me"
 #   ncpu          → 1.0
 #   mem           → 1.0 KB
-#   schedule_time → 13:11:45
+#   schedule_time → 11:46:12
 #   submit_time   → na
 #   start_time    → na
 #   stop_time     → na
@@ -57,8 +57,6 @@ job_with_args = Job(
 #   task          → Task
 #   stdout        → nothing
 #   stderr        → nothing
-#   _thread_id    → 0
-#   _func         → #12
 ```
 
 > `dependency` argument in `Job(...)` controls when to start a job.
@@ -180,16 +178,18 @@ Show all jobs:
 queue(:all)      # or:
 queue(all=true)  # or:
 all_queue()
-# 3-element Vector{Job}:
+# 1-element Vector{Job}:
 # ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬─────────
 # │ Row │ state │               id │            name │ user │ ncpu │    mem ⋯
 # ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼─────────
-# │   1 │ :done │ 6407185876240603 │              "" │   "" │  1.0 │    0 B ⋯
-# │   2 │ :done │ 6407185955263382 │              "" │   "" │  1.0 │    0 B ⋯
-# │   3 │ :done │ 6407186212753787 │ "job with args" │ "me" │  1.0 │ 1.0 KB ⋯
+# │   1 │ :done │ 6407186212753787 │ "job with args" │ "me" │  1.0 │ 1.0 KB ⋯
 # └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴─────────
 #                                                           9 columns omitted
 ```
+
+!!! compat "JobSchedulers v0.10 update"
+
+    Before v0.10, all jobs will be saved to queue. However, since v0.10, unnamed jobs (`job.name == ""`) will not be saved if it **successfully** ran. If you want to save unnamed jobs, you can set using `JobSchedulers.destroy_unnamed_jobs_when_done(false)`.
 
 Show queue (running and queuing jobs only):
 
@@ -206,13 +206,11 @@ Show queue using a job state (`QUEUING`, `RUNNING`, `DONE`, `FAILED`, `CANCELLED
 
 ```julia
 queue(DONE)
-# 3-element Vector{Job}:
+# 1-element Vector{Job}:
 # ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬─────────
 # │ Row │ state │               id │            name │ user │ ncpu │    mem ⋯
 # ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼─────────
-# │   1 │ :done │ 6407185876240603 │              "" │   "" │  1.0 │    0 B ⋯
-# │   2 │ :done │ 6407185955263382 │              "" │   "" │  1.0 │    0 B ⋯
-# │   3 │ :done │ 6407186212753787 │ "job with args" │ "me" │  1.0 │ 1.0 KB ⋯
+# │   1 │ :done │ 6407186212753787 │ "job with args" │ "me" │  1.0 │ 1.0 KB ⋯
 # └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴─────────
 #                                                           9 columns omitted
 ```
@@ -261,8 +259,6 @@ queue(:all)[1]
 #   task          → Task
 #   stdout        → nothing
 #   stderr        → nothing
-#   _thread_id    → 0
-#   _func         → #12
 ```
 
 ## Wait for jobs and progress meter
@@ -295,19 +291,24 @@ Scheduler is automatically started after v0.7.11.
 
 ```julia
 scheduler_stop()
-# [ Info: Scheduler stops.
+# [ Info: Scheduler task stops.
+# ┌ Warning: Scheduler reactivation task is not running.
+# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:92
 
 scheduler_start()
-# ┌ Warning: Scheduler was interrupted or done. Restart.
-# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:38
+# ┌ Warning: Scheduler task was interrupted or done. Restart.
+# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:61
+# ┌ Warning: Scheduler reactivation task was interrupted or done. Restart.
+# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:61
 
 scheduler_status()
 # ┌ Info: Scheduler is running.
-# │   SCHEDULER_MAX_CPU = 32
-# │   SCHEDULER_MAX_MEM = "169.6 GB"
-# │   SCHEDULER_UPDATE_SECOND = 0.05
-# │   JOB_QUEUE_MAX_LENGTH = 10000
-# └   SCHEDULER_TASK = Task (runnable) @0x00007fe205052e60
+# │   SCHEDULER_MAX_CPU = 23
+# │   SCHEDULER_MAX_MEM = "169.7 GB"
+# │   JOB_QUEUE.max_done = 10000
+# │   JOB_QUEUE.max_cancelled = 10000
+# │   SCHEDULER_TASK[] = Task (runnable) @0x00007d4160031dc0
+# └   SCHEDULER_REACTIVATION_TASK[] = Task (runnable) @0x00007d4160031f50
 # :running
 ```
 
@@ -410,8 +411,6 @@ program_job = Job(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = fals
 #   task          → Task
 #   stdout        → nothing
 #   stderr        → nothing
-#   _thread_id    → 0
-#   _func         → #87
 
 submit!(program_job)
 # inputs are: in1 and 2
@@ -431,9 +430,10 @@ scheduler_status()
 # ┌ Info: Scheduler is running.
 # │   SCHEDULER_MAX_CPU = 32
 # │   SCHEDULER_MAX_MEM = "169.6 GB"
-# │   SCHEDULER_UPDATE_SECOND = 0.05
-# │   JOB_QUEUE_MAX_LENGTH = 10000
-# └   SCHEDULER_TASK = Task (runnable) @0x00007fe205052e60
+# │   JOB_QUEUE.max_done = 10000
+# │   JOB_QUEUE.max_cancelled = 10000
+# │   SCHEDULER_TASK[] = Task (runnable) @0x00007fe205052e60
+# └   SCHEDULER_REACTIVATION_TASK[] = Task (runnable) @0x00007d4160031f50
 # :running
 ```
 
@@ -463,16 +463,11 @@ set_scheduler_max_mem(0.5)          # use 50% of total memory
 # 101166391296
 ```
 
-Set the update interval of job queue:
-
-```julia
-set_scheduler_update_second(0.03)  # update job queue every 0.3 seconds
-# 0.03
-```
-
 Set the maximum number of finished jobs:
 
 ```julia
+set_scheduler_max_job(max_done::Int = 10000, max_cancelled::Int = max_done)
+
 set_scheduler_max_job(10000)  # If number of finished jobs > 10000, the oldest ones will be removed.
 # 10000                       # It does not affect queuing or running jobs.
 ```
@@ -480,18 +475,20 @@ set_scheduler_max_job(10000)  # If number of finished jobs > 10000, the oldest o
 Set the previous setting in one function:
 
 ```julia
-set_scheduler(
+set_scheduler(;
     max_cpu = JobSchedulers.SCHEDULER_MAX_CPU,
     max_mem = JobSchedulers.SCHEDULER_MAX_MEM,
-    update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND,
-    max_job = JobSchedulers.JOB_QUEUE_MAX_LENGTH
+    max_job = JobSchedulers.JOB_QUEUE.max_done,
+    max_cancelled_job = JobSchedulers.JOB_QUEUE.max_cancelled_job,
+    update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND
 )
 # ┌ Info: Scheduler is running.
-# │   SCHEDULER_MAX_CPU = 16
-# │   SCHEDULER_MAX_MEM = "94.2 GB"
-# │   SCHEDULER_UPDATE_SECOND = 0.03
-# │   JOB_QUEUE_MAX_LENGTH = 10000
-# └   SCHEDULER_TASK = Task (runnable) @0x00007fd239184fe0
+# │   SCHEDULER_MAX_CPU = 32
+# │   SCHEDULER_MAX_MEM = "169.6 GB"
+# │   JOB_QUEUE.max_done = 10000
+# │   JOB_QUEUE.max_cancelled = 10000
+# │   SCHEDULER_TASK[] = Task (runnable) @0x00007fe205052e60
+# └   SCHEDULER_REACTIVATION_TASK[] = Task (runnable) @0x00007d4160031f50
 # :running
 ```
 

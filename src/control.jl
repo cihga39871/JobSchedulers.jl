@@ -111,20 +111,20 @@ Print the settings and status of job scheduler. Return `:not_running` or `:runni
 """
 function scheduler_status(; verbose=true)
     global SCHEDULER_TASK
+    global SCHEDULER_REACTIVATION_TASK
     global SCHEDULER_MAX_CPU
     global SCHEDULER_MAX_MEM
-    global JOB_QUEUE_MAX_LENGTH
     if !isassigned(SCHEDULER_TASK) || !isassigned(SCHEDULER_REACTIVATION_TASK)
-        verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE_MAX_LENGTH
+        verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled
         :not_running
     elseif Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[]) || Base.istaskfailed(SCHEDULER_REACTIVATION_TASK[]) || istaskdone(SCHEDULER_REACTIVATION_TASK[]) 
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
         :not_running
     elseif istaskstarted(SCHEDULER_TASK[]) || istaskstarted(SCHEDULER_REACTIVATION_TASK[])
-        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
+        verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
         :running
     else
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE_MAX_LENGTH SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
         :not_running
     end
 end
@@ -218,7 +218,7 @@ end
 """
     set_scheduler_max_job(max_done::Int = 10000, max_cancelled::Int = max_done)
 
-Set the number of finished jobs. If number of jobs exceed 1.5*NUMBER, jobs will be resize to NUMBER.
+Set the number of finished jobs. If number of jobs exceed 1.5*NUMBER, old jobs will be delete.
 """
 function set_scheduler_max_job(max_done::Int = 10000, max_cancelled::Int = max_done)
     if max_done < 10 || max_cancelled < 10
@@ -233,9 +233,13 @@ end
     set_scheduler(;
         max_cpu::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_CPU,
         max_mem::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_MEM,
-        max_job::Int = JobSchedulers.JOB_QUEUE_MAX_LENGTH,
+        max_job::Int = JobSchedulers.JOB_QUEUE.max_done,
+        max_cancelled_job::Int = JobSchedulers.JOB_QUEUE.max_cancelled_job,
         update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND
     )
+
+- `max_job`: the number of jobs done. If number of jobs exceed 1.5*NUMBER, old jobs will be delete.
+- `max_cancelled_job`: the number of cancelled jobs. If number of jobs exceed 1.5*NUMBER, old jobs will be delete.
 
 See details:
 [`set_scheduler_max_cpu`](@ref), 
@@ -244,14 +248,15 @@ See details:
 [`set_scheduler_update_second`](@ref) 
 """
 function set_scheduler(;
-    max_cpu::Union{Int,Float64} = SCHEDULER_MAX_CPU,
-    max_mem::Union{Int,Float64} = SCHEDULER_MAX_MEM,
-    max_job::Int = JOB_QUEUE_MAX_LENGTH,
-    update_second = SCHEDULER_UPDATE_SECOND
+    max_cpu::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_CPU,
+    max_mem::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_MEM,
+    max_job::Int = JobSchedulers.JOB_QUEUE.max_done,
+    max_cancelled_job::Int = JobSchedulers.JOB_QUEUE.max_cancelled_job,
+    update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND
 )
     set_scheduler_max_cpu(max_cpu)
     set_scheduler_max_mem(max_mem)
-    set_scheduler_max_job(max_job)
+    set_scheduler_max_job(max_job, max_cancelled_job)
     set_scheduler_update_second(update_second)
 
     scheduler_status()
