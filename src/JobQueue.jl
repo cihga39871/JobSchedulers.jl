@@ -1,17 +1,17 @@
 
-struct JobQueue
-    queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}  # priority => Job List
-    queuing_0cpu::Vector{Job}              # ncpu = 0, can run immediately
-    future::Vector{Job}            # all jobs with schedule_time > now()
-    running::Vector{Job}
-    done::Vector{Job}
-    failed::Vector{Job}
-    cancelled::Vector{Job}
+mutable struct JobQueue
+    const queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}  # priority => Job List
+    const queuing_0cpu::Vector{Job}              # ncpu = 0, can run immediately
+    const future::Vector{Job}            # all jobs with schedule_time > now()
+    const running::Vector{Job}
+    const done::Vector{Job}
+    const failed::Vector{Job}
+    const cancelled::Vector{Job}
     max_done::Int
     max_cancelled::Int
-    lock_queuing::ReentrantLock
-    lock_running::ReentrantLock
-    lock_past::ReentrantLock
+    const lock_queuing::ReentrantLock
+    const lock_running::ReentrantLock
+    const lock_past::ReentrantLock
 end
 
 function JobQueue(; max_done::Int = 10000, max_cancelled::Int = 10000)
@@ -292,7 +292,14 @@ function run_queuing!(current::DateTime, free_ncpu::Float64, free_mem::Int)
 
                 if job.ncpu <= free_ncpu + 0.001 && job.mem <= free_mem && is_dependency_ok(job)
                     @debug "run_queuing! lock_queuing - scan priority = $priority - try run $(job.id) $(job.name)"
-                    if unsafe_run!(job, current)
+                    is_run_successful = try
+                        unsafe_run!(job, current) 
+                    catch e
+                        @error "Cannot run $(job.id) $(job.name). Skip." exception=e
+                        false
+                    end
+
+                    if is_run_successful
                         free_ncpu -= job.ncpu
                         free_mem  -= job.mem
                         push!(id_delete, i)
@@ -302,7 +309,6 @@ function run_queuing!(current::DateTime, free_ncpu::Float64, free_mem::Int)
                         free_mem <= 0 && break
                     else
                         push!(id_delete, i)
-                        @debug job.state
                         if job.state === CANCELLED
                             push_cancelled!(job)
                         elseif job.state === DONE

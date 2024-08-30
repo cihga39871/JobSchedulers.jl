@@ -216,15 +216,16 @@ function set_scheduler_max_mem(percent::Float64)
 end
 
 """
-    set_scheduler_max_job(n_finished_jobs::Int = 10000)
+    set_scheduler_max_job(max_done::Int = 10000, max_cancelled::Int = max_done)
 
-Set the number of finished jobs.
+Set the number of finished jobs. If number of jobs exceed 1.5*NUMBER, jobs will be resize to NUMBER.
 """
-function set_scheduler_max_job(n_finished_jobs::Int = 10000)
-    if n_finished_jobs < 10
+function set_scheduler_max_job(max_done::Int = 10000, max_cancelled::Int = max_done)
+    if max_done < 10 || max_cancelled < 10
         @error "Cannot set number of finished jobs < 10"
     else
-        global JOB_QUEUE_MAX_LENGTH = n_finished_jobs
+        JOB_QUEUE.max_done = max_done
+        JOB_QUEUE.max_cancelled = max_cancelled
     end
 end
 

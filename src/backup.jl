@@ -72,56 +72,83 @@ function backup()
     global SCHEDULER_BACKUP_FILE
     global SCHEDULER_MAX_CPU
     global SCHEDULER_MAX_MEM
-    global SCHEDULER_UPDATE_SECOND
-    global JOB_QUEUE_MAX_LENGTH
     global JOB_QUEUE
-    global JOB_QUEUE_OK
-    global QUEUING
-    global RUNNING
-    global CANCELLED
 
     # no backup when file is not exist
     SCHEDULER_BACKUP_FILE == "" && return
 
     scheduler_max_cpu = SCHEDULER_MAX_CPU
     scheduler_max_mem = SCHEDULER_MAX_MEM
-    scheduler_update_second = SCHEDULER_UPDATE_SECOND
-    job_queue_max_length = JOB_QUEUE_MAX_LENGTH
 
-    @debug "backup()"
-    wait_for_lock()
-    try
-        # update state of jobs for the last time
-        foreach(unsafe_update_state!, JOB_QUEUE)
+    # update running: update state, cancel jobs reaching wall time, moving finished from running to others, add next recur of successfully finished job to future queue, and compute current usage.
+    update_running!(now())
 
-        # job queue: set to cancelled
-        job_queue = deepcopy(JOB_QUEUE)
-        for job in job_queue
-            job.task = nothing
-            job._func = nothing
-            if job.state in (QUEUING, RUNNING)
-                job.state = CANCELLED
+    q_cancelled = Vector{Job}()
+    q_done = Vector{Job}()
+    q_failed = Vector{Job}()
+    lock(JOB_QUEUE.lock_queuing) do 
+        for jobs in values(JOB_QUEUE.queuing)
+            for j in jobs
+                backup_job!(q_cancelled, q_done, q_failed, j)
             end
         end
-
-        job_queue_ok = deepcopy(JOB_QUEUE_OK)
-        for job in job_queue_ok
-            job.task = nothing
-            job._func = nothing
+        for j in JOB_QUEUE.queuing_0cpu
+            backup_job!(q_cancelled, q_done, q_failed, j)
         end
-        append!(job_queue_ok, job_queue)
-        # clean old file
-        rm(SCHEDULER_BACKUP_FILE, force=true)
-        @save SCHEDULER_BACKUP_FILE scheduler_max_cpu scheduler_max_mem scheduler_update_second job_queue_max_length job_queue_ok
-        @info "Scheduler backup: $SCHEDULER_BACKUP_FILE"
-    catch
-        rethrow()
-    finally
-        release_lock()
+        for j in JOB_QUEUE.future
+            backup_job!(q_cancelled, q_done, q_failed, j)
+        end
     end
+
+    lock(JOB_QUEUE.lock_running) do
+        for j in JOB_QUEUE.running
+            backup_job!(q_cancelled, q_done, q_failed, j)
+        end
+    end
+
+    lock(JOB_QUEUE.lock_past) do
+        for j in JOB_QUEUE.done
+            backup_job!(q_done, j)
+        end
+        for j in JOB_QUEUE.failed
+            backup_job!(q_failed, j)
+        end
+        for j in JOB_QUEUE.cancelled
+            backup_job!(q_cancelled, j)
+        end
+    end
+
+    max_done = JOB_QUEUE.max_done
+    max_cancelled = JOB_QUEUE.max_cancelled
+
+    # clean old file
+    rm(SCHEDULER_BACKUP_FILE, force=true)
+    @save SCHEDULER_BACKUP_FILE scheduler_max_cpu scheduler_max_mem max_done max_cancelled q_cancelled q_done q_failed
+    @info Pipelines.timestamp() * "Scheduler backup done: $SCHEDULER_BACKUP_FILE"
+
 end
 
 atexit(backup)
+
+function backup_job!(q_cancelled::Vector{Job}, q_done::Vector{Job}, q_failed::Vector{Job}, j::Job)
+    job = deepcopy(j)
+    job.task = nothing
+    job._func = nothing
+    if job.state === DONE
+        push!(q_done, job)
+    elseif job.state === FAILED
+        push!(q_failed, job)
+    else
+        job.state = CANCELLED
+        push!(q_cancelled, job)
+    end
+end
+function backup_job!(q::Vector{Job}, j::Job)
+    job = deepcopy(j)
+    job.task = nothing
+    job._func = nothing
+    push!(q, job)
+end
 
 """
     recover_backup(filepath::AbstractString; recover_settings = true, recover_queue = true)
@@ -132,9 +159,7 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
     global SCHEDULER_BACKUP_FILE
     global SCHEDULER_MAX_CPU
     global SCHEDULER_MAX_MEM
-    global JOB_QUEUE_MAX_LENGTH
     global JOB_QUEUE
-    global JOB_QUEUE_OK
 
     if !(recover_settings || recover_queue)
         return
@@ -145,82 +170,77 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
         return
     end
 
-    @load filepath scheduler_max_cpu scheduler_max_mem job_queue_max_length job_queue_ok
+    data = JLD2.load(filepath)
+    
+    # validate data
+    for key in ["scheduler_max_cpu", "scheduler_max_mem", "max_done", "max_cancelled", "q_cancelled", "q_done", "q_failed"]
+        if !haskey(data, key)
+            @error "Cannot recover backup: JobSchedulers version incompatible: $filepath"
+            return
+        end
+    end
 
     if recover_settings
         @info "Settings recovered from the backup file ($filepath)"
-        set_scheduler_max_cpu(scheduler_max_cpu)
-        set_scheduler_max_mem(scheduler_max_mem)
-        set_scheduler_max_job(job_queue_max_length)
+        set_scheduler_max_cpu(data["scheduler_max_cpu"])
+        set_scheduler_max_mem(data["scheduler_max_mem"])
+        set_scheduler_max_job(data["max_done"], data["max_cancelled"])
     end
 
     if recover_queue
         @debug "recover_backup($filepath; recover_settings = $recover_settings, recover_queue = $recover_queue)"
-        wait_for_lock()
-            current_jobs = Dict{Int64, Vector{Job}}()
-            append_jobs_dict!(current_jobs, JOB_QUEUE)
-            append_jobs_dict!(current_jobs, JOB_QUEUE_OK)
 
-            job_indices_to_copy = Int[]
-
-            for (ind, job) in enumerate(job_queue_ok)
-                if !has_job_in(current_jobs, job)
-                    push!(job_indices_to_copy, ind)
+        # get the current jobs, to avoid copying existing jobs
+        current_job_ids = Set{Int}()
+        lock(JOB_QUEUE.lock_queuing) do 
+            for jobs in values(JOB_QUEUE.queuing)
+                for job in jobs
+                    push!(current_job_ids, job.id)
                 end
             end
-            @info "$(length(job_indices_to_copy)) jobs recovered from the backup file ($filepath)."
-            pushfirst!(JOB_QUEUE_OK, view(job_queue_ok, job_indices_to_copy)...)
-        release_lock()
+            for job in JOB_QUEUE.queuing_0cpu
+                push!(current_job_ids, job.id)
+            end
+            for job in JOB_QUEUE.future
+                push!(current_job_ids, job.id)
+            end
+        end
+        lock(JOB_QUEUE.lock_running) do 
+            for job in JOB_QUEUE.running
+                push!(current_job_ids, job.id)
+            end
+        end
+        lock(JOB_QUEUE.lock_past) do 
+            for job in JOB_QUEUE.done
+                push!(current_job_ids, job.id)
+            end
+            for job in JOB_QUEUE.failed
+                push!(current_job_ids, job.id)
+            end
+            for job in JOB_QUEUE.cancelled
+                push!(current_job_ids, job.id)
+            end
+        end
+
+
+        # starting copying from data
+        filter!(data["q_cancelled"]) do job
+            !(job.id in current_job_ids)
+        end
+        filter!(data["q_done"]) do job
+            !(job.id in current_job_ids)
+        end
+        filter!(data["q_failed"]) do job
+            !(job.id in current_job_ids)
+        end
+        lock(JOB_QUEUE.lock_past) do 
+            pushfirst!(JOB_QUEUE.cancelled, data["q_cancelled"]...)
+            pushfirst!(JOB_QUEUE.done, data["q_done"]...)
+            pushfirst!(JOB_QUEUE.failed, data["q_failed"]...)
+        end
     end
 
     nothing
-end
-
-function append_jobs_dict!(jobs_dict::Dict{Int64, Vector{Job}}, job_queue::Vector{Job})
-    for job in job_queue
-        job_vec = get(jobs_dict, job.id, nothing)
-        if isnothing(job_vec)  # no key, create
-            jobs_dict[job.id] = [job]
-        elseif has_job_in(job_vec, job)  # has same job, skip
-            continue
-        else  # push
-            push!(job_vec, job)
-        end
-    end
-end
-
-function is_same_job(a::Job, b::Job)
-    a.id == b.id &&
-    a.schedule_time == b.schedule_time &&
-    a.submit_time == b.submit_time &&
-    a.start_time == b.start_time &&
-    a.stop_time == b.stop_time &&
-    a.name == b.name &&
-    a.user == b.user &&
-    a.ncpu == b.ncpu &&
-    a.mem == b.mem &&
-    a.wall_time == b.wall_time &&
-    a.priority == b.priority
-end
-
-function has_job_in(vec::Vector{Job}, job::Job)
-    for j in vec
-        if is_same_job(j, job)
-            return true
-        end
-    end
-    false
-end
-
-function has_job_in(jobs_dict::Dict{Int64, Vector{Job}}, job)
-    job_vec = get(jobs_dict, job.id, nothing)
-    if isnothing(job_vec)  # no key
-        false
-    elseif has_job_in(job_vec, job)  # has same job
-        true
-    else
-        false
-    end
 end
 
 function is_valid_backup_file(filepath::AbstractString)

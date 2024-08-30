@@ -21,8 +21,7 @@ queue(id::Int)                -> Job
 """
 function queue(;all::Bool=false)
     global JOB_QUEUE
-    global JOB_QUEUE_OK
-    jobs = []
+    jobs = Vector{Job}()
 
     @debug "queue lock_running"
     lock(JOB_QUEUE.lock_running) do
@@ -58,7 +57,7 @@ function queue(state::Symbol)
         return queue(all=true)
     end
     
-    jobs = []
+    jobs = Vector{Job}()
     if state === QUEUING
         @debug "queue lock_queuing"
         lock(JOB_QUEUE.lock_queuing) do
@@ -112,7 +111,6 @@ end
 
 function queue(needle::Union{AbstractString,AbstractPattern,AbstractChar})
     global JOB_QUEUE
-    global JOB_QUEUE_OK
     jobs = queue(all=true)
     filter!(r -> occursin(needle, r.name) || occursin(needle, r.user), jobs)
 end
@@ -301,23 +299,10 @@ function JSON.Writer.json(job::Job)
 end
 
 function json_queue(;all=false)
-    global JOB_QUEUE
-    global JOB_QUEUE_OK
+    q = queue(all=all)
     res = "["
-    if all
-        if !isempty(JOB_QUEUE)
-            res *= join(JOB_QUEUE .|> json, ",")
-        end
-        if !isempty(JOB_QUEUE_OK)
-            if res[end] == '}'
-                res *= ","
-            end
-            res *= join(JOB_QUEUE_OK .|> json, ",")
-        end
-    else
-        if !isempty(JOB_QUEUE)
-            res *= join(JOB_QUEUE .|> json, ",")
-        end
+    if !isempty(q)
+        res *= join(json.(q), ",")
     end
     res *= "]"
     return res

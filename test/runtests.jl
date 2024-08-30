@@ -118,7 +118,7 @@ using Test
 		wait_queue()
 	end
 
-	#=@testset "Backup" begin
+	@testset "Backup" begin
 		### set backup
 		rm("/tmp/jl_job_scheduler_backup", force=true)
 		rm("/tmp/jl_job_scheduler_backup2", force=true)
@@ -127,29 +127,35 @@ using Test
 		set_scheduler_backup("/tmp/jl_job_scheduler_backup", migrate=true) # do nothing because file not exist
 
 		backup()
-		njobs = JobSchedulers.JOB_QUEUE_OK |> length
+		njobs = length(JobSchedulers.JOB_QUEUE.done) + length(JobSchedulers.JOB_QUEUE.failed) + length(JobSchedulers.JOB_QUEUE.cancelled)
 
-		deleteat!(JobSchedulers.JOB_QUEUE_OK, 1:3:njobs)
+		deleteat!(JobSchedulers.JOB_QUEUE.done, 1:3:length(JobSchedulers.JOB_QUEUE.done))
+		deleteat!(JobSchedulers.JOB_QUEUE.failed, 1:3:length(JobSchedulers.JOB_QUEUE.failed))
+		deleteat!(JobSchedulers.JOB_QUEUE.cancelled, 1:3:length(JobSchedulers.JOB_QUEUE.cancelled))
 
 		set_scheduler_max_cpu(2)
 		set_scheduler_backup("/tmp/jl_job_scheduler_backup")
-		@test njobs == JobSchedulers.JOB_QUEUE_OK |> length
+		@test njobs == length(JobSchedulers.JOB_QUEUE.done) + length(JobSchedulers.JOB_QUEUE.failed) + length(JobSchedulers.JOB_QUEUE.cancelled)
 		@test JobSchedulers.SCHEDULER_MAX_CPU == (Base.Threads.nthreads() > 1 ? Base.Threads.nthreads()-1 : Sys.CPU_THREADS)
 
-		job_queue_backup = deepcopy(JobSchedulers.JOB_QUEUE_OK)
+		deleteat!(JobSchedulers.JOB_QUEUE.done, 1:3:length(JobSchedulers.JOB_QUEUE.done))
+		deleteat!(JobSchedulers.JOB_QUEUE.failed, 1:3:length(JobSchedulers.JOB_QUEUE.failed))
+		deleteat!(JobSchedulers.JOB_QUEUE.cancelled, 1:3:length(JobSchedulers.JOB_QUEUE.cancelled))
 
-		deleteat!(JobSchedulers.JOB_QUEUE_OK, 1:3:njobs)
 		set_scheduler_backup("/tmp/jl_job_scheduler_backup")
 
-		@test njobs == JobSchedulers.JOB_QUEUE_OK |> length
+		@test njobs == length(JobSchedulers.JOB_QUEUE.done) + length(JobSchedulers.JOB_QUEUE.failed) + length(JobSchedulers.JOB_QUEUE.cancelled)
 
 		set_scheduler_backup("/tmp/jl_job_scheduler_backup2", migrate=true)
 		backup()
 
-
-		deleteat!(JobSchedulers.JOB_QUEUE_OK, 2:3:njobs)
+		deleteat!(JobSchedulers.JOB_QUEUE.done, 2:3:length(JobSchedulers.JOB_QUEUE.done))
+		deleteat!(JobSchedulers.JOB_QUEUE.failed, 2:3:length(JobSchedulers.JOB_QUEUE.failed))
+		deleteat!(JobSchedulers.JOB_QUEUE.cancelled, 2:3:length(JobSchedulers.JOB_QUEUE.cancelled))
+		
 		set_scheduler_backup("/tmp/jl_job_scheduler_backup")
-		@test njobs == JobSchedulers.JOB_QUEUE_OK |> length
+		@test njobs == length(JobSchedulers.JOB_QUEUE.done) + length(JobSchedulers.JOB_QUEUE.failed) + length(JobSchedulers.JOB_QUEUE.cancelled)
+
 		set_scheduler_backup("/tmp/jl_job_scheduler_backup2", migrate=true, delete_old=true)
 
 		@test !isfile("/tmp/jl_job_scheduler_backup")
@@ -157,7 +163,7 @@ using Test
 
 		set_scheduler_backup("", delete_old=true)
 		@test !isfile("/tmp/jl_job_scheduler_backup2")
-	end=#
+	end
 
 	@testset "Compat Pipelines.jl" begin
 		### Compat Pipelines.jl
