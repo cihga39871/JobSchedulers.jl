@@ -16,6 +16,9 @@ SCHEDULER_BACKUP_FILE::String = ""
 
 SCHEDULER_WHILE_LOOP::Bool = true
 
+"Showing progress meter? Related to progress computation and display"
+PROGRESS_METER::Bool = false
+
 """
     set_scheduler_while_loop(b::Bool)
 
@@ -134,6 +137,10 @@ function submit!(job::Job)
             push!(JOB_QUEUE.queuing_0cpu, job)
         else
             push_queuing!(JOB_QUEUE.queuing, job)
+        end
+
+        if PROGRESS_METER
+            update_group_state!(job)
         end
     end
     @debug "submit!(job::Job) id=$(job.id) name=$(job.name) lock_queuing ok"
@@ -270,6 +277,8 @@ end
 const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
 const SCHEDULER_ACTION_LOCK = ReentrantLock()
 
+const SCHEDULER_PROGRESS_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
+
 function scheduler_need_action()
     global SCHEDULER_ACTION
     global SCHEDULER_ACTION_LOCK
@@ -280,6 +289,9 @@ function scheduler_need_action()
     lock(SCHEDULER_ACTION_LOCK) do 
         if !isready(SCHEDULER_ACTION[]) # will take action, no need to repeat
             put!(SCHEDULER_ACTION[], 1)
+        end
+        if PROGRESS_METER && !isready(SCHEDULER_PROGRESS_ACTION[]) 
+            put!(SCHEDULER_PROGRESS_ACTION[], 1)
         end
     end
     @debug "scheduler_need_action SCHEDULER_ACTION_LOCK ok"

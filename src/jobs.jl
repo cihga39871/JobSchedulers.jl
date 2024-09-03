@@ -73,11 +73,12 @@ mutable struct Job
     _func::Union{Function,Nothing}
     _need_redirect::Bool
     _group::String
+    _group_state::Symbol
 
-    function Job(id::Int64, name::String, user::String, ncpu::Real, mem::Int64, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout::Union{IO,AbstractString,Nothing}, stderr::Union{IO,AbstractString,Nothing}, _thread_id::Int, _func::Union{Function,Nothing}, _need_redirect::Bool = check_need_redirect(stdout, stderr), _group = get_group(name)) where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
+    function Job(id::Int64, name::String, user::String, ncpu::Real, mem::Int64, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout::Union{IO,AbstractString,Nothing}, stderr::Union{IO,AbstractString,Nothing}, _thread_id::Int, _func::Union{Function,Nothing}, _need_redirect::Bool = check_need_redirect(stdout, stderr), _group::AbstractString = "") where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
         check_ncpu_mem(ncpu, mem)
         check_priority(priority)
-        new(id, name, user, Float64(ncpu), mem, period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout, stderr, _thread_id, _func, _need_redirect, _group)
+        new(id, name, user, Float64(ncpu), mem, period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout, stderr, _thread_id, _func, _need_redirect, _group, :nothing)
     end
 end
 
@@ -98,7 +99,7 @@ function Job(task::Task;
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
-        @warn "ncpu > 1 for Job(task::Task) is not fully supported by JobScheduler. If a task uses multi-threads (except for running threaded commands), it is recommended to split it into different jobs. Job: $name." maxlog=1
+        @warn "ncpu > 1 for Job(task::Task) is not fully supported if the task uses multi-threads (except for running threaded commands), it is recommended to split it into different jobs. Job: $name." maxlog=1
     end
     
 
@@ -145,7 +146,7 @@ function Job(f::Function;
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
-        @warn "ncpu > 1 for Job(f::Function) is not fully supported by JobScheduler. If a function uses multi-threads (except for running threaded commands), it is recommended to split it into different jobs. Job: $name." maxlog=1
+        @warn "ncpu > 1 for Job(f::Function) is not fully supported if the function uses multi-threads (except for running threaded commands), it is recommended to split it into different jobs. Job: $name." maxlog=1
     end
 
     need_redirect = check_need_redirect(stdout, stderr)
@@ -228,8 +229,6 @@ period2datetime(t::Period) = now() + t
 function check_ncpu_mem(ncpu::Real, mem::Int64)
     if ncpu < 0
         error("ncpu < 0 is not supported for Job.")
-    elseif ncpu == 0
-        @warn "Job with ncpu == 0." maxlog=1
     elseif 0.001 <= ncpu <= 0.999
         @warn "Job with 0 < ncpu < 1. This job will also bind to one available thread. Other jobs cannot use binded threads." maxlog=1
     end

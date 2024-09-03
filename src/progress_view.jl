@@ -115,7 +115,7 @@ function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
 end
 
 function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
-    group_seperator = GROUP_SEPERATOR, wait_second_for_new_jobs::Int = 1, loop::Bool = true, exit_num_jobs::Int = 0)
+    wait_second_for_new_jobs::Int = 1, loop::Bool = true, exit_num_jobs::Int = 0)
 
     is_in_terminal = Pipelines.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
     if !is_in_terminal
@@ -141,6 +141,9 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
     row = 1 # the current row of cursor
 
     groups_shown = JobGroup[]
+    
+    init_group_state!()
+    global PROGRESS_METER = true
 
     try
         h_old, w_old = 0, 0
@@ -158,16 +161,15 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
                 redirect_stderr(stderr_tmp)
             end
 
-            # if Logging.current_logger isa ConsoleLogger
-            #     old_stdlog = Logging.current_logger
-            #     global_logger(stdlog_tmp)
-            # end
-
             Base.flush(stdout_tmp)
             Base.flush(stderr_tmp)
-            # Base.flush(stdlog_tmp.stream)
 
-            queue_update = queue_summary(;group_seperator = group_seperator)
+            queue_update = if isready(SCHEDULER_PROGRESS_ACTION[])
+                take!(SCHEDULER_PROGRESS_ACTION[])
+                true
+            else
+                false
+            end
 
             h, w = T.displaysize()
 
@@ -212,12 +214,13 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
                     # T.alt_screen(false)
                 end
             end
-
+            
             sleep(0.1)
         end
     catch
         rethrow()
     finally
+        global PROGRESS_METER = false
         h, w = T.displaysize()
         reset_term(row, h)
 
@@ -400,10 +403,10 @@ function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup
     percent = (job_group.total - job_group.queuing - job_group.running) / job_group.total
     text_progress = progress_bar(percent, width_progress; is_in_terminal = is_in_terminal)
     
-    group_name = job_group.group_name
+    group_name = job_group.name
     width_group_name = length(group_name) + 1
     
-    job_name = job_group.job_name
+    job_name = isempty(job_group.jobs) ? "" : first(job_group.jobs).name
     if job_name != ""
         job_name = replace(job_name, group_name => ""; count = 1)
         job_name = ": " * replace(job_name, group_seperator_at_begining => "", count = 1)

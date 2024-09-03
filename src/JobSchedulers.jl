@@ -72,6 +72,7 @@ function __init__()
 
     # initiating scheduler action Channel.
     SCHEDULER_ACTION[] = Channel{Int}(1)
+    SCHEDULER_PROGRESS_ACTION[] = Channel{Int}(1)
 
     # initiating JOB ID
     JOB_ID[] = (now().instant.periods.value - 63749462400000) << 16

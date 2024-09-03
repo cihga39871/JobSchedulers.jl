@@ -9,7 +9,7 @@ function experiments_threads(a, K=10000)
     x
 end
 
-@time experiments_threads(1, 10000)  #   0.000176 seconds (9.61 k allocations: 160.891 KiB)
+@time experiments_threads(1, 10000)  #   0.000176 seconds (9.54 k allocations: 159.828 KiB)
 @time experiments_threads(1, 100000) #   0.001873 seconds (99.61 k allocations: 1.530 MiB)
 
 using Dagger
@@ -39,13 +39,12 @@ function experiments_jobschedulers(a, K=10000)
 end
 @time experiments_jobschedulers(1, 10) 
 
-@time experiments_jobschedulers(1, 10000)  
-# speed up 330X
-# v0.10   0.014750 seconds (145.62 k allocations: 12.526 MiB)
+@time experiments_jobschedulers(1, 10000)
+# speed up 469X
+# v0.10   0.010370 seconds (125.72 k allocations: 10.086 MiB)
 # v0.9    4.871162 seconds (296.27 k allocations: 16.973 MiB)
 
 @time experiments_jobschedulers(1, 100000) 
-# speed up 216X
-# v0.10   0.240398 seconds (1.46 M allocations: 125.250 MiB, 15.57% gc time)
+# speed up 210X
+# v0.10   0.247005 seconds (1.26 M allocations: 100.839 MiB, 21.43% gc time)
 # v0.9   52.003475 seconds (2.97 M allocations: 355.336 MiB, 0.20% gc time)
-

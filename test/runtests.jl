@@ -289,7 +289,7 @@ using Test
 	end
 
 	@testset "Terming" begin
-		# include("terming.jl")
+		include("terming.jl")
 	end
 	@testset "Recur" begin
 		include("recur.jl")

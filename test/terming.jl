@@ -51,4 +51,4 @@ wait_queue(show_progress = true)
 
 queue(:all)
 queue()
-show(stdout, "text/plain", JobSchedulers.JOB_QUEUE_OK)
+show(stdout, "text/plain", queue(PAST))

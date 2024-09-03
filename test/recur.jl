@@ -92,19 +92,22 @@ end
 @testset "Recur jobs" begin
     j = Job(
         name = "recur print date time $(rand(UInt))",
-        cron = Cron("*/2", *,*,*,*,*)
+        cron = Cron("*/1", *,*,*,*,*)
     ) do 
         println("--- Recur Job Start at $(now())")
         return now()
     end
     submit!(j)
 
-    sleep(4)
+    sleep(3)
+
     cancel!.(queue(QUEUING, "recur print date time"))
     
-    j_new = queue(:done)[end]
+    js = queue("recur print")
     display(queue("recur print"))
-    @test j.id != j_new.id && j.name == j_new.name
+
+    @test length(js) > 1
+    @test js[1].id != js[2].id && js[1].name == js[2].name
     
     # cancel!.(queue(QUEUING, "recur print date time"))
     

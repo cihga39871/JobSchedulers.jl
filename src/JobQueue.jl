@@ -176,6 +176,7 @@ function update_running!(current::DateTime)
             if job.state === CANCELLED
                 push!(id_delete, i)
                 push_cancelled!(job)
+                PROGRESS_METER && update_group_state!(job)
                 continue
             end
 
@@ -184,11 +185,13 @@ function update_running!(current::DateTime)
                 unsafe_update_as_failed!(job, current)
                 push!(id_delete, i)
                 push_failed!(job)
+                PROGRESS_METER && update_group_state!(job)
                 continue
             elseif job.task.state === DONE
                 unsafe_update_as_done!(job, current)
                 push!(id_delete, i)
                 push_done!(job)
+                PROGRESS_METER && update_group_state!(job)
                 continue
             end
 
@@ -199,14 +202,17 @@ function update_running!(current::DateTime)
                     if state === CANCELLED
                         push!(id_delete, i)
                         push_cancelled!(job)
+                        PROGRESS_METER && update_group_state!(job)
                         continue
                     elseif state === DONE
                         push!(id_delete, i)
                         push_done!(job)
+                        PROGRESS_METER && update_group_state!(job)
                         continue
                     elseif state === FAILED
                         push!(id_delete, i)
                         push_failed!(job)
+                        PROGRESS_METER && update_group_state!(job)
                         continue
                     end
                 end
@@ -257,11 +263,27 @@ function run_queuing!(current::DateTime, free_ncpu::Float64, free_mem::Int)
             @debug "run_queuing! lock_queuing - check queuing_0cpu"
             for (i, job) in enumerate(JOB_QUEUE.queuing_0cpu)
                 if job.mem <= free_mem && is_dependency_ok(job)
-                    if unsafe_run!(job, current)
+                    is_run_successful = try
+                        unsafe_run!(job, current)
+                    catch e
+                        @error "Cannot run $(job.id) $(job.name). Skip." exception=e
+                        false
+                    end
+                    if is_run_successful
                         free_mem  -= job.mem
                         push!(id_delete, i)
                         push_running!(job)
+                    else
+                        push!(id_delete, i)
+                        if job.state === CANCELLED
+                            push_cancelled!(job)
+                        elseif job.state === DONE
+                            push_done!(job)
+                        elseif job.state === FAILED
+                            push_failed!(job)
+                        end
                     end
+                    PROGRESS_METER && update_group_state!(job)
                 end
             end
             deleteat!(JOB_QUEUE.queuing_0cpu, id_delete)
@@ -294,18 +316,18 @@ function run_queuing!(current::DateTime, free_ncpu::Float64, free_mem::Int)
                 if job.state === CANCELLED
                     push!(id_delete, i)
                     push_cancelled!(job)
+                    PROGRESS_METER && update_group_state!(job)
                     continue
                 end
 
                 if job.ncpu <= free_ncpu + 0.001 && job.mem <= free_mem && is_dependency_ok(job)
                     @debug "run_queuing! lock_queuing - scan priority = $priority - try run $(job.id) $(job.name)"
                     is_run_successful = try
-                        unsafe_run!(job, current) 
+                        unsafe_run!(job, current)
                     catch e
                         @error "Cannot run $(job.id) $(job.name). Skip." exception=e
                         false
                     end
-
                     if is_run_successful
                         free_ncpu -= job.ncpu
                         free_mem  -= job.mem
@@ -324,6 +346,7 @@ function run_queuing!(current::DateTime, free_ncpu::Float64, free_mem::Int)
                             push_failed!(job)
                         end
                     end
+                    PROGRESS_METER && update_group_state!(job)
                 end
             end
             @debug "run_queuing! lock_queuing - scan priority = $priority - delete running jobs"
