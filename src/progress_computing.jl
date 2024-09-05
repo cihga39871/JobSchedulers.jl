@@ -91,6 +91,8 @@ function update_group_state!(job::Job)
             pop!(jg.jobs, job)
         catch
         end
+        global CPU_RUNNING -= job.ncpu
+        global MEM_RUNNING -= job.mem
     end
 
     # updated group state
@@ -100,6 +102,8 @@ function update_group_state!(job::Job)
 
     if job._group_state === RUNNING  # current running
         push!(jg.jobs, job)
+        global CPU_RUNNING += job.ncpu
+        global MEM_RUNNING += job.mem
     end
 
     nothing
