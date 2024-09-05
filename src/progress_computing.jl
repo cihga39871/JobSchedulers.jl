@@ -182,7 +182,7 @@ function compute_other_job_group!(groups_shown::Vector{JobGroup})
     end
     if OTHER_JOB_GROUP.running > 0
         # find one that is running
-        shown_group_names = Set([g.group_name for g in groups_shown])
+        shown_group_names = Set([g.name for g in groups_shown])
         lock(JOB_QUEUE.lock_running) do 
             for job in JOB_QUEUE.running
                 if job._group in shown_group_names
