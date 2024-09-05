@@ -207,9 +207,13 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
                 break
             end
 
-            if length(queue()) <= exit_num_jobs
+            if scheduler_status(verbose=false) != RUNNING
+                @error "Scheduler was not running. Jump out from the progress bar."
+                break
+            end
+            if !are_remaining_jobs_more_than(exit_num_jobs)
                 sleep(wait_second_for_new_jobs)
-                if length(queue()) <= exit_num_jobs
+                if !are_remaining_jobs_more_than(exit_num_jobs)
                     break
                     # T.alt_screen(false)
                 end
