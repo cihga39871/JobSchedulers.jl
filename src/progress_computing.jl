@@ -13,12 +13,21 @@ const BLOCK = "█"
 CPU_RUNNING::Float64 = 0
 MEM_RUNNING::Int = 0
 
+"""
+    GROUP_SEPERATOR::Regex = r": *"
+
+Group seperator is used to group the names of Jobs. Used when display the progress meter using `wait_queue(show_progress=true)`
+
+To set it, use `set_group_seperator(group_seperator::Regex)`.
+"""
 GROUP_SEPERATOR::Regex = r": *"
 
 """
-    set_group_seperator(group_seperator::Regex)
+    set_group_seperator(group_seperator::Regex) = global GROUP_SEPERATOR = group_seperator
 
-Set the group seperator. Group seperator is used to group the names of Jobs.
+Set the group seperator. Group seperator is used to group the names of Jobs. Used when display the progress meter using `wait_queue(show_progress=true)`
+
+Default is `r": *"`.
 """
 function set_group_seperator(group_seperator::Regex)
     global GROUP_SEPERATOR = group_seperator

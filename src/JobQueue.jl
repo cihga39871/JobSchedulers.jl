@@ -1,8 +1,25 @@
 
+"""
+    JobQueue(; max_done::Int = 10000, max_cancelled::Int = 10000)
+    mutable struct JobQueue
+        const queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}  # priority => Job List
+        const queuing_0cpu::Vector{Job}              # ncpu = 0, can run immediately
+        const future::Vector{Job}                    # all jobs with schedule_time > now()
+        const running::Vector{Job}
+        const done::Vector{Job}
+        const failed::Vector{Job}
+        const cancelled::Vector{Job}
+        max_done::Int
+        max_cancelled::Int
+        const lock_queuing::ReentrantLock
+        const lock_running::ReentrantLock
+        const lock_past::ReentrantLock
+    end
+"""
 mutable struct JobQueue
     const queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}  # priority => Job List
     const queuing_0cpu::Vector{Job}              # ncpu = 0, can run immediately
-    const future::Vector{Job}            # all jobs with schedule_time > now()
+    const future::Vector{Job}                    # all jobs with schedule_time > now()
     const running::Vector{Job}
     const done::Vector{Job}
     const failed::Vector{Job}
@@ -31,7 +48,7 @@ function JobQueue(; max_done::Int = 10000, max_cancelled::Int = 10000)
     )
 end
 
-const DESTROY_UNNAMED_JOBS_WHEN_DONE = true
+DESTROY_UNNAMED_JOBS_WHEN_DONE::Bool = true
 
 """
     JobSchedulers.destroy_unnamed_jobs_when_done(b::Bool)

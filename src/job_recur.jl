@@ -337,9 +337,6 @@ function Dates.tonext(d::Date, c::Cron; same::Bool = false)
     end
 end
 
-# function Base.show(io::IO, ::MIME"text/plain", r::Cron)
-# end
-
 
 @inline function is_same_time(dt::DateTime, sec::Int, min::Int, hr::Int)
     sec == second(dt) && min == minute(dt) && hr == hour(dt)

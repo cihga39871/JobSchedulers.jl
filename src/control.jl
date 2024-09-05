@@ -234,8 +234,7 @@ end
         max_cpu::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_CPU,
         max_mem::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_MEM,
         max_job::Int = JobSchedulers.JOB_QUEUE.max_done,
-        max_cancelled_job::Int = JobSchedulers.JOB_QUEUE.max_cancelled_job,
-        update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND
+        max_cancelled_job::Int = JobSchedulers.JOB_QUEUE.max_cancelled_job
     )
 
 - `max_job`: the number of jobs done. If number of jobs exceed 1.5*NUMBER, old jobs will be delete.
@@ -244,8 +243,7 @@ end
 See details:
 [`set_scheduler_max_cpu`](@ref), 
 [`set_scheduler_max_mem`](@ref), 
-[`set_scheduler_max_job`](@ref), 
-[`set_scheduler_update_second`](@ref) 
+[`set_scheduler_max_job`](@ref)
 """
 function set_scheduler(;
     max_cpu::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_CPU,

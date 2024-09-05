@@ -17,7 +17,9 @@ include("job_recur.jl")
 export Cron
 
 include("jobs.jl")
-export Job, result, solve_optimized_ncpu
+export Job, result, solve_optimized_ncpu,
+isqueuing, isrunning, isdone, iscancelled, isfailed, ispast
+
 
 
 include("thread_utils.jl")

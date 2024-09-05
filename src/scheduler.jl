@@ -16,7 +16,7 @@ SCHEDULER_BACKUP_FILE::String = ""
 
 SCHEDULER_WHILE_LOOP::Bool = true
 
-"Showing progress meter? Related to progress computation and display"
+"Bool. Showing progress meter? Related to progress computation and display"
 PROGRESS_METER::Bool = false
 
 """
@@ -154,7 +154,7 @@ function submit!(args...; kwargs...)
 end
 
 """
-    unsafe_run!(job::Job) :: Bool
+    unsafe_run!(job::Job, current::DateTime=now()) :: Bool
 
 Jump the queue and run `job` immediately, no matter what other jobs are running or waiting. If successful initiating to run, return `true`, else `false`. 
 
