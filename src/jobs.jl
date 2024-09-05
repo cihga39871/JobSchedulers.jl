@@ -267,13 +267,35 @@ function convert_dependency_element(job::T) where T <: Union{Int64, Job}
     DONE => job
 end
 
+"""
+    isqueuing(j::Job) :: Bool
+"""
+@inline isqueuing(j::Job) = j.state === QUEUING
 
-@inline isqueuing(  j::Job) = j.state === QUEUING
-@inline isrunning(  j::Job) = j.state === RUNNING
-@inline isdone(     j::Job) = j.state === DONE
+"""
+    isrunning(j::Job) :: Bool
+"""
+@inline isrunning(j::Job) = j.state === RUNNING
+
+"""
+    isdone(j::Job) :: Bool
+"""
+@inline isdone(j::Job) = j.state === DONE
+
+"""
+    iscancelled(j::Job) :: Bool
+"""
 @inline iscancelled(j::Job) = j.state === CANCELLED
-@inline isfailed(   j::Job) = j.state === FAILED
-@inline ispast(     j::Job) = j.state === DONE || j.state === CANCELLED || j.state === FAILED
+
+"""
+    isfailed(j::Job) :: Bool
+"""
+@inline isfailed(j::Job) = j.state === FAILED
+
+"""
+    ispast(j::Job) :: Bool
+"""
+@inline ispast(j::Job) = j.state === DONE || j.state === CANCELLED || j.state === FAILED
 
 
 """
@@ -288,7 +310,14 @@ function result(job::Job)
     job.task.result
 end
 
+"""
+    get_thread_id(job::Job) = job._thread_id
+"""
 get_thread_id(job::Job) = job._thread_id
+
+"""
+    get_priority(job::Job) = job.priority
+"""
 get_priority(job::Job) = job.priority
 
 """

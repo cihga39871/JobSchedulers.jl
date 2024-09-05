@@ -1,7 +1,10 @@
 
 # Manual
 
+JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also be used to schedule small Julia tasks. 
+
 If you need to run multiple heavy Julia tasks, it is recommended to [start Julia with multi-threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads).
+
 
 ```julia
 using JobSchedulers
@@ -187,9 +190,9 @@ all_queue()
 #                                                           9 columns omitted
 ```
 
-!!! compat "JobSchedulers v0.10 update"
+!!! compat "Changes from v0.10"
 
-    Before v0.10, all jobs will be saved to queue. However, since v0.10, unnamed jobs (`job.name == ""`) will not be saved if it **successfully** ran. If you want to save unnamed jobs, you can set using `JobSchedulers.destroy_unnamed_jobs_when_done(false)`.
+    Before v0.10, all jobs will be saved to queue. However, from v0.10, unnamed jobs (`job.name == ""`) will not be saved if it **successfully** ran. If you want to save unnamed jobs, you can set using `JobSchedulers.destroy_unnamed_jobs_when_done(false)`.
 
 Show queue (running and queuing jobs only):
 
@@ -384,7 +387,9 @@ p = CmdProgram(
 #   arg_forward      → <empty>
 
 ### native Pipelines.jl method to run the program
-run(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false) # touch_run_id_file = false means do not create a file which indicates the job is done and avoids re-run.
+run(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false) 
+# touch_run_id_file = false means do not create a file which indicates 
+# the job is done and avoids re-run.
 
 # inputs are: in1 and in2
 # outputs are: out
@@ -468,8 +473,9 @@ Set the maximum number of finished jobs:
 ```julia
 set_scheduler_max_job(max_done::Int = 10000, max_cancelled::Int = max_done)
 
-set_scheduler_max_job(10000)  # If number of finished jobs > 10000, the oldest ones will be removed.
-# 10000                       # It does not affect queuing or running jobs.
+set_scheduler_max_job(10000)  # If number of finished jobs > 10000, 
+                              #    the oldest ones will be removed.
+# 10000                       # It does not affect queuing, running, or failed jobs.
 ```
 
 Set the previous setting in one function:

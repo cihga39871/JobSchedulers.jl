@@ -53,7 +53,7 @@ job_query
 ## Wait For Jobs
 ```@docs
 wait_queue
-wait
+wait(::Job)
 ```
 
 ## Scheduler Settings
@@ -64,10 +64,13 @@ set_scheduler_max_mem
 set_scheduler_max_job
 JobSchedulers.destroy_unnamed_jobs_when_done
 JobSchedulers.set_group_seperator
-GROUP_SEPERATOR
+JobSchedulers.GROUP_SEPERATOR
 ```
 
 ## Scheduler Control
+
+Scheduler is automatically started, so it is not necessary to start/stop it.
+
 ```@docs
 scheduler_status
 scheduler_start

@@ -30,3 +30,11 @@ To use the package, type
 ```julia
 using JobSchedulers
 ```
+
+## Video
+
+This work was presented at JuliaCon 2023 as "J Chuan, X Li. Pipelines & JobSchedulers for Computational Workflow Development."
+
+You can watch the presentation here:
+
+[![](https://markdown-videos-api.jorgenkh.no/youtube/ECERq8BHvn4)](https://youtu.be/ECERq8BHvn4)
