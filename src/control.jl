@@ -275,7 +275,21 @@ See also: [`queue_progress`](@ref).
 """
 function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
     if show_progress
-        queue_progress(exit_num_jobs = exit_num_jobs)
+        progress_task = @task queue_progress(exit_num_jobs = exit_num_jobs)
+        @static if :sticky in fieldnames(Task)
+            # make the scheduler task sticky to threadid == 1
+            if nthreads() > 1
+                # sticky: disallow task migration which was introduced in 1.7
+                @static if VERSION >= v"1.7"
+                    progress_task.sticky = true
+                else
+                    progress_task.sticky = false
+                end    
+                ccall(:jl_set_task_tid, Cvoid, (Any, Cint), progress_task, 0)
+            end
+        end
+        schedule(progress_task)
+        wait(progress_task)
     else
         while are_remaining_jobs_more_than(exit_num_jobs) && scheduler_status(verbose=false) === RUNNING
             sleep(0)
