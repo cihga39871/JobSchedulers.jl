@@ -1,3 +1,9 @@
+
+
+# https://gist.github.com/ConnerWill/d4b6c776b509add763e17f9f113fd25b#erase-functions
+erase_rest_line = Terming.CSI * "0K"
+erase_current_line = Terming.CSI * "2K"
+
 """
     progress_bar(percent::Float64, width::Int = 20)
 
@@ -344,15 +350,15 @@ function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu::Int = JobS
     # render
     is_in_terminal && T.cmove(row, 1)
 
-    T.println(title)
+    T.println(title, erase_rest_line)
     row += 1
     if cpu_width + mem_width <= w
         T.print(cpu_text)
-        T.println(mem_text)
+        T.println(mem_text, erase_rest_line)
         row +=1
     else
-        T.println(cpu_text)
-        T.println(mem_text)
+        T.println(cpu_text, erase_rest_line)
+        T.println(mem_text, erase_rest_line)
         row += 2
     end
     return row
@@ -384,13 +390,13 @@ function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_termina
     is_in_terminal && T.cmove(row, 1)
 
     if h - row > 0
-        T.println(title)
+        T.println(title, erase_rest_line)
         row += 1
     end
 
     if h - row > 0 && w > width_description
         T.print("    ")
-        T.println(description)
+        T.println(description, erase_rest_line)
         row += 1
     end
     return row
@@ -441,7 +447,7 @@ function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup
     
     # render progress bar line
     if is_in_terminal
-        T.clear_line(row)
+        # T.clear_line(row)
         T.cmove(row, 1)
     end
     T.print(text_progress)
@@ -488,6 +494,7 @@ function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup
     if show_counts
         T.print(" " * text_counts)
     end
+    T.print(erase_rest_line)
     T.println()
     row += 1
     return row
@@ -578,14 +585,14 @@ Update the whole screen view.
 function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true, group_seperator_at_begining = Regex("^" * GROUP_SEPERATOR.pattern))
     empty!(groups_shown)
 
-    is_in_terminal && T.clear()
+    # is_in_terminal && T.clear()
 
     row = view_update_resources(h, w; row = row, is_in_terminal = is_in_terminal)
 
     if ALL_JOB_GROUP.total == 0
         if is_in_terminal
             T.cmove(row, 1)
-            T.println(@bold @yellow "NO JOB SUBMITTED.")
+            T.println(@bold @yellow "NO JOB SUBMITTED.", erase_rest_line)
         else
             T.println("NO JOB SUBMITTED.")
         end
@@ -613,6 +620,13 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
         row = view_update_job_group(h, w; row = row, job_group = OTHER_JOB_GROUP, highlight = true, is_in_terminal = is_in_terminal, group_seperator_at_begining = group_seperator_at_begining)
     end
 
+    if is_in_terminal
+        # clear rest lines
+        for r in row:h
+            T.cmove(r,1)
+            T.print(erase_current_line)
+        end
+    end
     @label ret
     # if is_interactive
     #     T.cmove_line_last()
