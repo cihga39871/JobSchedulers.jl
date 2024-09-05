@@ -10,7 +10,7 @@ const BAR_LEFT = "▕"
 const BAR_RIGHT = "▎"
 const BLOCK = "█"
 
-CPU_RUNNING::Int = 0
+CPU_RUNNING::Float64 = 0
 MEM_RUNNING::Int = 0
 
 GROUP_SEPERATOR::Regex = r": *"
