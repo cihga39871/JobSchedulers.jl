@@ -188,7 +188,7 @@ function compute_other_job_group!(groups_shown::Vector{JobGroup})
                 if job._group in shown_group_names
                     continue
                 end
-                push!(OTHER_JOB_GROUP, job)
+                push!(OTHER_JOB_GROUP.jobs, job)
                 break
             end
         end
