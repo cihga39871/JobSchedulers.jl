@@ -365,7 +365,7 @@ end
 function unsafe_update_as_failed!(job::Job, current::DateTime = now())
     job.stop_time = current
     free_thread(job)
-    @error "A job failed: $(job.id): $(job.name)" # exception=job.task.result
+    # @error "A job failed: $(job.id): $(job.name)" # exception=job.task.result
     job.state = FAILED
 end
 function unsafe_update_as_done!(job::Job, current::DateTime = now())
