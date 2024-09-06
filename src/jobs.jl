@@ -32,8 +32,10 @@ end
 - `schedule_time::Union{DateTime,Period} = DateTime(0)`: The expected time to run.
 - `dependency`: defer job until specified jobs reach specified state (QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST). PAST is the super set of DONE, FAILED, CANCELLED, which means the job will not run in the future. Eg: `DONE => job`, `[DONE => job1; PAST => job2]`.
 
- > The default state is DONE, so `DONE => job` can be simplified to `job`.
- > To be compatible with old versions, you can also use job id (Int): `[DONE => job.id]`.
+!!! info "Dependency"
+    The default state is DONE, so `DONE => job` can be simplified to `job`.  
+    To be compatible with old versions, you can also use job id (Int): `[DONE => job.id]`.  
+    JobSchedulers will remove jobs that reached their states in the dependency list.
 
 - `wall_time::Period = Year(1)`: wall clock time limit. Jobs will be terminated after running for this period.
 - `priority::Int = 20`: lower means higher priority.
@@ -49,6 +51,8 @@ end
 
 !!! note
     Redirecting in Julia are not thread safe, so unexpected redirection might be happen if you are running programs in different `Tasks` simultaneously (multi-threading).
+
+See also [`@submit!`](@ref), [`submit!`](@ref), [`Cron`](@ref)
 """
 mutable struct Job
     id::Int64
@@ -102,8 +106,9 @@ function Job(task::Task;
         @warn "ncpu > 1 for Job(task::Task) is not fully supported if the task uses multi-threads (except for running threaded commands), it is recommended to split it into different jobs. Job: $name." maxlog=1
     end
     
-
     need_redirect = check_need_redirect(stdout, stderr)
+
+    job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, stdout, stderr, 0, task.code, need_redirect)
 
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
@@ -129,7 +134,8 @@ function Job(task::Task;
         end
     end
 
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, stdout, stderr, 0, task.code, need_redirect)
+    job.task = task2
+    job
 end
 
 function Job(f::Function;
@@ -151,6 +157,8 @@ function Job(f::Function;
 
     need_redirect = check_need_redirect(stdout, stderr)
     
+    job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, "", "", 0, f, need_redirect)
+
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
             try
@@ -174,8 +182,8 @@ function Job(f::Function;
             end
         end
     end
-
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, "", "", 0, f, need_redirect)
+    job.task = task2
+    job
 end
 
 function Job(command::Base.AbstractCmd;
@@ -195,6 +203,8 @@ function Job(command::Base.AbstractCmd;
 
     need_redirect = check_need_redirect(stdout, stderr)
 
+    job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, stdout, stderr, 0, f, need_redirect)
+
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
             try
@@ -218,8 +228,8 @@ function Job(command::Base.AbstractCmd;
             end
         end
     end
-
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, stdout, stderr, 0, f, need_redirect)
+    job.task = task2
+    job
 end
 
 

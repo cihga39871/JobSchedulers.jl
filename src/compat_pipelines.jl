@@ -76,6 +76,7 @@ function Job(p::Program;
         inputs=inputs, outputs=outputs, stdout=stdout, stderr=stderr, dir=abspath(dir), 
         kws...
     )
+    job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, stdout, stderr, 0, f, false)
 
     task = @task begin
         try
@@ -88,7 +89,8 @@ function Job(p::Program;
         end
     end
 
-    Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task, stdout, stderr, 0, f, false)
+    job.task = task
+    job
 end
 
 function Job(p::Program, inputs; kwargs...)

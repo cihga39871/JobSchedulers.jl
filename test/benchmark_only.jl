@@ -48,3 +48,18 @@ end
 # speed up 210X
 # v0.10   0.247005 seconds (1.26 M allocations: 100.839 MiB, 21.43% gc time)
 # v0.9   52.003475 seconds (2.97 M allocations: 355.336 MiB, 0.20% gc time)
+
+function experiments_jobschedulers2(a, K=10000)
+    x = 0
+    for i in 1:K
+        @submit! x += a
+    end
+    wait_queue()
+    x
+end
+
+@time experiments_jobschedulers2(1, 10) 
+
+@time experiments_jobschedulers2(1, 10000)
+
+@time experiments_jobschedulers2(1, 100000) 
