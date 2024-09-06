@@ -4,6 +4,10 @@ TODO
 
 - Feat: `@submit!` like syntax to wrap like a normal Julia code. 
 
+v0.10.1
+
+- Fix: `job` not defined if Job failed.
+
 v0.10.0
 
 - **Feat/Optimize: Rewriting scheduler for 200~400X speed up. Scheduling 100,000 small tasks in 0.2 seconds using 24 threads.**
