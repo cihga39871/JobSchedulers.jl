@@ -61,5 +61,7 @@ end
 @time experiments_jobschedulers2(1, 10) 
 
 @time experiments_jobschedulers2(1, 10000)
+# 0.011685 seconds (145.81 k allocations: 11.003 MiB)
+@time experiments_jobschedulers2(1, 100000)
+# 0.254929 seconds (1.46 M allocations: 109.989 MiB, 18.08% gc time)
 
-@time experiments_jobschedulers2(1, 100000) 

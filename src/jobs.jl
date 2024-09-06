@@ -314,7 +314,7 @@ end
 Return the result of `job`. If the job is not done, a warning message will also show.
 """
 function result(job::Job)
-    if job.state !== DONE
+    if !istaskdone(job.task)
         @warn "Getting result from a $(job.state) job: returned value might be unexpected."
     end
     job.task.result
