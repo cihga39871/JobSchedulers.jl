@@ -1,8 +1,9 @@
 # Changelog
 
-TODO
+v0.10.2
 
-- Feat: `@submit!` like syntax to wrap like a normal Julia code. 
+- Feat: new macro `@submit` to create a job using an expression. It will automatically add explictly referred `Job` dependencies by walking through the symbols in the expression.
+- Feat: new method `fetch`.
 
 v0.10.1
 

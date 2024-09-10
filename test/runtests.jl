@@ -295,9 +295,9 @@ using Test
 		include("recur.jl")
 	end
 
-	# @testset "Macro" begin
-	# 	include("test_macro.jl")
-	# end
+	@testset "Macro" begin
+		include("test_macro.jl")
+	end
 
 
 	@test scheduler_status() === RUNNING

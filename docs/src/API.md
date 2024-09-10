@@ -26,8 +26,10 @@ const SCHEDULER_REACTIVATION_TASK = Base.RefValue{Task}()
 ```@docs
 Job
 submit!
+@submit
 cancel!
 result
+fetch(::Job)
 isqueuing
 isrunning
 isdone

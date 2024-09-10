@@ -52,7 +52,7 @@ end
 !!! note
     Redirecting in Julia are not thread safe, so unexpected redirection might be happen if you are running programs in different `Tasks` simultaneously (multi-threading).
 
-See also [`@submit!`](@ref), [`submit!`](@ref), [`Cron`](@ref)
+See also [`submit!`](@ref), [`@submit`](@ref), [`Cron`](@ref)
 """
 mutable struct Job
     id::Int64
@@ -232,6 +232,17 @@ function Job(command::Base.AbstractCmd;
     job
 end
 
+"""
+    fetch(x::Job)
+
+Wait for a `Job` to finish, then return its result value. If the task fails with an exception, a `TaskFailedException` (which wraps the failed task) is thrown.
+
+!!! compat
+    `fetch(x::Job)` is available from JobSchedulers v0.10.2.
+"""
+function Base.fetch(x::Job)
+    fetch(x.task)
+end
 
 period2datetime(t::DateTime) = t
 period2datetime(t::Period) = now() + t

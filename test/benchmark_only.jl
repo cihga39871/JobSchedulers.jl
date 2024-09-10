@@ -17,7 +17,7 @@ function experiments_dagger(a, K=10000)
     x = 0
     f() = x += a
     @sync for i in 1:K
-        Dagger.@spawn f()
+        Dagger.@spawn f()  # cannot use x += a because not a valid expression in Dagger
     end
     x
 end
@@ -52,7 +52,7 @@ end
 function experiments_jobschedulers2(a, K=10000)
     x = 0
     for i in 1:K
-        @submit! x += a
+        @submit x += a
     end
     wait_queue()
     x
@@ -65,3 +65,4 @@ end
 @time experiments_jobschedulers2(1, 100000)
 # 0.254929 seconds (1.46 M allocations: 109.989 MiB, 18.08% gc time)
 
+@sync

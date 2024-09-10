@@ -12,7 +12,7 @@ using JobSchedulers
 
 ## Create a Job
 
-A `Job` is the wrapper of `AbstractCmd`, `Function` or `Task`:
+A [`Job`](@ref) is the wrapper of `AbstractCmd`, `Function` or `Task`:
 
 ```julia
 command_job = Job(
@@ -62,7 +62,7 @@ job_with_args = Job(
 #   stderr        → nothing
 ```
 
-> `dependency` argument in `Job(...)` controls when to start a job.
+> `dependency` argument in [`Job`](@ref) controls when to start a job.
 >
 > It is a vector with element `STATE => job` or `STATE => job.id`.
 >
@@ -80,26 +80,59 @@ Submit a job to queue:
 submit!(command_job)
 submit!(task_job)
 submit!(job_with_args)
+```
 
-# submit!(Job(...)) can be simplified to submit!(...) (from v0.8)
+> Details: [`submit!`](@ref)
+
+## Create and submit a Job
+
+`submit!(Job(...))` can be simplified to `submit!(...)` from v0.8.
+
+```julia
 job = submit!(@task(println("job")), priority = 0)
 ```
 
-## Cancel a Job
-
-Cancel or interrupt a job:
+Macro `@submit [args...] expression` is available from v0.10.2. It will automatically add **explictly referred** `Job` dependencies by walking through the symbols in the `expression`.
 
 ```julia
-cancel!(command_job)
+job = @submit ncpu=1 1+1
+
+job_auto_dependency = @submit 1 + result(job)
+# equivalent to submit!(() -> 1 + result(job); dependency=job)
+```
+
+[`@submit`](@ref) supports any type of `Expr`ession, including a code block:
+
+```julia
+x = 5
+job_block = @submit begin
+    y = x + 1
+    y^2
+end
+@assert fetch(job_block) == (5+1)^2
 ```
 
 ## Get a Job's Result
 
-Get the returned result:
+Get the returned [`result`](@ref) imediately. If job is not finished, show a warning message and return nothing:
 
 ```julia
-result(job_with_args)
+result(job)
 # "result"
+```
+
+You can also use [`fetch`](@ref) to wait for job to finish and return its result from JobSchedulers v0.10.2.
+
+```julia
+fetch(job)
+```
+
+## Cancel a Job
+
+Interrupt or [`cancel!`](@ref) a job:
+
+```julia
+cancel!(job)
 ```
 
 ## Recurring/repetitive Job
@@ -173,6 +206,8 @@ end
 # 2024-03-27T13:14:15.044
 ```
 
+> Details: [`Cron`](@ref)
+
 ## Queue
 
 Show all jobs:
@@ -233,7 +268,7 @@ queue(r"job.*")
 #                                                           9 columns omitted
 ```
 
-See more at [`queue`](@ref), and [`all_queue`](@ref).
+> See more at [`queue`](@ref), and [`all_queue`](@ref).
 
 ## Job query
 
@@ -264,9 +299,12 @@ queue(:all)[1]
 #   stderr        → nothing
 ```
 
+> See more at [`job_query`](@ref), and [`queue`](@ref).
+
+
 ## Wait for jobs and progress meter
 
-Wait for a specific job(s):
+[`wait`](@ref) for a specific job(s):
 
 ```julia
 wait(j::Job)
@@ -424,6 +462,12 @@ submit!(program_job)
 # get the returned result
 result(program_job)
 # (true, Dict{String, Any}("OUT" => "out"))
+```
+
+[`@submit`](@ref) also works with `Program`s:
+
+```julia
+program_job2 = @submit IN1=`in1` IN2=2 OUT="out" touch_run_id_file=false p
 ```
 
 ## Scheduler settings

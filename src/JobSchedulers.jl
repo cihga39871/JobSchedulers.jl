@@ -61,8 +61,8 @@ include("progress_computing.jl")
 include("progress_view.jl")
 export queue_progress
 
-# include("macro.jl")
-# export @submit!
+include("macro.jl")
+export @submit
 
 function __init__()
     # Fixing precompilation hangs due to open tasks or IO

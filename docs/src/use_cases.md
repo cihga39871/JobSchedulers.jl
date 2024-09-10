@@ -49,7 +49,9 @@ end
 
 experiments_threads(dists, lens, 1000)
 @time experiments_threads(dists, lens, 10000)
-#   7.095762 seconds (746 allocations: 110.828 KiB)
+#  6.932880 seconds (746 allocations: 110.828 KiB)
+#  6.868636 seconds (751 allocations: 110.906 KiB)
+#  7.023086 seconds (746 allocations: 110.828 KiB)
 ```
 
 Note that `DataFrames.push!` is not a thread safe operation and hence we need to utilize a locking mechanism in order to avoid two threads appending the DataFrame at the same time.
@@ -63,38 +65,39 @@ function experiments_jobschedulers(dists, lens, K=1000)
     res = DataFrame()
     for T in dists
         dist = T()
-        σ = submit!(() -> std(dist))
+        σ = @submit std(dist)
         for L in lens
-            z = submit!(() -> f(dist, L, K, result(σ)), dependency=σ)
+            z = @submit f(dist, L, K, result(σ))
             push!(res, (;T, σ, L, z))
         end
     end
-    wait_queue()
-    res.z = result.(res.z)
-    res.σ = result.(res.σ)
+    res.z = fetch.(res.z)
+    res.σ = fetch.(res.σ)
     res
 end
 
 experiments_jobschedulers(dists, lens, 1000)
 @time experiments_jobschedulers(dists, lens, 10000)
-#   3.851350 seconds (16.26 M allocations: 432.789 MiB, 4.50% gc time)
+#  3.682429 seconds (4.68 k allocations: 268.984 KiB)
+#  3.687437 seconds (4.77 k allocations: 270.609 KiB)
+#  3.755103 seconds (4.74 k allocations: 269.812 KiB)
 ```
 
-In this code we have job interdependence. Firstly, we are calculating the standard deviation `σ`, and then we are using that value in the function `f`. Here, `submit!` wraps a task or a 0-argument function. Since `submit!` yields a `Job` rather than actual values, we need to use the `result` function to obtain those values. Because computing `z` requires completion of `σ`, we need to add argument `dependency=σ` to `submit!`. In the last, after all jobs are submitted, we use `wait_queue()` to wait for all jobs to be finished. 
+In this code we have job interdependence. Firstly, we are calculating the standard deviation `σ`, and then we are using that value in the function `f`. Here, `submit!` wraps a task or a 0-argument function. Since `submit!` yields a `Job` rather than actual values, we need to use the `result` function to obtain those values. Because computing `z` requires completion of `σ`, we need to add argument `dependency=σ` to `submit!`. In the last, after all jobs are submitted, we use `fetch` to wait for each job to finish and return its value. 
 
 Also, note that contrary to the previous example, we do not need to implement locking as we are just pushing the `Job` results of `submit!` serially into the DataFrame (which is fast since `submit!` doesn't block).
 
-The above use case scenario has been tested by running `julia -t 8` (or with `JULIA_NUM_THREADS=8` as environment variable). The `Threads.@threads` code takes 7.1 seconds to run, while the JobSchedulers code, runs around 3.9 seconds, resulting in a 1.8x speedup.
+The above use case scenario has been tested by running `julia -t 8` (or with `JULIA_NUM_THREADS=8` as environment variable). The `Threads.@threads` code takes 7.1 seconds to run, while the JobSchedulers code, runs around 3.7 seconds, resulting in a 1.8x speedup. To be noted, unlike `Base.Threads`, JobSchedulers only use `nthreads() - 1 = 7` threads to compute jobs, so the real speedup is `1.8 * 8/7 = 2.1`x.
 
 !!! info "Citation"
     Parallel Nested Loops was copied and edited from Dagger.jl's document. Most information are the same, except that JobSchedulers.jl was used. 
 
 ## A Workflow Example With Pipelines.jl
 
-- Run prog_A with 2 threads and 4GB RAM.
-- Run prog_B with 8 threads.
-- After prog_A finished, run prog_C (2 threads).
-- After prog_B and prog_C finished, run prog_D (12 threads)
+- Run `prog_A` with 2 threads and 4GB RAM.
+- Run `prog_B` with 8 threads.
+- After `prog_A` finished, run `prog_C` (2 threads).
+- After `prog_B` and `prog_C` finished, run `prog_D` (12 threads)
 
 The flowchart is like:
 
@@ -203,7 +206,8 @@ experiments_dagger(1, 10)
 
 - JobSchedulers is stable even scheduling 100,000 tasks, while Dagger seems encountered a dead lock causing system hung.
 
-| Number of Task | Base.Threads | JobSchedulers.jl | Dagger.jl |
-|-:|-:|-:|-:|
-|10,000| 0.000176 s | 0.010370 s | 0.846881 s |
-|100,000| 0.001873 s | 0.247005 s | failed, hung (dead lock) |
+| Number of Task | 10,000 | 100,000 |
+| :---- | ----: | ----: |
+| Base.Threads (second) | 0.000176 | 0.001873 |
+| JobSchedulers (second) | 0.010370 | 0.247005 |
+| Dagger (second) | 0.846881 | failed, hung (dead lock) |
