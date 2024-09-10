@@ -90,7 +90,7 @@ Submit the job. If `job.submit_time == 0000-01-01T00:00:00 (default)`, it will c
 
 > `submit!(Job(...))` can be simplified to `submit!(...)`. They are equivalent.
 
-See also [`Job`](@ref), [`submit!`](@ref)
+See also [`Job`](@ref), [`@submit`](@ref)
 """
 function submit!(job::Job)
     global JOB_QUEUE
