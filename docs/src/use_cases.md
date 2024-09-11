@@ -130,9 +130,9 @@ wait_queue()
 
 To test the overhead of scheduling systems, I compared `Base.Threads`, `Dagger.jl`, and `JobSchedulers` using tiny tasks (`x::Int += y::Int`) on seperate 24-thread Julia sessions on a platform with i9-13900K, 196GB DDR5 memory. 
 
-!!! warn
+!!! warning
     `x += y` is not thread-safe, and it is for overhead test only.
-    BenchmarkTools.jl cannot be used in this case because it compete scheduling systems.
+    BenchmarkTools.jl cannot be used in this case because it competes scheduling systems.
 
 ### Scripts
 

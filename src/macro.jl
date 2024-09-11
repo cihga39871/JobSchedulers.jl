@@ -20,7 +20,7 @@ wait(j)
 # you can use any keyword arguments that `Job` supports, such as `name`, `ncpu`:
 j_2sec = @submit name = "run after 2 sec" begin sleep(2); 32 end
 
-# because `j_2sec isa Job`, `DONE => j_2sec` is pushed to `j2.dependency`, and the `j_2sec` in the begin-end block is converted to `result(j_2sec)`:
+# because `j_2sec isa Job`, `DONE => j_2sec` is pushed to `j2.dependency`.
 j2 = @submit mem=2KB begin
     1 + result(j_2sec)
 end
@@ -28,20 +28,18 @@ end
 wait(j2)
 @assert result(j2) == 1 + 32
 
-# you can also manually add dependencies that not in the `expr`:
+# you can also manually add dependencies not in the `expr`:
 j3 = @submit dependency = [PAST => j] println("j3 finished. result of j2 = ", result(j2))
 
 # Note: j3.dependency might be empty after submit, because JobScheduler will remove jobs that reached their states in the dependency list.
 ```
 
 
-!!! warn "Known Issues: Only explicit jobs can be automatically added to dependency"
-    If a job is in a container, `@submit` cannot know the elements in the container:
+!!! warning "Only explicit jobs can be automatically added to dependency"
+    `@submit` cannot know the elements in a container, so it is unable to walk through and add Job dependencies in a container.
     ```julia
-    j = @submit 666
-
     jobs = Job[]  # the job container
-    for i in 1:10
+    for i in 1:2
         push!(jobs, @submit begin sleep(30);i end) # 10 jobs will be added to `jobs`
     end
 
@@ -55,10 +53,13 @@ j3 = @submit dependency = [PAST => j] println("j3 finished. result of j2 = ", re
 
     result(j_something_wrong)
     # MethodError(+, (nothing, nothing), 0x0000000000007b16)
-
-    # To avoid it, we can 
-    #      (1) use `submit!`, or
-    #      (2) explicitly add `dependency = jobs` to `@submit`.
+    ```
+    
+    To avoid it, we can 
+         (1) use `submit!`, or
+         (2) explicitly add `dependency = jobs` to `@submit`.
+    
+    ```julia
     x = 0
     j_ok = submit!(dependency = jobs) do
         for j in jobs
@@ -77,7 +78,6 @@ j3 = @submit dependency = [PAST => j] println("j3 finished. result of j2 = ", re
     wait(j_ok_too)
     @assert x == 155
     ```
-
 """
 macro submit(args...)
     local opts = args[1:end-1]
@@ -120,20 +120,20 @@ macro submit(args...)
     end
 end
 
-# function job_to_result!(expr::Expr, dep_syms::Vector{Symbol})
+# function job_to_result!(expr::Expr, dep_syms)
 #     for (i,a) in enumerate(expr.args)
 #         @inbounds expr.args[i] = job_to_result!(a, dep_syms)
 #     end
 #     expr
 # end
-# function job_to_result!(expr::Symbol, dep_syms::Vector{Symbol})
+# function job_to_result!(expr::Symbol, dep_syms)
 #     if expr in dep_syms
 #         :(JobSchedulers.result_or_self($expr))
 #     else
 #         expr
 #     end
 # end
-# function job_to_result!(expr, dep_syms::Vector{Symbol})
+# function job_to_result!(expr, dep_syms)
 #     expr
 # end
 

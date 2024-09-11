@@ -4,7 +4,7 @@ const JOB_ID_INCREMENT_LOCK = ReentrantLock()
 """
     generate_id() :: Int64
 
-Generate ID. It is unique in most instances.
+Generate an unique ID.
 """
 function generate_id()
     lock(JOB_ID_INCREMENT_LOCK) do
@@ -314,7 +314,7 @@ end
 @inline isfailed(j::Job) = j.state === FAILED
 
 """
-    ispast(j::Job) :: Bool
+    ispast(j::Job) :: Bool = j.state === DONE || j.state === CANCELLED || j.state === FAILED
 """
 @inline ispast(j::Job) = j.state === DONE || j.state === CANCELLED || j.state === FAILED
 
