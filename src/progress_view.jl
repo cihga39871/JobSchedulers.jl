@@ -592,7 +592,7 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
     if ALL_JOB_GROUP.total == 0
         if is_in_terminal
             T.cmove(row, 1)
-            T.println(@bold @yellow "NO JOB SUBMITTED.", erase_rest_line)
+            T.println((@bold @yellow "NO JOB SUBMITTED."), erase_rest_line)
         else
             T.println("NO JOB SUBMITTED.")
         end

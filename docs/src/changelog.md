@@ -1,5 +1,9 @@
 # Changelog
 
+v0.10.3
+
+- Fix: error when calling `wait_queue(;show_progress=true)` and no job has been submitted.
+
 v0.10.2
 
 - Feat: new macro `@submit` to create a job using an expression. It will automatically add explictly referred `Job` dependencies by walking through the symbols in the expression.
