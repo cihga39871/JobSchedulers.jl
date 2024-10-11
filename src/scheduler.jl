@@ -16,8 +16,11 @@ SCHEDULER_BACKUP_FILE::String = ""
 
 SCHEDULER_WHILE_LOOP::Bool = true
 
-"Bool. Showing progress meter? Related to progress computation and display"
+"Bool. Showing progress meter? Related to progress computation and display. true when wait_queue(show_progress=true)"
 PROGRESS_METER::Bool = false
+
+"Bool. Should only be used when PROGRESS_METER == false because both PROGRESS_METER and PROGRESS_WAIT compete SCHEDULER_PROGRESS_ACTION[]. true when wait_queue(show_progress=false)"
+PROGRESS_WAIT::Bool = false
 
 """
     set_scheduler_while_loop(b::Bool)
@@ -291,7 +294,7 @@ function scheduler_need_action()
         if !isready(SCHEDULER_ACTION[]) # will take action, no need to repeat
             put!(SCHEDULER_ACTION[], 1)
         end
-        if PROGRESS_METER && !isready(SCHEDULER_PROGRESS_ACTION[]) 
+        if (PROGRESS_METER || PROGRESS_WAIT) && !isready(SCHEDULER_PROGRESS_ACTION[]) 
             put!(SCHEDULER_PROGRESS_ACTION[], 1)
         end
     end

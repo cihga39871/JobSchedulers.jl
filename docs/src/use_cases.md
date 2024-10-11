@@ -172,7 +172,7 @@ function experiments_jobschedulers(a, K=10000)
 end
 
 # compile
-experiments_jobschedulers(1, 10) 
+experiments_jobschedulers(1, 10)
 
 # test
 @time experiments_jobschedulers(1, 10000)  # 0.010370 seconds (125.72 k allocations: 10.086 MiB)

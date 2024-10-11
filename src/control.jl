@@ -272,6 +272,11 @@ Wait for all jobs in `queue()` become finished.
 See also: [`queue_progress`](@ref).
 """
 function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
+    global PROGRESS_WAIT
+    global PROGRESS_METER
+    if PROGRESS_WAIT || PROGRESS_METER
+        error("Another wait_queue(...) is active. It is not allowed to run more than one wait_queue()")
+    end
     if show_progress
         progress_task = @task queue_progress(exit_num_jobs = exit_num_jobs)
         @static if :sticky in fieldnames(Task)
@@ -289,12 +294,16 @@ function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
         schedule(progress_task)
         wait(progress_task)
     else
-        while are_remaining_jobs_more_than(exit_num_jobs) && scheduler_status(verbose=false) === RUNNING
-            sleep(0)
+        PROGRESS_WAIT = true
+        while true
+            are_remaining_jobs_more_than(exit_num_jobs) || break
+            if scheduler_status(verbose=false) !== RUNNING
+                @error "Scheduler was not running. Jump out from wait_queue()"
+                break
+            end
+            take!(SCHEDULER_PROGRESS_ACTION[])  # wait until further action
         end
-        if scheduler_status(verbose=false) != RUNNING
-            @error "Scheduler was not running. Jump out from wait_queue()"
-        end
+        PROGRESS_WAIT = false
     end
     nothing
 end

@@ -207,14 +207,9 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
                 break
             end
 
-            if scheduler_status(verbose=false) !== RUNNING
-                @error "Exit progress bar because the scheduer is not running!"
-                scheduler_status()
-                break
-            end
-
             if scheduler_status(verbose=false) != RUNNING
                 @error "Scheduler was not running. Jump out from the progress bar."
+                scheduler_status()
                 break
             end
             if !are_remaining_jobs_more_than(exit_num_jobs)
@@ -238,18 +233,10 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
         old_stdout != Base.stdout && redirect_stdout(old_stdout)
         old_stderr != Base.stderr && redirect_stderr(old_stderr)
 
-        # old_stdlog != global_logger() && global_logger(old_stdlog)
-
-        # if !(stdlog_tmp.stream isa IOBuffer)
-        #     println(Pipelines.stderr_origin, @cyan @bold "Logs   saved to $(stdlog_tmp.stream)")
-        # end
-        # println(Pipelines.stdout_origin, @yellow @bold "Stdout saved to $stdout_tmp")
-        # println(Pipelines.stderr_origin, @red @bold "Stderr saved to $stderr_tmp")
         isopen(stdout_tmp) && Base.flush(stdout_tmp)
         isopen(stderr_tmp) && Base.flush(stderr_tmp)
-        # isopen(stdlog_tmp.stream) && Base.flush(stdlog_tmp.stream)
+
         print_rest_lines(Pipelines.stdout_origin, stdout_tmp, start_pos_stdout_tmp)
-        # print_rest_lines(Pipelines.stderr_origin, stdlog_tmp.stream, start_pos_stdlog_tmp)
         print_rest_lines(Pipelines.stderr_origin, stderr_tmp, start_pos_stderr_tmp)
     end
 end

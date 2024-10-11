@@ -1,5 +1,12 @@
 # Changelog
 
+v0.10.4
+
+- Optimize: remove extra `scheduler_status` check in `queue_progress(...)`.
+- Optimize: `wait_queue(show_progress=false)` no longer took 100% CPU. Now it computes exit condition only when scheduler updates.
+- Change: explicit error when calling the second `wait_queue(...)`. Only one is allowed each time. 
+- Compat: JLD2 0.5.
+
 v0.10.3
 
 - Fix: error when calling `wait_queue(;show_progress=true)` and no job has been submitted.
