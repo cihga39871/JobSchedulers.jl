@@ -113,14 +113,14 @@ prog_B = JuliaProgram(...)
 prog_C = CmdProgram(...)
 prog_D = JuliaProgram(...)
 
-job_A = submit!(prog_A, A_args..., ncpu = 2, mem = 4GB)
+job_A = submit!(prog_A; A_args..., ncpu = 2, mem = 4GB)
 
-job_B = submit!(prog_B, B_args..., ncpu = 8)
+job_B = submit!(prog_B; B_args..., ncpu = 8)
 
-job_C = submit!(prog_C, C_args..., ncpu = 2,
+job_C = submit!(prog_C; C_args..., ncpu = 2,
                 dependency = job_A)
 
-job_D = submit!(prog_D, D_args..., ncpu = 12, 
+job_D = submit!(prog_D; D_args..., ncpu = 12, 
                 dependency = [PAST => job_B, job_C])
 
 wait_queue()
