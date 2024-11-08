@@ -165,6 +165,7 @@ function update_queue!()
 
     # update running: update state, cancel jobs reaching wall time, moving finished from running to others, add next recur of successfully finished job to future queue, and compute current usage.
     used_ncpu, used_mem = update_running!(current)
+    update_resource(used_ncpu, used_mem)
 
     free_ncpu = SCHEDULER_MAX_CPU - used_ncpu
     free_mem = SCHEDULER_MAX_MEM - used_mem

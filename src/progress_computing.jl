@@ -10,8 +10,17 @@ const BAR_LEFT = "▕"
 const BAR_RIGHT = "▎"
 const BLOCK = "█"
 
-CPU_RUNNING::Float64 = 0
-MEM_RUNNING::Int = 0
+mutable struct Resource
+    cpu::Float64
+    mem::Int
+end
+const RESOURCE = Resource(0,0)
+
+function update_resource(cpu::Real, mem::Int)
+    global RESOURCE
+    RESOURCE.cpu = cpu
+    RESOURCE.mem = mem
+end
 
 """
     GROUP_SEPERATOR::Regex = r": *"
@@ -49,21 +58,23 @@ end
 """
 mutable struct JobGroup
     name::String
-    total::Int
-    queuing::Int
-    running::Int
-    done::Int
-    failed::Int
-    cancelled::Int
+    @atomic total::Int
+    @atomic queuing::Int
+    @atomic running::Int
+    @atomic done::Int
+    @atomic failed::Int
+    @atomic cancelled::Int
     jobs::Set{Job}  # running jobs only
+    lock_jobs::ReentrantLock  # lock when updating/query jobs
 end
 
 function JobGroup(group_name::AbstractString)
-    JobGroup(group_name, 0, 0, 0, 0, 0, 0, Set{Job}())
+    JobGroup(group_name, 0, 0, 0, 0, 0, 0, Set{Job}(), ReentrantLock())
 end
 
 const ALL_JOB_GROUP = JobGroup("ALL JOBS")
 const JOB_GROUPS = OrderedDict{String, JobGroup}()
+const JOB_GROUPS_LOCK = ReentrantLock()
 const OTHER_JOB_GROUP = JobGroup("OTHERS")
 
 """
@@ -78,41 +89,45 @@ function update_group_state!(job::Job)
         # initial job
         job._group = get_group(job.name)
 
-        if haskey(JOB_GROUPS, job._group)
-            jg = JOB_GROUPS[job._group]
-        else
-            jg = JobGroup(job._group)
-            JOB_GROUPS[job._group] = jg
+        jg = lock(JOB_GROUPS_LOCK) do
+            if haskey(JOB_GROUPS, job._group)
+                jg = JOB_GROUPS[job._group]
+            else
+                jg = JobGroup(job._group)
+                JOB_GROUPS[job._group] = jg
+            end
         end
 
-        jg.total += 1
-        ALL_JOB_GROUP.total += 1
+        @atomic jg.total += 1
+        @atomic ALL_JOB_GROUP.total += 1
     else
-        jg = JOB_GROUPS[job._group]
+        jg = lock(JOB_GROUPS_LOCK) do
+            JOB_GROUPS[job._group]
+        end
         # group state before updating
-        setfield!(jg, job._group_state, getfield(jg, job._group_state) - 1)
-        setfield!(ALL_JOB_GROUP, job._group_state, getfield(ALL_JOB_GROUP, job._group_state) - 1)
+        modifyfield!(jg, job._group_state, -, 1, :sequentially_consistent)
+        modifyfield!(ALL_JOB_GROUP, job._group_state, -, 1, :sequentially_consistent)
     end
 
     # group state before updating
     if job._group_state === RUNNING  # previous running, not current
         try
-            pop!(jg.jobs, job)
+            lock(jg.lock_jobs) do
+                pop!(jg.jobs, job)
+            end
         catch
         end
-        global CPU_RUNNING -= job.ncpu
-        global MEM_RUNNING -= job.mem
     end
 
     # updated group state
     job._group_state = job.state
-    setfield!(jg, job._group_state, getfield(jg, job._group_state) + 1)
-    setfield!(ALL_JOB_GROUP, job._group_state, getfield(ALL_JOB_GROUP, job._group_state) + 1)
+    modifyfield!(jg, job._group_state, +, 1, :sequentially_consistent)
+    modifyfield!(ALL_JOB_GROUP, job._group_state, +, 1, :sequentially_consistent)
 
     if job._group_state === RUNNING  # current running
-        push!(jg.jobs, job)
-        global CPU_RUNNING += job.ncpu
-        global MEM_RUNNING += job.mem
+        lock(jg.lock_jobs) do
+            push!(jg.jobs, job)
+        end
     end
 
     nothing
@@ -125,7 +140,9 @@ Prepare group state for existing jobs
 """
 function init_group_state!()
     clear_job_group!(ALL_JOB_GROUP)
-    empty!(JOB_GROUPS)
+    lock(JOB_GROUPS_LOCK) do
+        empty!(JOB_GROUPS)
+    end
     # clear_job_group!(OTHER_JOB_GROUP)  # no need to init, will compute later anyway
 
     lock(JOB_QUEUE.lock_queuing) do 
@@ -152,13 +169,15 @@ function init_group_state!(job::Job)
 end
 
 function clear_job_group!(g::JobGroup)
-    g.total = 0
-    g.queuing = 0
-    g.running = 0
-    g.done = 0
-    g.failed = 0
-    g.cancelled = 0
-    empty!(g.jobs)
+    @atomic g.total = 0
+    @atomic g.queuing = 0
+    @atomic g.running = 0
+    @atomic g.done = 0
+    @atomic g.failed = 0
+    @atomic g.cancelled = 0
+    lock(g.lock_jobs) do 
+        empty!(g.jobs)
+    end
 end
 
 """
@@ -178,20 +197,22 @@ function get_group(name::AbstractString, group_seperator = GROUP_SEPERATOR)
 end
 
 function compute_other_job_group!(groups_shown::Vector{JobGroup})
-    OTHER_JOB_GROUP.total = ALL_JOB_GROUP.total
-    OTHER_JOB_GROUP.queuing = ALL_JOB_GROUP.queuing
-    OTHER_JOB_GROUP.running = ALL_JOB_GROUP.running
-    OTHER_JOB_GROUP.done = ALL_JOB_GROUP.done
-    OTHER_JOB_GROUP.failed = ALL_JOB_GROUP.failed
-    OTHER_JOB_GROUP.cancelled = ALL_JOB_GROUP.cancelled
-    empty!(OTHER_JOB_GROUP.jobs)
+    @atomic OTHER_JOB_GROUP.total = ALL_JOB_GROUP.total
+    @atomic OTHER_JOB_GROUP.queuing = ALL_JOB_GROUP.queuing
+    @atomic OTHER_JOB_GROUP.running = ALL_JOB_GROUP.running
+    @atomic OTHER_JOB_GROUP.done = ALL_JOB_GROUP.done
+    @atomic OTHER_JOB_GROUP.failed = ALL_JOB_GROUP.failed
+    @atomic OTHER_JOB_GROUP.cancelled = ALL_JOB_GROUP.cancelled
+    lock(OTHER_JOB_GROUP.lock_jobs) do
+        empty!(OTHER_JOB_GROUP.jobs)
+    end
     for g in groups_shown
-        OTHER_JOB_GROUP.total -= g.total
-        OTHER_JOB_GROUP.queuing -= g.queuing
-        OTHER_JOB_GROUP.running -= g.running
-        OTHER_JOB_GROUP.done -= g.done
-        OTHER_JOB_GROUP.failed -= g.failed
-        OTHER_JOB_GROUP.cancelled -= g.cancelled
+        @atomic OTHER_JOB_GROUP.total -= g.total
+        @atomic OTHER_JOB_GROUP.queuing -= g.queuing
+        @atomic OTHER_JOB_GROUP.running -= g.running
+        @atomic OTHER_JOB_GROUP.done -= g.done
+        @atomic OTHER_JOB_GROUP.failed -= g.failed
+        @atomic OTHER_JOB_GROUP.cancelled -= g.cancelled
     end
     if OTHER_JOB_GROUP.running > 0
         # find one that is running
@@ -201,7 +222,9 @@ function compute_other_job_group!(groups_shown::Vector{JobGroup})
                 if job._group in shown_group_names
                     continue
                 end
-                push!(OTHER_JOB_GROUP.jobs, job)
+                lock(OTHER_JOB_GROUP.lock_jobs) do
+                    push!(OTHER_JOB_GROUP.jobs, job)
+                end
                 break
             end
         end

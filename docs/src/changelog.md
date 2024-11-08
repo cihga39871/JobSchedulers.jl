@@ -1,5 +1,10 @@
 # Changelog
 
+v0.10.5
+
+- Fix: when showing progress meter, changing `JobGroup.x` was not thread safe. 
+- Fix: when showing progress meter, now CPU and MEM was not computed again from JobGroup, but just fetch from a global variable `RESOURCE(cpu, mem)::Resource`. `RESOURCE` is computed when `update_queue!()`
+
 v0.10.4
 
 - Optimize: remove extra `scheduler_status` check in `queue_progress(...)`.

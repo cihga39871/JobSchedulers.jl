@@ -1,8 +1,8 @@
 
 
 # https://gist.github.com/ConnerWill/d4b6c776b509add763e17f9f113fd25b#erase-functions
-erase_rest_line = Terming.CSI * "0K"
-erase_current_line = Terming.CSI * "2K"
+const erase_rest_line = Terming.CSI * "0K"
+const erase_current_line = Terming.CSI * "2K"
 
 """
     progress_bar(percent::Float64, width::Int = 20)
@@ -100,10 +100,6 @@ function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
     stderr_tmp_file = joinpath(homedir(), "julia_$(now_str).err")
     stderr_tmp = open(stderr_tmp_file, "w+")
 
-    # stdlog_tmp_file = joinpath(homedir(), "julia_$(now_str).log")
-    # stdlog_tmp_io = open(stdlog_tmp_file, "w+")
-    # stdlog_tmp = Logging.SimpleLogger(stdlog_tmp_io)
-
     try
         queue_progress(stdout_tmp, stderr_tmp; kwargs...)
     catch
@@ -111,11 +107,9 @@ function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
     finally
         close(stdout_tmp)
         close(stderr_tmp)
-        # close(stdlog_tmp_io)
         if remove_tmp_files
             rm(stdout_tmp_file)
             rm(stderr_tmp_file)
-            # rm(stdlog_tmp_file)
         end
     end
 end
@@ -307,7 +301,7 @@ function style_line(line::String, log_style::Symbol)
 end
 
 function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu::Int = JobSchedulers.SCHEDULER_MAX_CPU, max_mem::Int = JobSchedulers.SCHEDULER_MAX_MEM, is_in_terminal::Bool = true)
-    
+    global RESOURCE
     if h - row < 5
         # no render: height not enough
         return row
@@ -316,9 +310,9 @@ function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu::Int = JobS
     title = is_in_terminal ? @bold("CURRENT RESOURCES:") : "CURRENT RESOURCES:"
 
     cpu_text = ("    CPU: ")
-    cpu_val = "$CPU_RUNNING/$max_cpu"
+    cpu_val = "$(RESOURCE.cpu)/$max_cpu"
     cpu_width = 9 + length(cpu_val)
-    if CPU_RUNNING < max_cpu
+    if RESOURCE.cpu < max_cpu
         cpu_text *= is_in_terminal ? @green(cpu_val) : cpu_val
     else
         cpu_text *= is_in_terminal ? @yellow(cpu_val) : cpu_val
@@ -326,9 +320,9 @@ function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu::Int = JobS
 
 
     mem_text = ("    MEM: ")
-    mem_percent = @sprintf("%3.2f%%", MEM_RUNNING / max_mem * 100)
+    mem_percent = @sprintf("%3.2f%%", RESOURCE.mem / max_mem * 100)
     mem_width = 9 + length(mem_percent)
-    if MEM_RUNNING < max_mem
+    if RESOURCE.mem < max_mem
         mem_text *= is_in_terminal ? @green(mem_percent) : mem_percent
     else
         mem_text *= is_in_terminal ? @yellow(mem_percent) : mem_percent
@@ -353,15 +347,8 @@ end
 
 function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_terminal::Bool = true)
     
-    # description_plain = "[$(ALL_JOB_GROUP.running) running, $(ALL_JOB_GROUP.failed) failed + $(ALL_JOB_GROUP.cancelled) cancelled, $(ALL_JOB_GROUP.done) done / $(ALL_JOB_GROUP.total) total]"
-
     if is_in_terminal
         title = @bold("JOB PROGRESS:")
-        # description = "[" * @green("$(ALL_JOB_GROUP.running) running") * ", " *
-        #                     @red("$(ALL_JOB_GROUP.failed) failed") *
-        #                     @yellow(" + $(ALL_JOB_GROUP.cancelled) cancelled") * ", " * 
-        #                     "$(ALL_JOB_GROUP.done) done / " *
-        #                     @bold("$(ALL_JOB_GROUP.total) total") * "]"
         description = @dim("[") * @green("running") * @dim(", ") *
                             @red("failed") *
                             @yellow("+cancelled") * @dim(", ") * 
@@ -369,7 +356,6 @@ function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_termina
                             @bold("total") * @dim("]")
     else
         title = "JOB PROGRESS:"
-        # description = "[$(ALL_JOB_GROUP.running) running, $(ALL_JOB_GROUP.failed) failed + $(ALL_JOB_GROUP.cancelled) cancelled, $(ALL_JOB_GROUP.done) done / $(ALL_JOB_GROUP.total) total]"
         description = "[running, failed+cancelled, done/total]"
     end
     width_description = 43  # 4 + length(description_plain)
@@ -592,13 +578,15 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
     row = view_update_job_group(h, w; row = row, job_group = ALL_JOB_GROUP, highlight = true, is_in_terminal = is_in_terminal, group_seperator_at_begining = group_seperator_at_begining)
 
     # specific job groups
-    for job_group in values(JOB_GROUPS)
-        job_group.total < 2 && continue
-        if row >= h - 1
-            break
+    lock(JOB_GROUPS_LOCK) do
+        for job_group in values(JOB_GROUPS)
+            job_group.total < 2 && continue
+            if row >= h - 1
+                break
+            end
+            row = view_update_job_group(h, w; row = row, job_group = job_group, is_in_terminal = is_in_terminal, group_seperator_at_begining = group_seperator_at_begining)
+            push!(groups_shown, job_group)
         end
-        row = view_update_job_group(h, w; row = row, job_group = job_group, is_in_terminal = is_in_terminal, group_seperator_at_begining = group_seperator_at_begining)
-        push!(groups_shown, job_group)
     end
 
     compute_other_job_group!(groups_shown)
