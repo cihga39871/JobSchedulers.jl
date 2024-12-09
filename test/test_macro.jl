@@ -2,21 +2,25 @@
 
 @testset "@submit" begin
     j = @submit name = "abc" dependency = [] 1+1
+    @info "macro 1"
     wait(j)
     @test result(j) == 2
     @test j.name == "abc"
 
     a = 3242
     j = @submit a + 5
+    @info "macro 2"
     wait(j)
     @test result(j) == 3242 + 5
 
     j_long = @submit name = "abc" dependency = j begin sleep(2); 32 end
+    @info "macro 3"
 
     j2 = @submit mem = 2KB begin 1 + result(j) + result(j_long) end
     @test length(j2.dependency) > 0
     sleep(1)
     @test j2.state === QUEUING
+    @info "macro 4"
     wait(j2)
     @test result(j2) === 1 + 3247 + 32
 
@@ -25,6 +29,7 @@
         for i in 1:K
             @submit x += a
         end
+        @info "macro 5"
         wait_queue()
         x
     end
@@ -45,6 +50,7 @@
         jsum = @submit dependency=js for j in js
             x += result(j)
         end
+        println("macro 6")
         wait(jsum)
         x/K
     end

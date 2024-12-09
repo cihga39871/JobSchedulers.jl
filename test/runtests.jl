@@ -116,6 +116,8 @@ using Test
 		)
 
 		wait_queue()
+		@test Base.Threads.nthreads() - 1 == length(JobSchedulers.THREAD_POOL[].data)
+
 	end
 
 	@testset "Backup" begin
@@ -274,8 +276,11 @@ using Test
 		@test job.mem == 666
 
 		job.ncpu = 0.5
+		@info "submitting "
 		submit!(job)
+		@info "submitting done"
 		while job.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
+			@info "waiting for" job.state scheduler_status(verbose=false) 
 			sleep(1)
 		end
 		@test result(job) == (true, Dict{String, Any}())
@@ -283,22 +288,27 @@ using Test
 	end
 
 	if Base.Threads.nthreads() > 1
+		@info "Test test_thread_id.jl -------------------------------"
 		include("test_thread_id.jl")
 	else
 		@warn "Threads.nthreads() == 1 during testing is not recommended. Please run Julia in multi-threads to test JobSchedulers."
 	end
 
 	@testset "Terming" begin
+		@info "Test Terming -------------------------------"
 		include("terming.jl")
 	end
 	@testset "Recur" begin
+		@info "Test Recur -------------------------------"
 		include("recur.jl")
 	end
 
 	@testset "Macro" begin
+		@info "Test Macro-------------------------------"
 		include("test_macro.jl")
 	end
 
 
+	@test Base.Threads.nthreads() - 1 == length(JobSchedulers.THREAD_POOL[].data)
 	@test scheduler_status() === RUNNING
 end

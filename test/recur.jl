@@ -36,7 +36,6 @@
     @test JobSchedulers.tonext(Time(22,01,01), c1, same=true) == Time(23,00,0)
     @test JobSchedulers.tonext(Time(22,01,01), c1) == Time(23,00,0)
 
-
     for c2 in (Cron(:yearly), Cron(0,0,0,1,1,0))
     @test JobSchedulers.date_based_on(c2) == :monthday
     @test JobSchedulers.tonext(Date(2023,1,2), c2) == Date(2024,1,1)
@@ -107,8 +106,5 @@ end
     display(queue("recur print"))
 
     @test length(js) > 1
-    @test js[1].id != js[2].id && js[1].name == js[2].name
-    
-    # cancel!.(queue(QUEUING, "recur print date time"))
-    
+    @test js[1].id != js[2].id && js[1].name == js[2].name    
 end

@@ -113,22 +113,28 @@ function Job(task::Task;
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
             try
-                task.code()
+                res = task.code()
+                unsafe_update_as_done!(job)
+                res
             catch e
                 unsafe_update_as_failed!(job)
                 rethrow(e)
             finally
+                free_thread(job)
                 scheduler_need_action()
             end
         end
     else
         task2 = @task begin
             try
-                task.code()
+                res = task.code()
+                unsafe_update_as_done!(job)
+                res
             catch e
                 unsafe_update_as_failed!(job)
                 rethrow(e)
             finally
+                free_thread(job)
                 scheduler_need_action()
             end
         end
@@ -162,22 +168,28 @@ function Job(f::Function;
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
             try
-                f()
+                res = f()
+                unsafe_update_as_done!(job)
+                res
             catch e
                 unsafe_update_as_failed!(job)
                 rethrow(e)
             finally
+                free_thread(job)
                 scheduler_need_action()
             end
         end
     else
         task2 = @task begin
             try
-                f()
+                res = f()
+                unsafe_update_as_done!(job)
+                res
             catch e
                 unsafe_update_as_failed!(job)
                 rethrow(e)
             finally
+                free_thread(job)
                 scheduler_need_action()
             end
         end
@@ -208,22 +220,28 @@ function Job(command::Base.AbstractCmd;
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
             try
-                f()
+                res = f()
+                unsafe_update_as_done!(job)
+                res
             catch e
                 unsafe_update_as_failed!(job)
                 rethrow(e)
             finally
+                free_thread(job)
                 scheduler_need_action()
             end
         end
     else
         task2 = @task begin
             try
-                f()
+                res = f()
+                unsafe_update_as_done!(job)
+                res
             catch e
                 unsafe_update_as_failed!(job)
                 rethrow(e)
             finally
+                free_thread(job)
                 scheduler_need_action()
             end
         end
@@ -399,22 +417,28 @@ function next_recur_job(j::Job)
     if job._need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
             try
-                Base.invokelatest(job._func)
+                res = Base.invokelatest(job._func)
+                unsafe_update_as_done!(job)
+                res
             catch e
                 unsafe_update_as_failed!(job)
                 rethrow(e)
             finally
+                free_thread(job)
                 scheduler_need_action()
             end
         end
     else
         task2 = @task begin
             try
-                Base.invokelatest(job._func)
+                res = Base.invokelatest(job._func)
+                unsafe_update_as_done!(job)
+                res
             catch e
                 unsafe_update_as_failed!(job)
                 rethrow(e)
             finally
+                free_thread(job)
                 scheduler_need_action()
             end
         end
