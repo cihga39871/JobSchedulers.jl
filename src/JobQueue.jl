@@ -193,6 +193,7 @@ function update_running!(current::DateTime)
             
             if job.state === CANCELLED
                 push!(id_delete, i)
+                free_thread(job)
                 push_cancelled!(job)
                 PROGRESS_METER && update_group_state!(job)
                 continue
@@ -202,12 +203,14 @@ function update_running!(current::DateTime)
             if istaskfailed2(job.task)
                 unsafe_update_as_failed!(job, current)
                 push!(id_delete, i)
+                free_thread(job)
                 push_failed!(job)
                 PROGRESS_METER && update_group_state!(job)
                 continue
             elseif job.task.state === DONE
                 unsafe_update_as_done!(job, current)
                 push!(id_delete, i)
+                free_thread(job)
                 push_done!(job)
                 PROGRESS_METER && update_group_state!(job)
                 continue
@@ -219,16 +222,19 @@ function update_running!(current::DateTime)
                     state = unsafe_cancel!(job, current)
                     if state === CANCELLED
                         push!(id_delete, i)
+                        free_thread(job)
                         push_cancelled!(job)
                         PROGRESS_METER && update_group_state!(job)
                         continue
                     elseif state === DONE
                         push!(id_delete, i)
+                        free_thread(job)
                         push_done!(job)
                         PROGRESS_METER && update_group_state!(job)
                         continue
                     elseif state === FAILED
                         push!(id_delete, i)
+                        free_thread(job)
                         push_failed!(job)
                         PROGRESS_METER && update_group_state!(job)
                         continue
