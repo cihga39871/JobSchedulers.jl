@@ -249,13 +249,13 @@ function unsafe_cancel!(job::Job, current::DateTime=now())
             # job.task.result isa Exception, notify errors
             @error "A job has failed: $(job.id)" exception=job.task.result
         end
-        free_thread(job)
+        # free_thread(job)
         return job.state
     elseif istaskdone(job.task)
         if job.state !== DONE
             job.state = DONE
         end
-        free_thread(job)
+        # free_thread(job)J
         return job.state
     end
 
@@ -271,7 +271,7 @@ function unsafe_cancel!(job::Job, current::DateTime=now())
         job.state
     finally
         # TODO: what if InterruptException did not stop the job?
-        free_thread(job)
+        # free_thread(job)
         return job.state
     end
 end
@@ -367,13 +367,13 @@ end
 
 function unsafe_update_as_failed!(job::Job, current::DateTime = now())
     job.stop_time = current
-    free_thread(job)
+    # free_thread(job)
     # @error "A job failed: $(job.id): $(job.name)" # exception=job.task.result
     job.state = FAILED
 end
 function unsafe_update_as_done!(job::Job, current::DateTime = now())
     job.stop_time = current
-    free_thread(job)
+    # free_thread(job)
     job.state = DONE
 end
 
