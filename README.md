@@ -5,7 +5,7 @@
 
 | **Documentation**                                                               |
 |:-------------------------------------------------------------------------------:|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://cihga39871.github.io/JobSchedulers.jl/stable) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://cihga39871.github.io/JobSchedulers.jl/dev) |
+| [![](https://img.shields.io/badge/docs-blue.svg)](https://cihga39871.github.io/JobSchedulers.jl/dev) |
 
 ## Why JobScheduler?
 

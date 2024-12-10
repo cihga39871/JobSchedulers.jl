@@ -1,5 +1,9 @@
 # Changelog
 
+v0.10.7
+
+- Fix: crash when showing progress meter after all jobs finished while stdout/sterr are redirected to files. Remove call to legacy `queue_summary`, which was replaced a while ago. 
+
 v0.10.6
 
 - Fix: `is_dependency_ok(job)`: capture `job.state` in variable to avoid changing when running the function, which might lead to error.
