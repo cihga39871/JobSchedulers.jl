@@ -543,7 +543,7 @@ function normal_print_queue_progress(; group_seperator = GROUP_SEPERATOR, wait_a
     if wait_all_jobs
         wait_queue(show_progress = false)
     end
-    queue_summary(;group_seperator = group_seperator)
+    # queue_summary(;group_seperator = group_seperator)
     println()
     group_seperator_at_begining = Regex("^" * group_seperator.pattern)
     view_update(39871, 120; row = 1, groups_shown = JobGroup[], is_in_terminal = false, is_interactive = false, group_seperator_at_begining = group_seperator_at_begining)
