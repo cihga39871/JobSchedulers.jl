@@ -207,6 +207,12 @@ function update_running!(current::DateTime)
                 push_failed!(job)
                 PROGRESS_METER && update_group_state!(job)
                 continue
+            elseif job.state === DONE
+                push!(id_delete, i)
+                free_thread(job)
+                push_done!(job)
+                PROGRESS_METER && update_group_state!(job)
+                continue
             elseif job.task.state === DONE
                 unsafe_update_as_done!(job, current)
                 push!(id_delete, i)

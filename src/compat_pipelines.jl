@@ -80,7 +80,13 @@ function Job(p::Program;
 
     task = @task begin
         try
-            f()
+            res = f()
+            if res isa Pipelines.StackTraceVector
+                unsafe_update_as_failed!(job)
+            else
+                unsafe_update_as_done!(job)
+            end
+            res
         catch e
             unsafe_update_as_failed!(job)
             rethrow(e)
