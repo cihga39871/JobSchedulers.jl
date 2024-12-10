@@ -222,8 +222,8 @@ function update_running!(current::DateTime)
                 continue
             end
 
-            # still running: check reaching wall time
             if job.state === RUNNING
+                # still running: check reaching wall time
                 if job.start_time + job.wall_time < current
                     state = unsafe_cancel!(job, current)
                     if state === CANCELLED

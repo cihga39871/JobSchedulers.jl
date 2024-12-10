@@ -287,16 +287,15 @@ function scheduler_need_action()
     global SCHEDULER_ACTION
     global SCHEDULER_ACTION_LOCK
 
-    # isready(SCHEDULER_ACTION[]) && return  # isready means already ready for action
+    isready(SCHEDULER_ACTION[]) && return  # isready means already ready for action
 
     @debug "scheduler_need_action SCHEDULER_ACTION_LOCK"
 
     # SCHEDULER_ACTION is not thread safe
     lock(SCHEDULER_ACTION_LOCK) do 
-        # if !isready(SCHEDULER_ACTION[]) # will take action, no need to repeat
+        if !isready(SCHEDULER_ACTION[]) # will take action, no need to repeat
             put!(SCHEDULER_ACTION[], 1)
-            # @time "--------------- scheduler_need_action put" put!(SCHEDULER_ACTION[], 1)
-        # end
+        end
         if (PROGRESS_METER || PROGRESS_WAIT) && !isready(SCHEDULER_PROGRESS_ACTION[]) 
             put!(SCHEDULER_PROGRESS_ACTION[], 1)
         end
@@ -348,11 +347,10 @@ function scheduler()
         try
             # SCHEDULER_ACTION is not thread safe
             wait(SCHEDULER_ACTION[])
-            # @time "--------------- wait scheduler" wait(SCHEDULER_ACTION[])
             lock(SCHEDULER_ACTION_LOCK) do 
-                empty!(SCHEDULER_ACTION[].data)
-                @atomic SCHEDULER_ACTION[].n_avail_items = 0
-                # take!(SCHEDULER_ACTION[])
+                # empty!(SCHEDULER_ACTION[].data)
+                # @atomic SCHEDULER_ACTION[].n_avail_items = 0
+                take!(SCHEDULER_ACTION[])
             end
             
             update_queue!()
