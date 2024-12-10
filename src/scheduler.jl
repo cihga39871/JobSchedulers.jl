@@ -295,7 +295,7 @@ function scheduler_need_action()
     # SCHEDULER_ACTION is not thread safe
     lock(SCHEDULER_ACTION_LOCK) do 
         # if !isready(SCHEDULER_ACTION[]) # will take action, no need to repeat
-            put!(SCHEDULER_ACTION[], 1)
+            @time "--------------- scheduler_need_action put" put!(SCHEDULER_ACTION[], 1)
         # end
         if (PROGRESS_METER || PROGRESS_WAIT) && !isready(SCHEDULER_PROGRESS_ACTION[]) 
             put!(SCHEDULER_PROGRESS_ACTION[], 1)
@@ -348,7 +348,7 @@ function scheduler()
         
         try
             # SCHEDULER_ACTION is not thread safe
-            @showtime wait(SCHEDULER_ACTION[])
+            @time "--------------- wait scheduler" wait(SCHEDULER_ACTION[])
             lock(SCHEDULER_ACTION_LOCK) do 
                 empty!(SCHEDULER_ACTION[].data)
                 @atomic SCHEDULER_ACTION[].n_avail_items = 0
