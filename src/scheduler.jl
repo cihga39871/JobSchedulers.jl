@@ -441,20 +441,21 @@ function is_dependency_ok(job::Job)
             dep_job = dep.second
         end
 
+        dep_state = dep_job.state  # avoid changing during the following calls, if changing from RUNNING to DONE, might throw error in `elseif dep_state == DONE`
 
-        if (state == dep_job.state) ||
-        (state == PAST && dep_job.state in (FAILED, CANCELLED, DONE))
+        if (state === dep_state) ||
+        (state === PAST && dep_state in (FAILED, CANCELLED, DONE))
             deps_to_delete = i
             continue
         end
 
-        if dep_job.state in (FAILED, CANCELLED)
+        if dep_state in (FAILED, CANCELLED)
             # change job state to cancelled
-            @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is failed or cancelled."
+            @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is $(dep_job.state)."
             job.state = CANCELLED
             res = false
             break
-        elseif dep_job.state == DONE
+        elseif dep_state == DONE
             # change job state to cancelled
             @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is done, but the required state is $(state)."
             job.state = CANCELLED
