@@ -164,15 +164,15 @@ function update_queue!()
     move_future_to_queuing(current)
 
     # update running: update state, cancel jobs reaching wall time, moving finished from running to others, add next recur of successfully finished job to future queue, and compute current usage.
-    used_ncpu, used_mem = update_running!(current)
+    used_ncpu, used_mem = @showtime update_running!(current)
     update_resource(used_ncpu, used_mem)
 
     free_ncpu = SCHEDULER_MAX_CPU - used_ncpu
     free_mem = SCHEDULER_MAX_MEM - used_mem
-    run_queuing!(current, free_ncpu, free_mem)
+    @showtime run_queuing!(current, free_ncpu, free_mem)
 
     # clean done and cancelled queue if exceed max_done and max_cancelled
-    clean_queue!()
+    @showtime clean_queue!()
     @debug "update_queue! done"
 end
 

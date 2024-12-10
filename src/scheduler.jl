@@ -348,7 +348,7 @@ function scheduler()
         
         try
             # SCHEDULER_ACTION is not thread safe
-            wait(SCHEDULER_ACTION[])
+            @showtime wait(SCHEDULER_ACTION[])
             lock(SCHEDULER_ACTION_LOCK) do 
                 empty!(SCHEDULER_ACTION[].data)
                 @atomic SCHEDULER_ACTION[].n_avail_items = 0
