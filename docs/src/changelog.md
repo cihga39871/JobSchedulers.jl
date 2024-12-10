@@ -1,5 +1,11 @@
 # Changelog
 
+v0.10.6
+
+- Fix: `is_dependency_ok(job)`: capture `job.state` in variable to avoid changing when running the function, which might lead to error.
+- Performance: job: when user's function is done, change the state to done or failed within `job.task`, and `update_queue!()` can capture this change now. In previous versions, if a job is done, the flag might not updated to done, which cause significant delay in some situations.
+- Change: `scheduler_reactivation` interval changed to  0.1s from 0.5s.
+
 v0.10.5
 
 - Fix: when showing progress meter, changing `JobGroup.x` was not thread safe. 
