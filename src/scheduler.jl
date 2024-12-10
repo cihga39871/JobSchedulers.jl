@@ -311,7 +311,7 @@ function scheduler_reactivation()
     while SCHEDULER_WHILE_LOOP
         try
             scheduler_need_action()
-            sleep(0.5)
+            sleep(0.1)
         catch ex
             if isa(ex, InterruptException) && isinteractive()  # if someone sends ctrl + C to sleep, scheduler wont stop in interactive mode
                 SLEEP_HANDELED_TIME -= 1
