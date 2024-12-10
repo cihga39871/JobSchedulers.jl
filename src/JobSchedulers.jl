@@ -75,7 +75,7 @@ function __init__()
     foreach(i -> put!(c, i), 2:nthreads())  # the thread 1 is reserved for JobScheduler, when nthreads > 2
 
     # initiating scheduler action Channel.
-    SCHEDULER_ACTION[] = Channel{Int}(1)
+    SCHEDULER_ACTION[] = Channel{Int}(Inf)
     SCHEDULER_PROGRESS_ACTION[] = Channel{Int}(1)
 
     # initiating JOB ID
