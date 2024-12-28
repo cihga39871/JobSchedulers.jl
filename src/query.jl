@@ -1,11 +1,11 @@
 """
-    job_query_by_id(id::Int64)
+    job_query_by_id(id::Int)
 
 Search job by `job.id` in the queue.
 
 Return `job::Job` if found, `nothing` if not found.
 """
-function job_query_by_id(id::Int64)
+function job_query_by_id(id::Int)
     res = nothing
     @debug "job_query_by_id($id)"
 
@@ -58,7 +58,7 @@ job_query_by_id(job::Job) = job
 
 job_query = job_query_by_id
 
-function job_query_by_id_no_lock(id::Int64)
+function job_query_by_id_no_lock(id::Int)
     for j in JOB_QUEUE.running
         j.id == id && return j
     end

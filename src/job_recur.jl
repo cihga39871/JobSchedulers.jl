@@ -1,11 +1,11 @@
 
 struct Cron
-    second::UInt64
-    minute::UInt64
-    hour::UInt64
-    day_of_month::UInt64
-    month::UInt64
-    day_of_week::UInt64
+    second::UInt
+    minute::UInt
+    hour::UInt
+    day_of_month::UInt
+    month::UInt
+    day_of_week::UInt
     function Cron(second, minute, hour, day_of_month, month, day_of_week)
         new(
             cron_value_parse(second),
@@ -33,7 +33,7 @@ end
 
 Jobs are executed by JobScheduler when the second, minute, and hour fields match the current time, and when at least one of the two day fields (day of month & month, or day of week) match the current time.
 
-## When an argument is an `Int64`:
+## When an argument is an `Int`:
 
 | Field          | Allowed values             |
 | -------------- | -------------------------- |
@@ -58,9 +58,9 @@ Step values can be used in conjunction with ranges. Following a range with `/<nu
 
 `Vector` works like lists mentioned above. For example, `[1,2,5,9]` is equivalent to `"1,2,5,9"`.
 
-## When an argument is a `UInt64`:
+## When an argument is a `UInt`:
 
-`UInt64` is the internal type of `Cron` fileds. All the previous types will be converted to a `UInt64` bit array. The start index of the bit array is 0. Bits outside of the allowed values (see the table above) are ignored.
+`UInt` is the internal type of `Cron` fileds. All the previous types will be converted to a `UInt` bit array. The start index of the bit array is 0. Bits outside of the allowed values (see the table above) are ignored.
 """
 function Cron(; 
     second = 0x0000000000000001, 
@@ -135,21 +135,21 @@ const stepmasks = map(1:64) do step
 end
 
 """
-    cron_value_parse(value::UInt64)
-    cron_value_parse(value::Int64)
+    cron_value_parse(value::UInt)
+    cron_value_parse(value::Int)
     cron_value_parse(value::String)
     cron_value_parse(value::Char)
     cron_value_parse(value::Vector)
     cron_value_parse(*) = cron_value_parse('*')
 
-Parse crontab-like value to `UInt64`. See details: [`Cron`](@ref).
+Parse crontab-like value to `UInt`. See details: [`Cron`](@ref).
 """
-@inline function cron_value_parse(value::UInt64)
+@inline function cron_value_parse(value::UInt)
     value
 end
-@inline function cron_value_parse(value::Int64)
+@inline function cron_value_parse(value::Int)
     if value > 60 || value < 0
-        error("Cron: cannot parse $value::Int64: out of range.")
+        error("Cron: cannot parse $value::Int: out of range.")
     end
     0x0000000000000001 << value
 end
@@ -399,7 +399,7 @@ end
     is_every_day_of_week(c) || is_every_month_day(c)
 end
 
-@inline function is_one_at(uint::UInt64, idx::Int64)
+@inline function is_one_at(uint::UInt, idx::Int)
     x = 1 << idx
     uint & x == x
 end
@@ -499,7 +499,7 @@ function get_time_description(c::Cron)
     str
 end
 
-function get_second_description(seconds::Vector{Int64})
+function get_second_description(seconds::Vector{Int})
     if length(seconds) == 0
         "0 second"
     elseif length(seconds) == 1
@@ -509,7 +509,7 @@ function get_second_description(seconds::Vector{Int64})
         "$(str) seconds"
     end
 end
-function get_minute_description(minutes::Vector{Int64})
+function get_minute_description(minutes::Vector{Int})
     if length(minutes) == 0
         "0 minute"
     elseif length(minutes) == 1
@@ -519,7 +519,7 @@ function get_minute_description(minutes::Vector{Int64})
         "$(str) minutes"
     end
 end
-function get_hour_description(hours::Vector{Int64})
+function get_hour_description(hours::Vector{Int})
     if length(hours) == 0
         "0 hour"
     elseif length(hours) == 1
