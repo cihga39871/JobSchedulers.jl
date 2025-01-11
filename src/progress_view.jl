@@ -5,7 +5,7 @@ const erase_rest_line = Terming.CSI * "0K"
 const erase_current_line = Terming.CSI * "2K"
 
 """
-    progress_bar(percent::Float64, width::Int = 20)
+    progress_bar(percent::Float64, width::Integer = 20)
 
 Return ::String for progress bar whose char length is `width`.
 
@@ -13,7 +13,7 @@ Return ::String for progress bar whose char length is `width`.
 
 - `width`: should be > 3. If <= 10, percentage will not show. If > 10, percentage will show.
 """
-function progress_bar(percent::Float64, width::Int = 20; is_in_terminal::Bool = true)
+function progress_bar(percent::Float64, width::Integer = 20; is_in_terminal::Bool = true)
     if percent > 1.0
         percent = 1.0
     end
@@ -115,7 +115,7 @@ function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
 end
 
 function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
-    wait_second_for_new_jobs::Int = 1, loop::Bool = true, exit_num_jobs::Int = 0)
+    wait_second_for_new_jobs::Integer = 1, loop::Bool = true, exit_num_jobs::Integer = 0)
 
     is_in_terminal = Pipelines.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
     if !is_in_terminal
@@ -235,7 +235,7 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
     end
 end
 
-function print_rest_lines(io_to::IO, io_from::IO, io_from_position::Int; with_log_style::Bool = true)
+function print_rest_lines(io_to::IO, io_from::IO, io_from_position::Integer; with_log_style::Bool = true)
     seek(io_from, io_from_position)
     log_style = :nothing
     while !eof(io_from)
@@ -300,7 +300,7 @@ function style_line(line::String, log_style::Symbol)
     return line, log_style
 end
 
-function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu::Int = JobSchedulers.SCHEDULER_MAX_CPU, max_mem::Int = JobSchedulers.SCHEDULER_MAX_MEM, is_in_terminal::Bool = true)
+function view_update_resources(h::Integer, w::Integer; row::Integer = 2, max_cpu::Integer = JobSchedulers.SCHEDULER_MAX_CPU, max_mem::Int64 = JobSchedulers.SCHEDULER_MAX_MEM, is_in_terminal::Bool = true)
     global RESOURCE
     if h - row < 5
         # no render: height not enough
@@ -345,7 +345,7 @@ function view_update_resources(h::Int, w::Int; row::Int = 2, max_cpu::Int = JobS
     return row
 end
 
-function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_terminal::Bool = true)
+function view_update_job_group_title(h::Integer, w::Integer; row::Integer = 2, is_in_terminal::Bool = true)
     
     if is_in_terminal
         title = @bold("JOB PROGRESS:")
@@ -375,9 +375,9 @@ function view_update_job_group_title(h::Int, w::Int; row::Int = 2, is_in_termina
     return row
 end
 
-zero_dim(num::Int, text) = num == 0 ? @dim(text) : text
+zero_dim(num::Integer, text) = num == 0 ? @dim(text) : text
 
-function view_update_job_group(h::Int, w::Int; row::Int = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true, group_seperator_at_begining = Regex("^" * GROUP_SEPERATOR.pattern))
+function view_update_job_group(h::Integer, w::Integer; row::Integer = 2, job_group::JobGroup = ALL_JOB_GROUP, highlight::Bool = false, is_in_terminal::Bool = true, group_seperator_at_begining = Regex("^" * GROUP_SEPERATOR.pattern))
     width_progress = w ÷ 4
     if width_progress < 12
         width_progress = max(w ÷ 5, 5)
@@ -490,7 +490,7 @@ end
 # end
 
 
-function init_term(h::Int)
+function init_term(h::Integer)
     # try
     #     T.raw!(true)
     # catch

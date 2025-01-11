@@ -1,5 +1,9 @@
 # Changelog
 
+v0.11.1
+
+- Compat: 32-bit system.
+
 v0.11.0
 
 - Fix and compat: `Cron` has been rewritten based on the standard crontab, including its bug described [here](https://crontab.guru/cron-bug.html).

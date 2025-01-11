@@ -1,24 +1,24 @@
 
 ## Indexing
 
-@inline function unsafe_bitgetindex(uint::UInt64, i::Int)
+@inline function unsafe_bitgetindex(uint::UInt64, i::Integer)
     u = UInt64(1) << i
     r = (uint & u) != 0
     return r
 end
 
-function bitcheckbounds(uint::Unsigned, i::Int)
+function bitcheckbounds(uint::Unsigned, i::Integer)
     if i < 0 || i > (sizeof(uint) * 8 - 1)
         error("BoundsError: attempt to access bits of $(typeof(uint)) at index [$i]")
     end
 end
 
-@inline function bitgetindex(uint::UInt64, i::Int)
+@inline function bitgetindex(uint::UInt64, i::Integer)
     @boundscheck bitcheckbounds(uint, i)
     unsafe_bitgetindex(uint, i)
 end
 
-function unsafe_bitfindnext(uint::UInt64, start::Int)
+function unsafe_bitfindnext(uint::UInt64, start::Integer)
     mask = 0xffffffffffffffff << start
     if uint & mask != 0
         return trailing_zeros(uint & mask)
@@ -43,7 +43,7 @@ end
 
 Returns the index of the next true element in the `range` of `uint`, or nothing if all false. Index of unit starts from 0.
 """
-function bitfindnext(uint::UInt64, start::Integer, r::UnitRange{Int64}; not_found = nothing)
+function bitfindnext(uint::UInt64, start::Integer, r::UnitRange{<:Integer}; not_found = nothing)
     start = Int(start)
     if start == r.stop + 1  # carry (in math)
         start = r.start
@@ -75,8 +75,8 @@ function bitfindnext(uint::UInt64, start::Integer, r::UnitRange{Int64}; not_foun
 end
 
 
-function bitsfind(uint::UInt64, r::UnitRange{Int64}; empty_add_0::Bool = false)
-    res = Vector{Int64}()
+function bitsfind(uint::UInt64, r::UnitRange{<:Integer}; empty_add_0::Bool = false)
+    res = Vector{Int}()
     for i in r
         if bitgetindex(uint, i)
             push!(res, i)

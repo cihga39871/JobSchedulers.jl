@@ -1,5 +1,5 @@
 
-const JOB_ID = Ref{Int}()
+const JOB_ID = Ref{Int64}()
 const JOB_ID_INCREMENT_LOCK = ReentrantLock()
 """
     generate_id() :: Int64
@@ -28,7 +28,7 @@ end
 - `name::String = ""`: job name.
 - `user::String = ""`: user that job belongs to.
 - `ncpu::Real = 1.0`: number of CPU this job is about to use (can be `Float64`, eg: `1.5` will use 150% CPU).
-- `mem::Int64 = 0`: number of memory this job is about to use (supports TB, GB, MB, KB, B=1).
+- `mem::Integer = 0`: number of memory this job is about to use (supports TB, GB, MB, KB, B=1).
 - `schedule_time::Union{DateTime,Period} = DateTime(0)`: The expected time to run.
 - `dependency`: defer job until specified jobs reach specified state (QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST). PAST is the super set of DONE, FAILED, CANCELLED, which means the job will not run in the future. Eg: `DONE => job`, `[DONE => job1; PAST => job2]`.
 
@@ -79,10 +79,10 @@ mutable struct Job
     _group::String
     _group_state::Symbol
 
-    function Job(id::Int64, name::String, user::String, ncpu::Real, mem::Int64, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout::Union{IO,AbstractString,Nothing}, stderr::Union{IO,AbstractString,Nothing}, _thread_id::Int, _func::Union{Function,Nothing}, _need_redirect::Bool = check_need_redirect(stdout, stderr), _group::AbstractString = "") where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
+    function Job(id::Integer, name::String, user::String, ncpu::Real, mem::Integer, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout::Union{IO,AbstractString,Nothing}, stderr::Union{IO,AbstractString,Nothing}, _thread_id::Int, _func::Union{Function,Nothing}, _need_redirect::Bool = check_need_redirect(stdout, stderr), _group::AbstractString = "") where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
         check_ncpu_mem(ncpu, mem)
         check_priority(priority)
-        new(id, name, user, Float64(ncpu), mem, period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout, stderr, _thread_id, _func, _need_redirect, _group, :nothing)
+        new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout, stderr, _thread_id, _func, _need_redirect, _group, :nothing)
     end
 end
 
@@ -93,13 +93,13 @@ function Job(task::Task;
     name::AbstractString = "",
     user::AbstractString = "",
     ncpu::Real = 1.0,
-    mem::Int64 = 0,
+    mem::Integer = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
     cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Int64}}(),
+    dependency = Vector{Pair{Symbol,Int}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
@@ -146,13 +146,13 @@ function Job(f::Function;
     name::AbstractString = "",
     user::AbstractString = "",
     ncpu::Real = 1.0,
-    mem::Int64 = 0,
+    mem::Integer = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
     cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Int64}}(),
+    dependency = Vector{Pair{Symbol,Int}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
@@ -198,13 +198,13 @@ function Job(command::Base.AbstractCmd;
     name::AbstractString = "",
     user::AbstractString = "",
     ncpu::Real = 1.0,
-    mem::Int64 = 0,
+    mem::Integer = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
     cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Int64}}(),
+    dependency = Vector{Pair{Symbol,Int}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     f() = run(command)
@@ -259,7 +259,7 @@ end
 period2datetime(t::DateTime) = t
 period2datetime(t::Period) = now() + t
 
-function check_ncpu_mem(ncpu::Real, mem::Int64)
+function check_ncpu_mem(ncpu::Real, mem::Integer)
     if ncpu < 0
         error("ncpu < 0 is not supported for Job.")
     elseif 0.001 <= ncpu <= 0.999
@@ -296,8 +296,11 @@ end
 function convert_dependency_element(p::Pair{Symbol,T}) where T  # do not specify T's type!!!
     p
 end
-function convert_dependency_element(job::T) where T <: Union{Int64, Job}
+function convert_dependency_element(job::Job)
     DONE => job
+end
+function convert_dependency_element(job::Integer)
+    DONE => Int64(job)
 end
 
 """
@@ -355,7 +358,7 @@ get_priority(job::Job) = job.priority
 
 """
     solve_optimized_ncpu(default::Int; 
-        ncpu_range::UnitRange{Int64} = 1:total_cpu, 
+        ncpu_range::UnitRange{Int} = 1:total_cpu, 
         njob::Int = 1, 
         total_cpu::Int = JobSchedulers.SCHEDULER_MAX_CPU, 
         side_jobs_cpu::Int = 0)
@@ -368,7 +371,7 @@ Find the optimized number of CPU for a job.
 - `total_cpu`: the total CPU that can be used by JobSchedulers.
 - `side_jobs_cpu`: some small jobs that might be run when the job is running, so the job won't use up all of the resources and stop small tasks.
 """
-function solve_optimized_ncpu(default::Int; njob::Int = 1, total_cpu::Int = JobSchedulers.SCHEDULER_MAX_CPU, ncpu_range::UnitRange{Int64} = 1:total_cpu, side_jobs_cpu::Int = 0)
+function solve_optimized_ncpu(default::Int; njob::Int = 1, total_cpu::Int = JobSchedulers.SCHEDULER_MAX_CPU, ncpu_range::UnitRange{Int} = 1:total_cpu, side_jobs_cpu::Int = 0)
     mincpu = max(ncpu_range.start, 1)
     maxcpu = ncpu_range.stop
     if !(mincpu <= maxcpu <= total_cpu)

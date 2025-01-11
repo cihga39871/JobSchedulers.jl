@@ -35,7 +35,7 @@ end
 
 Jobs are executed when the **second, minute, hour and month** fields match the current time. If neither `day_of_month` nor `day_of_week` **starts with** `*`, cron takes the union (∪) of their values `day_of_month ∪ day_of_week`. Otherwise cron takes the intersection (∩) of their values `day_of_month ∩ day_of_week`.
 
-## When an argument is an `Int64`:
+## When an argument is an `Int`:
 
 | Field          | Allowed values             |
 | -------------- | -------------------------- |
@@ -373,8 +373,8 @@ end
     c.month & 0x0000000000001ffe == 0
 end
 
-@inline function is_one_at(uint::UInt64, idx::Int64)
-    x = 1 << idx
+@inline function is_one_at(uint::Unsigned, idx::Signed)
+    x = UInt64(1) << idx
     uint & x == x
 end
 
@@ -501,7 +501,7 @@ function get_time_description(c::Cron)
     str
 end
 
-function get_second_description(seconds::Vector{Int64})
+function get_second_description(seconds::Vector{Int})
     if length(seconds) == 0
         "0 second"
     elseif length(seconds) == 1
@@ -511,7 +511,7 @@ function get_second_description(seconds::Vector{Int64})
         "$(str) seconds"
     end
 end
-function get_minute_description(minutes::Vector{Int64})
+function get_minute_description(minutes::Vector{Int})
     if length(minutes) == 0
         "0 minute"
     elseif length(minutes) == 1
@@ -521,7 +521,7 @@ function get_minute_description(minutes::Vector{Int64})
         "$(str) minutes"
     end
 end
-function get_hour_description(hours::Vector{Int64})
+function get_hour_description(hours::Vector{Int})
     if length(hours) == 0
         "0 hour"
     elseif length(hours) == 1

@@ -130,14 +130,14 @@ function scheduler_status(; verbose=true)
 end
 
 """
-    set_scheduler_update_second(s::Float64 = 0.6)
+    set_scheduler_update_second(s::AbstractFloat = 0.6)
 
 Set the update interval of scheduler.
 """
-function set_scheduler_update_second(s::Float64 = 0.6)
+function set_scheduler_update_second(s::AbstractFloat = 0.6)
     @warn "set_scheduler_update_second(s) is no longer required. The Job's scheduler updates when needed automatically." maxlog=1
     s <= 0.001 && error("schedular update interval cannot be less than 0.001.")
-    global SCHEDULER_UPDATE_SECOND = s
+    global SCHEDULER_UPDATE_SECOND = Float64(s)
 end
 set_scheduler_update_second(s) = set_scheduler_update_second(convert(Float64, s))
 
@@ -183,10 +183,10 @@ function set_scheduler_max_cpu(percent::Float64)
     end
 end
 
-default_mem() = round(Int, Sys.total_memory() * 0.8)
+default_mem() = round(Int64, Sys.total_memory() * 0.8)
 """
-    set_scheduler_max_mem(mem::Int = default_mem())
-    set_scheduler_max_mem(percent::Float64)
+    set_scheduler_max_mem(mem::Integer = default_mem())
+    set_scheduler_max_mem(percent::AbstractFloat)
 
 Set the maximum RAM the scheduler can use.
 
@@ -200,16 +200,16 @@ Set the maximum RAM the scheduler can use.
 
     set_scheduler_max_mem(0.5)          # use 50% of total memory
 """
-function set_scheduler_max_mem(mem::Int = default_mem())
+function set_scheduler_max_mem(mem::Integer = default_mem())
     mem < 1 && error("number of memory cannot be less than 1.")
     if mem > Sys.total_memory() * 0.9
         @warn "Assigning memory > 90% of total memory."
     end
     global SCHEDULER_MAX_MEM = mem
 end
-function set_scheduler_max_mem(percent::Float64)
+function set_scheduler_max_mem(percent::AbstractFloat)
     if 0.0 < percent < 1.0
-        set_scheduler_max_mem(round(Int, Sys.total_memory() * percent))
+        set_scheduler_max_mem(round(Int64, Sys.total_memory() * percent))
     else
         @error "Percent::Float64 should be between 0 and 1. Are you looking for set_scheduler_max_mem(mem::Int) ?"
     end
@@ -231,8 +231,8 @@ end
 
 """
     set_scheduler(;
-        max_cpu::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_CPU,
-        max_mem::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_MEM,
+        max_cpu::Real = JobSchedulers.SCHEDULER_MAX_CPU,
+        max_mem::Real = JobSchedulers.SCHEDULER_MAX_MEM,
         max_job::Int = JobSchedulers.JOB_QUEUE.max_done,
         max_cancelled_job::Int = JobSchedulers.JOB_QUEUE.max_cancelled_job
     )
@@ -246,8 +246,8 @@ See details:
 [`set_scheduler_max_job`](@ref)
 """
 function set_scheduler(;
-    max_cpu::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_CPU,
-    max_mem::Union{Int,Float64} = JobSchedulers.SCHEDULER_MAX_MEM,
+    max_cpu::Real = JobSchedulers.SCHEDULER_MAX_CPU,
+    max_mem::Real = JobSchedulers.SCHEDULER_MAX_MEM,
     max_job::Int = JobSchedulers.JOB_QUEUE.max_done,
     max_cancelled_job::Int = JobSchedulers.JOB_QUEUE.max_cancelled_job,
     update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND

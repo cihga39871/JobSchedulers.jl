@@ -1,11 +1,11 @@
-const B = 1
-const KB = 1024
+const B = Int64(1)
+const KB = Int64(1024)
 const MB = 1024KB
 const GB = 1024MB
 const TB = 1024GB
 
 SCHEDULER_MAX_CPU::Int = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS
-SCHEDULER_MAX_MEM::Int = round(Int, Sys.total_memory() * 0.9)
+SCHEDULER_MAX_MEM::Int64 = round(Int64, Sys.total_memory() * 0.9)
 SCHEDULER_UPDATE_SECOND::Float64 = 0.05
 
 JOB_QUEUE_MAX_LENGTH::Int = 10000
@@ -416,7 +416,7 @@ Caution: run it within lock only.
 
 Algorithm: Break for loop when found a dep not ok, and delete previous ok deps.
 
-If dep is provided as Int, query Int for job and then replace Int with the job.
+If dep is provided as Integer, query Integer for job and then replace Integer with the job.
 """
 function is_dependency_ok(job::Job)
     if length(job.dependency) == 0
@@ -427,7 +427,7 @@ function is_dependency_ok(job::Job)
     # break for loop when found dep not ok, and delete previous ok deps
     for (i, dep) in enumerate(job.dependency)
         state = dep.first
-        if dep.second isa Int
+        if dep.second isa Integer
             dep_job = job_query_by_id_no_lock(dep.second)
 
             if isnothing(dep_job)
