@@ -1,6 +1,8 @@
 
 module JobSchedulers
 
+using Revise
+
 using Reexport
 using Base.Threads
 @reexport using Dates

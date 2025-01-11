@@ -13,8 +13,9 @@
     @test JobSchedulers.cron_value_parse("*/1") == 0xffffffffffffffff
     @test JobSchedulers.cron_value_parse("*") == 0xffffffffffffffff
     @test JobSchedulers.cron_value_parse("1-5,7,7,4") == 0x00000000000000be
-    @test JobSchedulers.cron_value_parse("1-5,7,7,4/2") == 0x00000000000000aa
+    @test JobSchedulers.cron_value_parse("1-5,7,7,4/2") == 0x55555555555555fe
     @test JobSchedulers.cron_value_parse("0-5,7,7,4") == 0x00000000000000bf
+    @test JobSchedulers.cron_value_parse("5/2") == 0xaaaaaaaaaaaaaaa0
     @test JobSchedulers.cron_value_parse('*') == 0xffffffffffffffff
     @test JobSchedulers.cron_value_parse([1,3,5, "7,9"]) == 0x00000000000002aa
     @test JobSchedulers.cron_value_parse([1,3,5, "*"]) == 0xffffffffffffffff
@@ -38,14 +39,14 @@
 
 
     for c2 in (Cron(:yearly), Cron(0,0,0,1,1,0))
-    @test JobSchedulers.date_based_on(c2) == :monthday
+    @test JobSchedulers.date_based_on(c2) == :day_of_month
     @test JobSchedulers.tonext(Date(2023,1,2), c2) == Date(2024,1,1)
     @test JobSchedulers.tonext(Date(2023,1,1), c2) == Date(2024,1,1)
     @test JobSchedulers.tonext(Date(2023,1,1), c2, same=true) == Date(2023,1,1)
     end
 
     for c3 in (Cron(:monthly), Cron(0,0,0,1,*,0))
-    @test JobSchedulers.date_based_on(c3) == :monthday
+    @test JobSchedulers.date_based_on(c3) == :day_of_month
     @test JobSchedulers.tonext(Date(2023,1,2), c3) == Date(2023,2,1)
     @test JobSchedulers.tonext(Date(2023,1,1), c3) == Date(2023,2,1)
     @test JobSchedulers.tonext(Date(2023,1,1), c3, same=true) == Date(2023,1,1)
@@ -53,8 +54,8 @@
     @test JobSchedulers.tonext(Date(2023,12,1), c3) == Date(2024,1,1)
     end
 
-    for c4 in (Cron(:weekly), Cron(0,0,0,0,0,1))
-    @test JobSchedulers.date_based_on(c4) == :dayofweek
+    for c4 in (Cron(:weekly), Cron(0,0,0,0,*,1))
+    @test JobSchedulers.date_based_on(c4) == :day_of_week
     @test JobSchedulers.tonext(Date(2023,1,2), c4) == Date(2023,1,9)
     @test JobSchedulers.tonext(Date(2023,1,2), c4, same=true) == Date(2023,1,2)
     @test JobSchedulers.tonext(Date(2023,1,1), c4, same=true) == Date(2023,1,2)
@@ -86,6 +87,20 @@
     @test JobSchedulers.tonext(DateTime(2023,1,2,12,30,00), c8, same=true) == DateTime(2023,1,2,12,30,00)
     @test JobSchedulers.tonext(DateTime(2023,1,2,12,30,50), c8, same=false) == DateTime(2023,1,2,12,31,00)
     @test JobSchedulers.tonext(DateTime(2023,1,2,12,30,55), c8, same=false) == DateTime(2023,1,2,12,31,00)
+
+
+    # 24 0 1-31/10 1 */2
+    c9 = Cron(0,24, 0, "1-31/10", 1, "*/2")
+    dt = DateTime(2025,1,1,0,12,0)
+    dt = JobSchedulers.tonext(dt, c9)
+    @test dt == DateTime(2025,1,11,0,24,0)
+    dt = JobSchedulers.tonext(dt, c9)
+    @test dt == DateTime(2025,1,21,0,24,0)
+    dt = JobSchedulers.tonext(dt, c9)
+    @test dt == DateTime(2026,1,1,0,24,0)
+    dt = JobSchedulers.tonext(dt, c9)
+    @test dt == DateTime(2026,1,31,0,24,0)
+
 end
 
 

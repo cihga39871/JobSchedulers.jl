@@ -1,5 +1,9 @@
 # Changelog
 
+v0.11.0
+
+- Fix and compat: `Cron` has been rewritten based on the standard crontab, including its bug described [here](https://crontab.guru/cron-bug.html).
+
 v0.10.7
 
 - Fix: crash when showing progress meter after all jobs finished while stdout/sterr are redirected to files. Remove call to legacy `queue_summary`, which was replaced a while ago. 

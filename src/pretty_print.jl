@@ -217,6 +217,7 @@ simplify(x::Symbol, detail::Bool = false) = ":$x"
 simplify(x::Int, detail::Bool = false) = string(x)
 simplify(x::AbstractString, detail::Bool = false) = "\"$x\""
 simplify(x::Float64, detail::Bool = false) = string(round(x, digits=1))
+
 function simplify(x::DateTime, detail::Bool = false)
     if Date(x) == today()
         Dates.format(x, dateformat"HH:MM:SS")
@@ -228,6 +229,7 @@ function simplify(x::DateTime, detail::Bool = false)
         Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS")
     end
 end
+
 function simplify(deps::Vector{Pair{Symbol,Union{Int64, Job}}}, detail::Bool = false)
     n_dep = length(deps)
     if n_dep == 0
@@ -244,7 +246,9 @@ function simplify(deps::Vector{Pair{Symbol,Union{Int64, Job}}}, detail::Bool = f
         "$n_dep jobs"
     end
 end
+
 simplify(x::Task, detail::Bool = false) = "Task"
+
 function simplify(c::Cron, detail::Bool = false)
     date_based = date_based_on(c)
     if date_based === :none
@@ -261,6 +265,7 @@ function simplify(c::Cron, detail::Bool = false)
         return "Cron($time_str $date_str)"
     end
 end
+
 simplify(x, detail::Bool = false) = string(x)
 
 @eval function simplify_memory(mem::Int, detail::Bool = false)
