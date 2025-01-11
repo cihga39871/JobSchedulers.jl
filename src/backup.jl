@@ -191,7 +191,7 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
         @debug "recover_backup($filepath; recover_settings = $recover_settings, recover_queue = $recover_queue)"
 
         # get the current jobs, to avoid copying existing jobs
-        current_job_ids = Set{Int}()
+        current_job_ids = Set{Int64}()
         lock(JOB_QUEUE.lock_queuing) do 
             for jobs in values(JOB_QUEUE.queuing)
                 for job in jobs

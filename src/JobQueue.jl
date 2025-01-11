@@ -136,7 +136,7 @@ function n_job_remaining()
     n
 end
 
-function are_remaining_jobs_more_than(x::Int)
+function are_remaining_jobs_more_than(x::Integer)
     n = length(JOB_QUEUE.running)
     n > x && return true
 
@@ -182,13 +182,13 @@ end
 update running: update state, cancel jobs reaching wall time, moving finished from running to others
 """
 function update_running!(current::DateTime)
-    isempty(JOB_QUEUE.running) && return (0.0, 0)
+    isempty(JOB_QUEUE.running) && return (0.0, Int64(0))
     
     @debug "update_running! lock_running"
     used_ncpu, used_mem = lock(JOB_QUEUE.lock_running) do
         id_delete = Int[]
         used_ncpu = 0.0
-        used_mem = 0
+        used_mem = Int64(0)
         for (i, job) in enumerate(JOB_QUEUE.running)
             
             if job.state === CANCELLED
@@ -282,7 +282,7 @@ function move_future_to_queuing(current::DateTime)
     @debug "move_future_to_queuing lock_queuing ok"
 end
 
-function run_queuing!(current::DateTime, free_ncpu::Float64, free_mem::Int)
+function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
     @debug "run_queuing! lock_queuing"
     lock(JOB_QUEUE.lock_queuing)
     try

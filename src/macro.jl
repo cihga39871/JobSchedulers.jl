@@ -120,30 +120,10 @@ macro submit(args...)
     end
 end
 
-# function job_to_result!(expr::Expr, dep_syms)
-#     for (i,a) in enumerate(expr.args)
-#         @inbounds expr.args[i] = job_to_result!(a, dep_syms)
-#     end
-#     expr
-# end
-# function job_to_result!(expr::Symbol, dep_syms)
-#     if expr in dep_syms
-#         :(JobSchedulers.result_or_self($expr))
-#     else
-#         expr
-#     end
-# end
-# function job_to_result!(expr, dep_syms)
-#     expr
-# end
-
 isajob(x::Job) = true
 isajob(x) = false
 isnotajob(x::Job) = false
 isnotajob(x) = true
-
-# result_or_self(x::Job) = result(x)
-# result_or_self(x) = result(x)
 
 function opt2parameters(opts::NTuple{N, Expr}) where N
     for opt in opts

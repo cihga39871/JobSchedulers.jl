@@ -12,11 +12,11 @@ const BLOCK = "█"
 
 mutable struct Resource
     cpu::Float64
-    mem::Int
+    mem::Int64
 end
 const RESOURCE = Resource(0,0)
 
-function update_resource(cpu::Real, mem::Int)
+function update_resource(cpu::Real, mem::Int64)
     global RESOURCE
     RESOURCE.cpu = cpu
     RESOURCE.mem = mem

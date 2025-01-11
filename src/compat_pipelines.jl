@@ -23,13 +23,13 @@ function Job(p::Program;
     name::AbstractString = p.name,
     user::AbstractString = "",
     ncpu::Real = 1.0,
-    mem::Int64 = 0,
+    mem::Integer = 0,
     schedule_time::Union{DateTime,Period} = DateTime(0),
     wall_time::Period = Year(1),
     cron::Cron = Cron(:none),
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Union{Int64,Job}}}(),
+    dependency = Vector{Pair{Symbol,Union{Int,Job}}}(),
     stdout = nothing,
     stderr = nothing,
     dir::AbstractString = "",
@@ -64,7 +64,7 @@ function Job(p::Program;
                 end
             elseif pair.second == :mem
                 if mem == 0
-                    mem = val isa Number ? Int(val) : parse(Int, val)
+                    mem = val isa Number ? Int64(val) : parse(Int64, val)
                 end
             end
         end
