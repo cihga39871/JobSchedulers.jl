@@ -270,11 +270,11 @@ end
 const cron_none = Cron(:none)
 
 """
-    Dates.tonext(dt::DateTime, c::Cron) -> Union{DateTime, Nothing}
+    Dates.tonext(dt::DateTime, c::Cron; same::Bool = false) -> Union{DateTime, Nothing}
     Dates.tonext(t::Time, c::Cron; same::Bool = false) -> Time
-    Dates.tonext(d::Date, c::Cron; same::Bool = false) -> Union{DateTime, Nothing}
+    Dates.tonext(d::Date, c::Cron; same::Bool = false, limit::Date = d + Day(3000)) -> Union{DateTime, Nothing}
 
-Jobs are executed by JobScheduler when the second, minute, hour, and month of year fields match the current time, and when at least one of the two day fields (day of month, or day of week) match the current time.
+Adjust date or time to the next one corresponding to `c::Cron`. Setting `same=true` allows the current date or time to be considered as the next one, allowing for no adjustment to occur.
 """
 function Dates.tonext(dt::DateTime, c::Cron; same::Bool = false)
     now_date = Date(dt)
@@ -314,7 +314,7 @@ function Dates.tonext(t::Time, c::Cron; same::Bool = false)
     Time(hr, min, sec)
 end
 
-function Dates.tonext(d::Date, c::Cron; same::Bool = false, limit::Date = d + Day(1000))
+function Dates.tonext(d::Date, c::Cron; same::Bool = false, limit::Date = d + Day(3000))
     # same month?
     mon = bitfindnext(c.month, 1, 1:12)  # can be same month
 
