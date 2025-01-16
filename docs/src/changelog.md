@@ -1,5 +1,11 @@
 # Changelog
 
+v0.11.2
+
+- Feat: add check for dependencies' job states when creating `Job`. Throw error immediately when invalid job state is found.
+- Change: `Base.show(io::IO, job::Job)` prints better job's description.
+- Fix: 32-bit system: `convert_dependency` and `convert_dependency_element` did not include all possible types.
+
 v0.11.1
 
 - Compat: 32-bit system.

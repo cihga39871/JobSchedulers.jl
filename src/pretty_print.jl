@@ -171,7 +171,11 @@ end
 end
 
 function Base.show(io::IO, job::Job)
-    print(io, "Job $(job.id) ($(job.state)): $(job.name)")
+    if isempty(job.name)
+        print(io, "Job($(job.id): $(job.state))")
+    else
+        print(io, "Job($(job.id) \"$(job.name)\": $(job.state))")
+    end
 end
 
 function Base.show(io::IO, ::MIME"text/plain", job_queue::Vector{Job};

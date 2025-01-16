@@ -29,7 +29,7 @@ function Job(p::Program;
     cron::Cron = Cron(:none),
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Union{Int,Job}}}(),
+    dependency = Vector{Pair{Symbol,Union{Int64,Job}}}(),
     stdout = nothing,
     stderr = nothing,
     dir::AbstractString = "",

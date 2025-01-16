@@ -82,7 +82,9 @@ mutable struct Job
     function Job(id::Integer, name::String, user::String, ncpu::Real, mem::Integer, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout::Union{IO,AbstractString,Nothing}, stderr::Union{IO,AbstractString,Nothing}, _thread_id::Int, _func::Union{Function,Nothing}, _need_redirect::Bool = check_need_redirect(stdout, stderr), _group::AbstractString = "") where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
         check_ncpu_mem(ncpu, mem)
         check_priority(priority)
-        new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, convert_dependency(dependency), task, stdout, stderr, _thread_id, _func, _need_redirect, _group, :nothing)
+        dep = convert_dependency(dependency)
+        check_dep(dep)
+        new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, dep, task, stdout, stderr, _thread_id, _func, _need_redirect, _group, :nothing)
     end
 end
 
@@ -99,7 +101,7 @@ function Job(task::Task;
     cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Int}}(),
+    dependency = Vector{Pair{Symbol,Union{Int64, Job}}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
@@ -152,7 +154,7 @@ function Job(f::Function;
     cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Int}}(),
+    dependency = Vector{Pair{Symbol,Union{Int64, Job}}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
@@ -204,7 +206,7 @@ function Job(command::Base.AbstractCmd;
     cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Int}}(),
+    dependency = Vector{Pair{Symbol,Union{Int64, Job}}}(),
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     f() = run(command)
@@ -276,6 +278,15 @@ function check_priority(priority::Int)
     end
 end
 
+function check_dep(dependency::Vector{Pair{Symbol,Union{Int64, Job}}})
+    length(dependency) == 0 && (return)
+    for p in dependency
+        if !(p.first in [QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST])
+            error("invalid job state (:$(p.first)) found in Job's dependency ($(p.first) => $(p.second)). Possible Job states are QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST")
+        end
+    end
+end
+
 check_need_redirect(stdout::Nothing, stderr::Nothing) = false
 check_need_redirect(stdout, stderr) = check_need_redirect(stdout) && check_need_redirect(stderr)
 
@@ -284,24 +295,16 @@ check_need_redirect(io::IO) = true
 check_need_redirect(x::Nothing) = false
 check_need_redirect(x::Any) = error("$x is not valid for redirecting IO: not IO, file_path::AbstractString, or nothing.")
 
-function convert_dependency(dependency::Vector{Pair{Symbol,Union{Int64, Job}}})
-    dependency
-end
-function convert_dependency(dependency::Vector)
-    Pair{Symbol,Union{Int64, Job}}[convert_dependency_element(d) for d in dependency]
-end
-function convert_dependency(dependency)
-    Pair{Symbol,Union{Int64, Job}}[convert_dependency_element(dependency)]
-end
-function convert_dependency_element(p::Pair{Symbol,T}) where T  # do not specify T's type!!!
-    p
-end
-function convert_dependency_element(job::Job)
-    DONE => job
-end
-function convert_dependency_element(job::Integer)
-    DONE => Int64(job)
-end
+convert_dependency(dependency::Vector{Pair{Symbol,Union{Int64, Job}}}) = dependency
+convert_dependency(dependency::Vector) = Pair{Symbol,Union{Int64, Job}}[convert_dependency_element(d) for d in dependency]
+convert_dependency(dependency) = Pair{Symbol,Union{Int64, Job}}[convert_dependency_element(dependency)]
+
+convert_dependency_element(p::Pair{Symbol,Job}) = p
+convert_dependency_element(p::Pair{Symbol,Int64}) = p
+convert_dependency_element(p::Pair{Symbol,<:Integer}) = p.first => Int64(p.second)
+convert_dependency_element(p::Pair) = Symbol(p.first) => (p.second isa Job ? p.second : Int64(p.second))
+convert_dependency_element(job::Job) = DONE => job
+convert_dependency_element(job::Integer) = DONE => Int64(job)
 
 """
     isqueuing(j::Job) :: Bool
