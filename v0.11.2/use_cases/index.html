@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Use Cases · JobSchedulers.jl</title><meta name="title" content="Use Cases · JobSchedulers.jl"/><meta property="og:title" content="Use Cases · JobSchedulers.jl"/><meta property="twitter:title" content="Use Cases · JobSchedulers.jl"/><meta name="description" content="Documentation for JobSchedulers.jl."/><meta property="og:description" content="Documentation for JobSchedulers.jl."/><meta property="twitter:description" content="Documentation for JobSchedulers.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">JobSchedulers.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../manual/">Manual</a></li><li class="is-active"><a class="tocitem" href>Use Cases</a><ul class="internal"><li><a class="tocitem" href="#Parallel-Nested-Loops"><span>Parallel Nested Loops</span></a></li><li><a class="tocitem" href="#A-Workflow-Example-With-Pipelines.jl"><span>A Workflow Example With Pipelines.jl</span></a></li><li><a class="tocitem" href="#Overhead-Test-of-Scheduling-Systems"><span>Overhead Test of Scheduling Systems</span></a></li></ul></li><li><a class="tocitem" href="../API/">API</a></li><li><a class="tocitem" href="../changelog/">Change Log</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Use Cases</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Use Cases</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/cihga39871/JobSchedulers.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/cihga39871/JobSchedulers.jl/blob/main/docs/src/use_cases.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Use-Cases"><a class="docs-heading-anchor" href="#Use-Cases">Use Cases</a><a id="Use-Cases-1"></a><a class="docs-heading-anchor-permalink" href="#Use-Cases" title="Permalink"></a></h1><p>JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also be used in pure Julia functions. </p><p>Since v0.10, the speed of scheduling is <strong>200-400X faster</strong> than previous versions, and can be used to replace <code>Threads.@threads for ... end</code>. Scheduling 100,000 jobs can be done within 0.2 seconds.</p><h2 id="Parallel-Nested-Loops"><a class="docs-heading-anchor" href="#Parallel-Nested-Loops">Parallel Nested Loops</a><a id="Parallel-Nested-Loops-1"></a><a class="docs-heading-anchor-permalink" href="#Parallel-Nested-Loops" title="Permalink"></a></h2><p>One of the many applications of scheduling systems is that it can be used as a drop-in replacement for nested multi-threaded loops that would otherwise be written with <code>Threads.@threads</code>.</p><p>Consider a simplified scenario where you want to calculate the maximum mean values of random samples of various lengths that have been generated by several distributions provided by the Distributions.jl package. The results should be collected into a DataFrame. We have the following function:</p><pre><code class="language-julia hljs">using Random, Distributions, StatsBase, DataFrames
+
+function f(dist, len, reps, σ)
+    v = Vector{Float64}(undef, len) # avoiding allocations
+    maximum(mean(rand!(dist, v)) for _ in 1:reps)/σ
+end</code></pre><p>Let us consider the following probability distributions for numerical experiments, all of which have expected values equal to zero, and the following lengths of vectors:</p><pre><code class="language-julia hljs">dists = [Cosine, Epanechnikov, Laplace, Logistic, Normal, NormalCanon, PGeneralizedGaussian, SkewNormal, SkewedExponentialPower, SymTriangularDist]
+lens = [10, 20, 50, 100, 200, 500]</code></pre><p>Using <code>Threads.@threads</code> those experiments could be parallelized as:</p><pre><code class="language-julia hljs">using Base.Threads
+
+function experiments_threads(dists, lens, K=1000)
+    res = DataFrame()
+    lck = ReentrantLock()
+    Threads.@threads for T in dists
+        dist = T()
+        σ = std(dist)
+        for L in lens
+            z = f(dist, L, K, σ)
+            Threads.lock(lck) do
+                push!(res, (;T, σ, L, z))
+            end
+        end
+    end
+    res
+end
+
+experiments_threads(dists, lens, 1000)
+@time experiments_threads(dists, lens, 10000)
+#  6.932880 seconds (746 allocations: 110.828 KiB)
+#  6.868636 seconds (751 allocations: 110.906 KiB)
+#  7.023086 seconds (746 allocations: 110.828 KiB)</code></pre><p>Note that <code>DataFrames.push!</code> is not a thread safe operation and hence we need to utilize a locking mechanism in order to avoid two threads appending the DataFrame at the same time.</p><p>The same code could be rewritten in JobSchedulers as:</p><pre><code class="language-julia hljs">using JobSchedulers
+
+function experiments_jobschedulers(dists, lens, K=1000)
+    res = DataFrame()
+    for T in dists
+        dist = T()
+        σ = @submit std(dist)
+        for L in lens
+            z = @submit f(dist, L, K, result(σ))
+            push!(res, (;T, σ, L, z))
+        end
+    end
+    res.z = fetch.(res.z)
+    res.σ = fetch.(res.σ)
+    res
+end
+
+experiments_jobschedulers(dists, lens, 1000)
+@time experiments_jobschedulers(dists, lens, 10000)
+#  3.682429 seconds (4.68 k allocations: 268.984 KiB)
+#  3.687437 seconds (4.77 k allocations: 270.609 KiB)
+#  3.755103 seconds (4.74 k allocations: 269.812 KiB)</code></pre><p>In this code we have job interdependence. Firstly, we are calculating the standard deviation <code>σ</code>, and then we are using that value in the function <code>f</code>. Here, <code>submit!</code> wraps a task or a 0-argument function. Since <code>submit!</code> yields a <code>Job</code> rather than actual values, we need to use the <code>result</code> function to obtain those values. Because computing <code>z</code> requires completion of <code>σ</code>, we need to add argument <code>dependency=σ</code> to <code>submit!</code>. In the last, after all jobs are submitted, we use <code>fetch</code> to wait for each job to finish and return its value. </p><p>Also, note that contrary to the previous example, we do not need to implement locking as we are just pushing the <code>Job</code> results of <code>submit!</code> serially into the DataFrame (which is fast since <code>submit!</code> doesn&#39;t block).</p><p>The above use case scenario has been tested by running <code>julia -t 8</code> (or with <code>JULIA_NUM_THREADS=8</code> as environment variable). The <code>Threads.@threads</code> code takes 7.1 seconds to run, while the JobSchedulers code, runs around 3.7 seconds, resulting in a 1.8x speedup. To be noted, unlike <code>Base.Threads</code>, JobSchedulers only use <code>nthreads() - 1 = 7</code> threads to compute jobs, so the real speedup is <code>1.8 * 8/7 = 2.1</code>x.</p><div class="admonition is-info"><header class="admonition-header">Citation</header><div class="admonition-body"><p>Parallel Nested Loops was copied and edited from Dagger.jl&#39;s document. Most information are the same, except that JobSchedulers.jl was used. </p></div></div><h2 id="A-Workflow-Example-With-Pipelines.jl"><a class="docs-heading-anchor" href="#A-Workflow-Example-With-Pipelines.jl">A Workflow Example With Pipelines.jl</a><a id="A-Workflow-Example-With-Pipelines.jl-1"></a><a class="docs-heading-anchor-permalink" href="#A-Workflow-Example-With-Pipelines.jl" title="Permalink"></a></h2><ul><li>Run <code>prog_A</code> with 2 threads and 4GB RAM.</li><li>Run <code>prog_B</code> with 8 threads.</li><li>After <code>prog_A</code> finished, run <code>prog_C</code> (2 threads).</li><li>After <code>prog_B</code> and <code>prog_C</code> finished, run <code>prog_D</code> (12 threads)</li></ul><p>The flowchart is like:</p><p><img src="../assets/workflow_flowchart.png" alt="workflow flowchart"/></p><p>The Julia code:</p><pre><code class="language-julia hljs">using JobSchedulers, Pipelines
+
+prog_A = CmdProgram(...)
+prog_B = JuliaProgram(...)
+prog_C = CmdProgram(...)
+prog_D = JuliaProgram(...)
+
+job_A = submit!(prog_A; A_args..., ncpu = 2, mem = 4GB)
+
+job_B = submit!(prog_B; B_args..., ncpu = 8)
+
+job_C = submit!(prog_C; C_args..., ncpu = 2,
+                dependency = job_A)
+
+job_D = submit!(prog_D; D_args..., ncpu = 12, 
+                dependency = [PAST =&gt; job_B, job_C])
+
+wait_queue()</code></pre><h2 id="Overhead-Test-of-Scheduling-Systems"><a class="docs-heading-anchor" href="#Overhead-Test-of-Scheduling-Systems">Overhead Test of Scheduling Systems</a><a id="Overhead-Test-of-Scheduling-Systems-1"></a><a class="docs-heading-anchor-permalink" href="#Overhead-Test-of-Scheduling-Systems" title="Permalink"></a></h2><p>To test the overhead of scheduling systems, I compared <code>Base.Threads</code>, <code>Dagger.jl</code>, and <code>JobSchedulers</code> using tiny tasks (<code>x::Int += y::Int</code>) on seperate 24-thread Julia sessions on a platform with i9-13900K, 196GB DDR5 memory. </p><div class="admonition is-warning"><header class="admonition-header">Warning</header><div class="admonition-body"><p><code>x += y</code> is not thread-safe, and it is for overhead test only. BenchmarkTools.jl cannot be used in this case because it competes scheduling systems.</p></div></div><h3 id="Scripts"><a class="docs-heading-anchor" href="#Scripts">Scripts</a><a id="Scripts-1"></a><a class="docs-heading-anchor-permalink" href="#Scripts" title="Permalink"></a></h3><p>overhead-baseline.jl:</p><pre><code class="language-julia hljs">using .Threads
+function experiments_threads(a, K=10000)
+    x = 0
+    Threads.@threads for i in 1:K
+        x += a
+    end
+    x
+end
+
+# compile
+experiments_threads(1, 10)
+
+# test
+@time experiments_threads(1, 10000)  #   0.000176 seconds (9.54 k allocations: 159.828 KiB)
+@time experiments_threads(1, 100000) #   0.001873 seconds (99.61 k allocations: 1.530 MiB)</code></pre><p>overhead-jobschedulers.jl:</p><pre><code class="language-julia hljs">using JobSchedulers
+
+function experiments_jobschedulers(a, K=10000)
+    x = 0
+    f() = x += a
+    for i in 1:K
+        submit!(f)
+    end
+    wait_queue()
+    x
+end
+
+# compile
+experiments_jobschedulers(1, 10)
+
+# test
+@time experiments_jobschedulers(1, 10000)  # 0.010370 seconds (125.72 k allocations: 10.086 MiB)
+@time experiments_jobschedulers(1, 100000) # 0.247005 seconds (1.26 M allocations: 100.839 MiB, 21.43% gc time)</code></pre><p>overhead-dagger.jl:</p><pre><code class="language-julia hljs">using Dagger
+function experiments_dagger(a, K=10000)
+    x = 0
+    f() = x += a
+    @sync for i in 1:K
+        Dagger.@spawn f()
+    end
+    x
+end
+
+# compile
+experiments_dagger(1, 10)
+
+# test
+@time experiments_dagger(1, 10000)  # 0.846881 seconds (26.50 M allocations: 1.828 GiB, 29.06% gc time)
+@time experiments_dagger(1, 100000) # dead lock, hang for more than 60s</code></pre><h3 id="Results"><a class="docs-heading-anchor" href="#Results">Results</a><a id="Results-1"></a><a class="docs-heading-anchor-permalink" href="#Results" title="Permalink"></a></h3><ul><li><p>JobSchedulers can schedule 10,000 tasks within 0.01 second, while Dagger uses 0.85 second.</p></li><li><p>JobSchedulers is stable even scheduling 100,000 tasks, while Dagger seems encountered a dead lock causing system hung.</p></li></ul><table><tr><th style="text-align: left">Number of Task</th><th style="text-align: right">10,000</th><th style="text-align: right">100,000</th></tr><tr><td style="text-align: left">Base.Threads (second)</td><td style="text-align: right">0.000176</td><td style="text-align: right">0.001873</td></tr><tr><td style="text-align: left">JobSchedulers (second)</td><td style="text-align: right">0.010370</td><td style="text-align: right">0.247005</td></tr><tr><td style="text-align: left">Dagger (second)</td><td style="text-align: right">0.846881</td><td style="text-align: right">failed, hung (dead lock)</td></tr></table></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../manual/">« Manual</a><a class="docs-footer-nextpage" href="../API/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Thursday 16 January 2025 14:38">Thursday 16 January 2025</span>. Using Julia version 1.10.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
