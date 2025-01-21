@@ -213,7 +213,7 @@ function Job(command::Base.AbstractCmd;
 
     need_redirect = check_need_redirect(stdout, stderr)
 
-    job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, task2, stdout, stderr, 0, f, need_redirect)
+    job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, stdout, stderr, 0, f, need_redirect)
 
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do

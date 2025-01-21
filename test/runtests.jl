@@ -16,6 +16,17 @@ using Test
 		scheduler_start()
 		@test scheduler_status() === :running
 
+		# simple jobs
+		command_job = Job(`sleep 1`; name="command job")
+		task_job = Job(@task(sleep(1)); name="task job")
+		function_job = Job(;name="function job") do
+		    sleep(1)
+		end
+		submit!(command_job)
+		submit!(task_job)
+		submit!(function_job)
+		wait_queue()
+		@test scheduler_status() === :running
 
 		job = Job(@task(begin; sleep(2); println("highpriority"); end), name="high_priority", priority = 0)
 		display(job)
