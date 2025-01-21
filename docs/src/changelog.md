@@ -1,5 +1,9 @@
 # Changelog
 
+v0.11.3
+
+- Fix: `Job` with `Cmd` and add tests. (#18)
+
 v0.11.2
 
 - Feat: add check for dependencies' job states when creating `Job`. Throw error immediately when invalid job state is found.
