@@ -2,10 +2,9 @@
 
 *A Julia-based job scheduler and workload manager inspired by Slurm/PBS and Crontab.*
 
-
-| **Documentation**                                                               |
-|:-------------------------------------------------------------------------------:|
-| [![](https://img.shields.io/badge/docs-blue.svg)](https://cihga39871.github.io/JobSchedulers.jl/dev) |
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://cihga39871.github.io/JobSchedulers.jl/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://cihga39871.github.io/JobSchedulers.jl/dev)
+[![codecov](https://codecov.io/github/cihga39871/JobSchedulers.jl/branch/main/graph/badge.svg)](https://app.codecov.io/github/cihga39871/JobSchedulers)
 
 ## Why JobScheduler?
 
