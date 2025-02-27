@@ -1,12 +1,27 @@
 
-const THREAD_POOL = Base.RefValue{Channel{Int}}()  # defined in __init__(); the thread 1 is reserved for JobScheduler, when nthreads > 2
+"""
+defined in `__init__()`.
+
+If version > 1.9, `THREAD_POOL` contains only tids in `Threads.threadpooltids(:default)`.
+
+Also, the thread 1 is reserved for JobScheduler.
+"""
+const THREAD_POOL = Base.RefValue{Channel{Int}}()
+
+"""
+defined in __init__(). Whether `Threads.threadpooltids(:default)` are empty or `== [1]`.
+"""
+const SINGLE_THREAD_MODE = Base.RefValue{Bool}()
+
+const TIDS = Vector{Int}()
+
 
 function schedule_thread(j::Job)
     if j.ncpu > 0
         @static if :sticky in fieldnames(Task)
-            if nthreads() > 1
+            if !SINGLE_THREAD_MODE[]
                 # sticky: disallow task migration which was introduced in 1.7
-                @static if VERSION >= v"1.7"
+                @static if VERSION >= v"1.7-"
                     j.task.sticky = true
                 else
                     j.task.sticky = false

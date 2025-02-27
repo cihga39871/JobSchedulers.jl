@@ -144,10 +144,9 @@ using Test
 		deleteat!(JobSchedulers.JOB_QUEUE.failed, 1:3:length(JobSchedulers.JOB_QUEUE.failed))
 		deleteat!(JobSchedulers.JOB_QUEUE.cancelled, 1:3:length(JobSchedulers.JOB_QUEUE.cancelled))
 
-		set_scheduler_max_cpu(2)
+		# set_scheduler_max_cpu(2)
 		set_scheduler_backup("/tmp/jl_job_scheduler_backup")
 		@test njobs == length(JobSchedulers.JOB_QUEUE.done) + length(JobSchedulers.JOB_QUEUE.failed) + length(JobSchedulers.JOB_QUEUE.cancelled)
-		@test JobSchedulers.SCHEDULER_MAX_CPU == (Base.Threads.nthreads() > 1 ? Base.Threads.nthreads()-1 : Sys.CPU_THREADS)
 
 		deleteat!(JobSchedulers.JOB_QUEUE.done, 1:3:length(JobSchedulers.JOB_QUEUE.done))
 		deleteat!(JobSchedulers.JOB_QUEUE.failed, 1:3:length(JobSchedulers.JOB_QUEUE.failed))
@@ -293,10 +292,10 @@ using Test
 
 	end
 
-	if Base.Threads.nthreads() > 1
+	if !JobSchedulers.SINGLE_THREAD_MODE[]
 		include("test_thread_id.jl")
 	else
-		@warn "Threads.nthreads() == 1 during testing is not recommended. Please run Julia in multi-threads to test JobSchedulers."
+		@warn "`JobSchedulers.SINGLE_THREAD_MODE[]` during testing. It will not test multi-thread related codes."
 	end
 
 	@testset "Terming" begin

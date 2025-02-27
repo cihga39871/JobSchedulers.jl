@@ -4,9 +4,9 @@ const MB = 1024KB
 const GB = 1024MB
 const TB = 1024GB
 
-SCHEDULER_MAX_CPU::Int = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS
-SCHEDULER_MAX_MEM::Int64 = round(Int64, Sys.total_memory() * 0.9)
-SCHEDULER_UPDATE_SECOND::Float64 = 0.05
+SCHEDULER_MAX_CPU::Int = -1              # set in __init__
+SCHEDULER_MAX_MEM::Int64 = Int64(-1)     # set in __init__
+SCHEDULER_UPDATE_SECOND::Float64 = 0.05  # set in __init__
 
 JOB_QUEUE_MAX_LENGTH::Int = 10000
 
@@ -63,7 +63,11 @@ function istaskfailed2(t::Task)
     if getproperty(t, :result) isa Pipelines.StackTraceVector
         # it is failed, but task is showing done, so we make it failed manually.
         @static if hasfield(Task, :_state)
-            t._state = 0x02 # Base.task_state_failed
+            @static if VERSION >= v"1.12-"  # 1.12: t._state is atomic
+                @atomic t._state = 0x02  # Base.task_state_failed
+            else
+                t._state = 0x02  # Base.task_state_failed
+            end
         end
         @static if hasfield(Task, :_isexception)
             t._isexception = true

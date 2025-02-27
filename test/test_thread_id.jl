@@ -16,13 +16,13 @@
         end
         c = JobSchedulers.THREAD_POOL[]
         JobSchedulers.schedule_thread(job)
-        if nthreads() > 1
+        if !JobSchedulers.SINGLE_THREAD_MODE[]
             put!(JobSchedulers.THREAD_POOL[], 2)
         end
         push!(jobs, job)
     end
 
-    if nthreads() > 1
+    if !JobSchedulers.SINGLE_THREAD_MODE[]
         for job in jobs
             x, y = fetch(job.task)
             # @show job._thread_id, x, y

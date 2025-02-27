@@ -1,5 +1,14 @@
 # Changelog
 
+v0.11.4
+
+- Compat: Julia v1.12: `t::Task._state` is atomic now.
+- Compat: Julia v1.12: `nthreads()` now may not represent tids. Use other methods to get tids of default thread pool.
+- Change: Only use default thread pool for Jobs with ncpu >= 1. Interactive thread pools are ignored. In previous versions, JobSchedulers use both interactive and default pools.
+- Change: VERSION check now use `VERSION >= v"x.y-"`, rather than `VERSION >= v"x.y"`. The former is evaluated to true for `v"1.12.0-DEV.1234"`, while latter is false.
+- Change: `JOB_ID[] += rand(20000:40000)`, rather than adding 1: hard to predict ID using rand increment, in case some apps may allow users query job ID. Comments: the best practice for app developers is not directly expose job IDs, or use additional methods to constrain queries.
+- Fix: `set_scheduler_max_mem()`: warning message's if statement: use `mem > Sys.total_memory() * 0.9 + 1`, rather than `mem > Sys.total_memory() * 0.9`.
+
 v0.11.3
 
 - Fix: `Job` with `Cmd` and add tests. (#18)

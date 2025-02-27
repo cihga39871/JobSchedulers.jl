@@ -8,7 +8,7 @@ Generate an unique ID.
 """
 function generate_id()
     lock(JOB_ID_INCREMENT_LOCK) do
-        JOB_ID[] += 1
+        JOB_ID[] += rand(20000:40000)  # hard to predict ID using rand increment, in case some apps may allow users query job ID. In addition, the best practice for app developers is not directly expose job IDs, or use additional methods to constrain queries.
     end
 end
 

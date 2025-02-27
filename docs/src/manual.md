@@ -3,7 +3,8 @@
 
 JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also be used to schedule small Julia tasks. 
 
-If you need to run multiple heavy Julia tasks, it is recommended to [start Julia with multi-threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads).
+!!! info "Multi-threading"
+    If you need to run multiple heavy Julia tasks, it is recommended to [start Julia with multi-threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads).
 
 
 ```julia
@@ -486,7 +487,7 @@ scheduler_status()
 # :running
 ```
 
-Set the **maximum CPU** that the scheduler can use. If starting Julia with multi-threads, the maximum CPU is `nthreads() - 1`.
+Set the **maximum CPU** that the scheduler can use. If starting Julia with multi-threads, the maximum CPU is the number of default thread pool, excluding thread ID 1.
 
 ```julia
 set_scheduler_max_cpu()     # use all available CPUs

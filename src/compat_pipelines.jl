@@ -1,8 +1,8 @@
 # using Pipelines
 
 function julia_program_warn(::JuliaProgram)
-    if nthreads() == 1
-        @warn "Submitting a JuliaProgram with 1-threaded Julia session is not recommended because it might block schedulers and parallel jobs. Starting Julia with multi-threads is suggested. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads" maxlog=1
+    if SINGLE_THREAD_MODE[]
+        @warn "The current Julia session only supports single-thread JobSchedulers. Submitting a JuliaProgram with this Julia session is not recommended because it might block schedulers and parallel jobs. Starting Julia with multiple *default* threads is suggested. JobSchedulers do not use interactive thread pool. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads" maxlog=1
     end
 end
 julia_program_warn(::CmdProgram) = nothing

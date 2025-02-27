@@ -87,7 +87,7 @@ In this code we have job interdependence. Firstly, we are calculating the standa
 
 Also, note that contrary to the previous example, we do not need to implement locking as we are just pushing the `Job` results of `submit!` serially into the DataFrame (which is fast since `submit!` doesn't block).
 
-The above use case scenario has been tested by running `julia -t 8` (or with `JULIA_NUM_THREADS=8` as environment variable). The `Threads.@threads` code takes 7.1 seconds to run, while the JobSchedulers code, runs around 3.7 seconds, resulting in a 1.8x speedup. To be noted, unlike `Base.Threads`, JobSchedulers only use `nthreads() - 1 = 7` threads to compute jobs, so the real speedup is `1.8 * 8/7 = 2.1`x.
+The above use case scenario has been tested by running `julia -t 8` (or with `JULIA_NUM_THREADS=8` as environment variable). The `Threads.@threads` code takes 7.1 seconds to run, while the JobSchedulers code, runs around 3.7 seconds, resulting in a 1.8x speedup. To be noted, unlike `Base.Threads`, JobSchedulers only use `7` threads to compute jobs, so the real speedup is `1.8 * 8/7 = 2.1`x.
 
 !!! info "Citation"
     Parallel Nested Loops was copied and edited from Dagger.jl's document. Most information are the same, except that JobSchedulers.jl was used. 

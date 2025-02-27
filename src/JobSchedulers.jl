@@ -71,26 +71,47 @@ function __init__()
     # https://docs.julialang.org/en/v1/devdocs/precompile_hang/
     ccall(:jl_generating_output, Cint, ()) == 1 && return nothing
 
+    # init TIDS
+    global TIDS
+    @static if VERSION >= v"1.9-"
+        # default thread pool are not empty and after remove 1.
+        # thread 1 is reserved for JobScheduler.
+        for i in Threads.threadpooltids(:default)
+            if i != 1
+                push!(TIDS, i)
+            end
+        end
+    else
+        # version < 1.9 does not have thread pool
+        for i in 2:nthreads()
+            push!(TIDS, i)
+        end
+    end
+
+    SINGLE_THREAD_MODE[] = isempty(TIDS)
+
     # initiating THREAD_POOL
-    c = Channel{Int}(nthreads() - 1)
-    THREAD_POOL[] = c
-    foreach(i -> put!(c, i), 2:nthreads())  # the thread 1 is reserved for JobScheduler, when nthreads > 2
+    c = Channel{Int}(length(TIDS))
+    global THREAD_POOL[] = c
+    for i in TIDS
+        put!(c, i)
+    end
 
     # initiating scheduler action Channel.
-    SCHEDULER_ACTION[] = Channel{Int}(1)
-    SCHEDULER_PROGRESS_ACTION[] = Channel{Int}(1)
+    global SCHEDULER_ACTION[] = Channel{Int}(1)
+    global SCHEDULER_PROGRESS_ACTION[] = Channel{Int}(1)
 
     # initiating JOB ID
-    JOB_ID[] = (now().instant.periods.value - 63749462400000) << 16
+    global JOB_ID[] = (now().instant.periods.value - 63749462400000) << 16
 
     # SCHEDULER_MAX_CPU must be the same as THREAD_POOL (if nthreads > 1), or the scheduler will stop.
     global SCHEDULER_MAX_CPU = default_ncpu()
     global SCHEDULER_MAX_MEM = round(Int64, Sys.total_memory() * 0.9)
-    global SCHEDULER_UPDATE_SECOND = Float64(ifelse(nthreads() > 1, 0.01, 0.05))
+    global SCHEDULER_UPDATE_SECOND = Float64(ifelse(SINGLE_THREAD_MODE[], 0.05, 0.01))
     scheduler_start(verbose=false)
 end
 
-if Base.VERSION >= v"1.8"
+if Base.VERSION >= v"1.8-"
     include("precompile_workload.jl")
 end
 
