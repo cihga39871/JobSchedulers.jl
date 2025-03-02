@@ -1,6 +1,8 @@
 
 """
-defined in `__init__()`.
+    const THREAD_POOL = Base.RefValue{Channel{Int}}()
+
+Defined in `__init__()`.
 
 If version > 1.9, `THREAD_POOL` contains only tids in `Threads.threadpooltids(:default)`.
 
@@ -9,10 +11,17 @@ Also, the thread 1 is reserved for JobScheduler.
 const THREAD_POOL = Base.RefValue{Channel{Int}}()
 
 """
-defined in __init__(). Whether `Threads.threadpooltids(:default)` are empty or `== [1]`.
+    const SINGLE_THREAD_MODE = Base.RefValue{Bool}()
+
+Defined in `__init__()`. Whether `Threads.threadpooltids(:default)` are empty or `== [1]`.
 """
 const SINGLE_THREAD_MODE = Base.RefValue{Bool}()
 
+"""
+    const TIDS = Vector{Int}()
+
+Defined in `__init__()`. All tids in the default thread pool, excluding tid 1.
+"""
 const TIDS = Vector{Int}()
 
 

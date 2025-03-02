@@ -127,13 +127,21 @@ JobSchedulers.init_group_state!()
 
 ### Internal - Const/Variable
 
+```@docs
+JobSchedulers.THREAD_POOL
+JobSchedulers.SINGLE_THREAD_MODE
+JobSchedulers.TIDS
+```
+
 ```julia
 const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
 const SCHEDULER_ACTION_LOCK = ReentrantLock()
 const SCHEDULER_PROGRESS_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
 
-SCHEDULER_MAX_CPU::Int = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS
-SCHEDULER_MAX_MEM::Int = round(Int, Sys.total_memory() * 0.9)
+SCHEDULER_MAX_CPU::Int = -1              # set in __init__
+SCHEDULER_MAX_MEM::Int64 = Int64(-1)     # set in __init__
+SCHEDULER_UPDATE_SECOND::Float64 = 0.05  # set in __init__
+
 const JOB_QUEUE = JobQueue(; max_done = JOB_QUEUE_MAX_LENGTH,  max_cancelled = max_done = JOB_QUEUE_MAX_LENGTH)
 
 SCHEDULER_BACKUP_FILE::String = ""
