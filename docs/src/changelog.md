@@ -1,5 +1,14 @@
 # Changelog
 
+v0.11.5
+
+- Organize: new file `job_state_change.jl` takes some code from `scheduler.jl`.
+- Optim: `id_delete = Int[]` is reusable now in many functions in `JobQueue.jl`.
+
+TODO:
+
+- `JOB_QUEUE.queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}`: change `Vector{Job}` to a certain type that can group same condition (ncpu, mem), to avoid greedy search all jobs in `JOB_QUEUE.queuing` when ncpu and mem not met for all queuing jobs.
+
 v0.11.4
 
 - Compat: Julia v1.12: `t::Task._state` is atomic now.
