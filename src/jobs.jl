@@ -34,8 +34,7 @@ end
 
 !!! info "Dependency"
     The default state is DONE, so `DONE => job` can be simplified to `job`.  
-    To be compatible with old versions, you can also use job id (Int): `[DONE => job.id]`.  
-    JobSchedulers will remove jobs that reached their states in the dependency list.
+    To be compatible with old versions, you can also use job id (Int): `[DONE => job.id]`.
 
 - `wall_time::Period = Year(1)`: wall clock time limit. Jobs will be terminated after running for this period.
 - `priority::Int = 20`: lower means higher priority.

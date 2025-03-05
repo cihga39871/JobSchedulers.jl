@@ -30,7 +30,7 @@ task_job = Job(
 
 job_with_args = Job(
     @task(begin println("job_with_args done"); "result" end); # Task to run
-    name = "job with args",               # job name.
+    name = "job with args",     # Job name.
     user = "me",                # Job owner.
     ncpu = 1,                   # Number of CPU required.
     mem = 1KB,                  # Number of memory required (unit: TB, GB, MB, KB, B).
@@ -228,7 +228,7 @@ all_queue()
 
 !!! compat "Changes from v0.10"
 
-    Before v0.10, all jobs will be saved to queue. However, from v0.10, unnamed jobs (`job.name == ""`) will not be saved if it **successfully** ran. If you want to save unnamed jobs, you can set using `JobSchedulers.destroy_unnamed_jobs_when_done(false)`.
+    Before v0.10, all jobs will be saved to queue. However, from v0.10, unnamed jobs (`job.name == ""`) will not be saved if they **successfully** ran. If you want to save unnamed jobs, you can set using `JobSchedulers.destroy_unnamed_jobs_when_done(false)`.
 
 Show queue (running and queuing jobs only):
 
@@ -294,7 +294,7 @@ queue(:all)[1]
 #   until         → forever
 #   state         → :done
 #   priority      → 20
-#   dependency    → []
+#   dependency    → 2 jobs
 #   task          → Task
 #   stdout        → nothing
 #   stderr        → nothing
