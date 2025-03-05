@@ -10,21 +10,29 @@ It is recommended to use JobSchedulers in multi-threaded Julia sessions.
 
 ### Single-thread Mode
 
-In single-thread mode, all `Job`s are migratable, and they might yield to other tasks. 
+The maximum number of CPU is default to the system CPU (`Sys.CPU_THREADS`). 
+
+All `Job`s are migratable, and they might yield to other tasks. 
 
 ### Multi-thread Mode
 
-In multi-thread mode, avaiable tids are stored in a Channel `JobSchedulers.THREAD_POOL[]`. 
+The maximum number of CPU is default to
 
-If `j::Job.ncpu > 0`, 
+- number of threads in the default thread pool, if you use any interactive threads. (ie. starting julia with `-t 10,1`.)
+
+- number of threads in the default thread pool **minus 1**, if you do not use interactive threads. (ie. starting julia with `-t 10`.)
+
+The tids that JobScheduler.jl can use are stored in a Channel `JobSchedulers.THREAD_POOL[]`. 
+
+If you submit a job assigning `ncpu > 0`, 
 
 - **the job does not migrate to other threads.** 
-- Also, if you only use JobSchedulers to schedule tasks, **your tasks will not be blocked by other tasks at any time**. It is important when your tasks need quick response (like a web API server). Therefore, you do not need to set interactive threads when starting Julia with `-t N,M`.
+- Also, if you only use JobSchedulers to schedule tasks, **your tasks will not be blocked by other tasks at any time**. It is important when your tasks need quick response (like a web API server). Therefore, you can ignore the existance of interactive threads when using JobSchedulers.jl.
 
   !!! info
       JobSchedulers.jl even solves the issue of interactive tasks prior to the official Julia introducing task migration (partially solved) and the interactive/default thread pools.
 
-If `j::Job.ncpu == 0`,
+If you set `ncpu = 0` to your job,
 
 - the job is migratable and does not take any tid from `JobSchedulers.THREAD_POOL[]`.
 

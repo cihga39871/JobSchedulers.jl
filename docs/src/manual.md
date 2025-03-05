@@ -4,7 +4,7 @@
 JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also be used to schedule small Julia tasks. 
 
 !!! info "Multi-threading"
-    If you need to run multiple heavy Julia tasks, it is recommended to [start Julia with multi-threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads).
+    It is recommended to [start Julia with multi-threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads) when using JobSchedulers.jl.
 
 
 ```julia
@@ -43,12 +43,12 @@ job_with_args = Job(
     ]
 )
 # Job:
-#   id            → 7290168730386436
+#   id            → 8345846200460913
 #   name          → "job with args"
 #   user          → "me"
 #   ncpu          → 1.0
 #   mem           → 1.0 KB
-#   schedule_time → 11:46:12
+#   schedule_time → 22:18:45
 #   submit_time   → na
 #   start_time    → na
 #   stop_time     → na
@@ -138,11 +138,9 @@ cancel!(job)
 
 ## Recurring/repetitive Job
 
-From JobSchedulers v0.8, users can submit recurring jobs using Linux-based **Crontab**-like methods.
+Recurring jobs can be defined using two arguments of `Job`: `Job(..., cron::Cron, until::Union{DateTime,Period})`.
 
-Two new fields (arguments) of `Job` is introduced: `Job(cron::Cron, until::Union{DateTime,Period})`.
-
-- `cron::Cron` creates a [`Cron`](@ref) object. It extends Linux's crontab and allows repeat every XX seconds. You can use your favorate `*`, `-`, `,` syntax just like crontab. Other features please see [`Cron`](@ref).
+- `cron::Cron` use a similar syntax of Linux's **Crontab**. It accepts a [`Cron`](@ref) object. It extends Linux's crontab and allows repeat every XX seconds. You can use your favorate `*`, `-`, `,` syntax just like crontab. Other features please see [`Cron`](@ref).
 
 - `until::Union{DateTime,Period})`: stop job recurring until date and time.
 
@@ -156,55 +154,54 @@ Examples:
 
 ```julia
 Cron()
-# Cron(every minute at 0 second)
+# Cron(every minute at 0 second past every hour everyday)
 
 Cron(0,0,0,1,1,0)
 Cron(:yearly)
 Cron(:annually)
-# Cron(at 0:0:0 on day-of-month 1 in Jan)
+# Cron(at 00:00:00 on day-of-month 1 in Jan)
 
 Cron(0,0,0,1,*,*)
 Cron(:monthly)
-# Cron(at 0:0:0 on day-of-month 1)
+# Cron(at 00:00:00 on day-of-month 1)
 
 Cron(0,0,0,*,*,1)
 Cron(:weekly)
-# Cron(at 0:0:0 on Mon)
+# Cron(at 00:00:00 on Mon)
 
 Cron(0,0,0,*,'*',"*") # * is equivalent to '*', and "*" in Cron.
 Cron(:daily)
 Cron(:midnight)
-# Cron(at 0:0:0)
+# Cron(at 00:00:00 everyday)
 
 Cron(0,0,*,*,*,*)
 Cron(:hourly)
-# Cron(at 0 minute, 0 second)
+# Cron(at 0 minute, 0 second past every hour everyday)
 
 Cron(0,0,0,0,0,0) # never repeat
 Cron(:none)       # never repeat
 # Cron(:none)
 
 Cron(0,0,0,*,*,"*/2")
-# Cron(at 0:0:0 on Tue,Thu,Sat)
+# Cron(at 00:00:00 on Tue, Thu and Sat)
 
 Cron(0,0,0,*,*,"1-7/2")
-Cron(0,0,0,0,0,"1-7/2")
-# Cron(at 0:0:0 on Mon,Wed,Fri,Sun)
+# Cron(at 00:00:00 on Mon, Wed, Fri and Sun)
 
 Cron(0,0,0,1,"1-12/3",*)
-# Cron(at 0:0:0 on day-of-month 1 in Jan,Apr,Jul,Oct)
+# Cron(at 00:00:00 on day-of-month 1 in Jan, Apr, Jul and Oct)
 
 Cron(30,4,"1,3-5",1,*,*)
-# Cron(at 4 minute, 30 second past 1,3,4,5 hours on day-of-month 1)
+# Cron(at 4 minute, 30 second past 1, 3, 4 and 5 hours on day-of-month 1)
 
 # repeatly print time every 5 seconds, until current time plus 20 seconds
 recurring_job = submit!(cron = Cron("*/5", *, *, *, *, *), until = Second(20)) do
     println(now())
 end
-# 2024-03-27T13:14:00.060
-# 2024-03-27T13:14:05.010
-# 2024-03-27T13:14:10.023
-# 2024-03-27T13:14:15.044
+# 2025-03-04T22:26:00.176
+# 2025-03-04T22:26:05.077
+# 2025-03-04T22:26:10.089
+# 2025-03-04T22:26:15.051
 ```
 
 > Details: [`Cron`](@ref)
@@ -354,25 +351,8 @@ scheduler_status()
 # :running
 ```
 
-## Find optimized `ncpu` that a Job can use
-
-Only available from JobSchedulers v0.7.8.
-
-```julia
-solve_optimized_ncpu(default::Int; 
-    ncpu_range::UnitRange{Int64} = 1:total_cpu, 
-    njob::Int = 1, 
-    total_cpu::Int = JobSchedulers.SCHEDULER_MAX_CPU, 
-    side_jobs_cpu::Int = 0)
-```
-
-Find the optimized number of CPU for a job.
-
-  - `default`: default ncpu of the job.
-  - `ncpu_range`: the possible ncpu range of the job.
-  - `njob`: number of the same job.
-  - `total_cpu`: the total CPU that can be used by JobSchedulers.
-  - `side_jobs_cpu`: some small jobs that might be run when the job is running, so the job won't use up all of the resources and stop small tasks.
+!!! info "Number of CPU Optimization"
+    JobSchedulers.jl also provide a function to find optimized `ncpu` that a Job can use, based on current cpu usage. See more at [`solve_optimized_ncpu`](@ref).
 
 ## Compatibility with Pipelines.jl
 
@@ -430,35 +410,33 @@ run(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)
 # touch_run_id_file = false means do not create a file which indicates 
 # the job is done and avoids re-run.
 
-# inputs are: in1 and in2
-# outputs are: out
-# (true, Dict("OUT" => "out"))
-
-### run the program by submitting to JobSchedulers.jl
-program_job = Job(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)
-# Job:
-#   id            → 6407224068474142
-#   name          → "Command Program"
-#   user          → ""
-#   ncpu          → 1.0
-#   mem           → 0 B
-#   schedule_time → na
-#   submit_time   → na
-#   start_time    → na
-#   stop_time     → na
-#   wall_time     → 1 year
-#   cron          → Cron(:none)
-#   until         → forever
-#   state         → :queuing
-#   priority      → 20
-#   dependency    → []
-#   task          → Task
-#   stdout        → nothing
-#   stderr        → nothing
-
-submit!(program_job)
+# ┌ Info: 2025-03-04 22:31:11 Started: Command Program
+# │   command_template = `echo inputs are: IN1 and IN2` & `echo outputs are: OUT`
+# │   run_id = Base.UUID("c30eed71-69ff-544b-a175-b6077dcd0931")
+# │   inputs =
+# │    Dict{String, Any} with 2 entries:
+# │      "IN2" => 2
+# │      "IN1" => `in1`
+# │   outputs =
+# │    Dict{String, Any} with 1 entry:
+# └      "OUT" => "out"
 # inputs are: in1 and 2
 # outputs are: out
+# ┌ Info: 2025-03-04 22:31:12 Finished: Command Program
+# │   command_running = `echo inputs are: in1 and 2` & `echo outputs are: out`
+# │   run_id = Base.UUID("c30eed71-69ff-544b-a175-b6077dcd0931")
+# │   inputs =
+# │    Dict{String, Any} with 2 entries:
+# │      "IN2" => 2
+# │      "IN1" => `in1`
+# │   outputs =
+# │    Dict{String, Any} with 1 entry:
+# └      "OUT" => "out"
+# (true, Dict{String, Any}("OUT" => "out"))
+
+### run the program by submitting to JobSchedulers.jl
+program_job = submit!(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)
+# same results as `run`
 
 # get the returned result
 result(program_job)
@@ -509,6 +487,7 @@ set_scheduler_max_mem(4096MB)
 set_scheduler_max_mem(4194304KB)
 set_scheduler_max_mem(4294967296B)
 # 4294967296
+
 set_scheduler_max_mem(0.5)          # use 50% of total memory
 # 101166391296
 ```
@@ -550,6 +529,7 @@ Set backup file:
 ```julia
 set_scheduler_backup("/path/to/backup/file")
 ```
+
 > JobSchedulers writes to the backup file at exit.
 > If the file exists, scheduler settings and job queue will be recovered from it automatically.
 > Recovered jobs are just for query, not run-able.
