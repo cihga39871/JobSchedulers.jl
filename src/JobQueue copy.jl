@@ -2,7 +2,7 @@
 """
     JobQueue(; max_done::Int = 10000, max_cancelled::Int = 10000)
     mutable struct JobQueue
-        const queuing::SortedDict{Int,MutableLinkedList{Job},Base.Order.ForwardOrdering}  # priority => Job List
+        const queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}  # priority => Job List
         const queuing_0cpu::Vector{Job}              # ncpu = 0, can run immediately
         const future::Vector{Job}                    # all jobs with schedule_time > now()
         const running::Vector{Job}
@@ -17,7 +17,7 @@
     end
 """
 mutable struct JobQueue
-    const queuing::SortedDict{Int,MutableLinkedList{Job},Base.Order.ForwardOrdering}  # priority => Job List
+    const queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}  # priority => Job List
     const queuing_0cpu::Vector{Job}              # ncpu = 0, can run immediately
     const future::Vector{Job}                    # all jobs with schedule_time > now()
     const running::Vector{Job}
@@ -33,7 +33,7 @@ end
 
 function JobQueue(; max_done::Int = 10000, max_cancelled::Int = 10000)
     JobQueue(
-        SortedDict{Int,MutableLinkedList{Job}}(20 => MutableLinkedList{Job}()),
+        SortedDict{Int,Vector{Job}}(20 => Vector{Job}()),
         Vector{Job}(),
         Vector{Job}(),
         Vector{Job}(),
@@ -61,11 +61,11 @@ function destroy_unnamed_jobs_when_done(b::Bool)
     global DESTROY_UNNAMED_JOBS_WHEN_DONE = b
 end
 
-function push_queuing!(queue::SortedDict{Int,MutableLinkedList{Job}}, job::Job)
+function push_queuing!(queue::SortedDict{Int,Vector{Job}}, job::Job)
     if haskey(queue, job.priority)
         push!(queue[job.priority], job)
     else
-        queue[job.priority] = MutableLinkedList{Job}(job)
+        queue[job.priority] = Job[job]
     end
     nothing
 end
@@ -330,7 +330,7 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
         free_ncpu < 0.999 && return
         free_mem <= 0 && return
 
-        # check normal queue: SortedDict{Int,MutableLinkedList{Job}}
+        # check normal queue: SortedDict{Int,Vector{Job}}
 
         need_clean_empty_priority = length(JOB_QUEUE.queuing) > 10
         if need_clean_empty_priority
@@ -350,12 +350,9 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
 
             # @debug "run_queuing! lock_queuing - scan priority = $priority - try run jobs"
             empty!(id_delete_in_run_queuing)
-            for node in NodeIterate(jobs)
-                job = node.data
-            # for (i, job) in enumerate(jobs)
+            for (i, job) in enumerate(jobs)
                 if job.state === CANCELLED
-                    deleteat!(jobs, node)
-                    # push!(id_delete_in_run_queuing, i)
+                    push!(id_delete_in_run_queuing, i)
                     push_cancelled!(job)
                     PROGRESS_METER && update_group_state!(job)
                     continue
@@ -372,15 +369,13 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                     if is_run_successful
                         free_ncpu -= job.ncpu
                         free_mem  -= job.mem
-                        deleteat!(jobs, node)
-                        # push!(id_delete_in_run_queuing, i)
+                        push!(id_delete_in_run_queuing, i)
                         push_running!(job)
 
                         free_ncpu < 0.999 && break
                         free_mem <= 0 && break
                     else
-                        deleteat!(jobs, node)
-                        # push!(id_delete_in_run_queuing, i)
+                        push!(id_delete_in_run_queuing, i)
                         if job.state === CANCELLED
                             push_cancelled!(job)
                         elseif job.state === DONE
@@ -396,7 +391,7 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                 end
             end
             # @debug "run_queuing! lock_queuing - scan priority = $priority - delete running jobs"
-            # deleteat!(jobs, id_delete_in_run_queuing)
+            deleteat!(jobs, id_delete_in_run_queuing)
 
             free_ncpu < 0.999 && break
             free_mem <= 0 && break

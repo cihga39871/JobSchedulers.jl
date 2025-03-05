@@ -134,6 +134,8 @@ function backup_job!(q_cancelled::Vector{Job}, q_done::Vector{Job}, q_failed::Ve
     job = deepcopy(j)
     job.task = nothing
     job._func = nothing
+    job._dep_check_id = 1
+    empty!(job.dependency)
     if job.state === DONE
         push!(q_done, job)
     elseif job.state === FAILED
@@ -147,6 +149,8 @@ function backup_job!(q::Vector{Job}, j::Job)
     job = deepcopy(j)
     job.task = nothing
     job._func = nothing
+    job._dep_check_id = 1
+    empty!(job.dependency)
     push!(q, job)
 end
 

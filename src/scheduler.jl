@@ -124,13 +124,10 @@ end
 
 function unsafe_update_as_failed!(job::Job, current::DateTime = now())
     job.stop_time = current
-    # free_thread(job)
-    # @error "A job failed: $(job.id): $(job.name)" # exception=job.task.result
     job.state = FAILED
 end
 function unsafe_update_as_done!(job::Job, current::DateTime = now())
     job.stop_time = current
-    # free_thread(job)
     job.state = DONE
 end
 
@@ -164,27 +161,30 @@ end
 
 Caution: run it within lock only.
 
-Algorithm: Break for loop when found a dep not ok, and delete previous ok deps.
+Algorithm: Break while loop when found dep not ok, and change `job._dep_check_id` to the current id.
 
 If dep is provided as Integer, query Integer for job and then replace Integer with the job.
 """
 function is_dependency_ok(job::Job)
-    if length(job.dependency) == 0
+    if length(job.dependency) < job._dep_check_id
         return true
     end
-    deps_to_delete = 0
-    res = true
-    # break for loop when found dep not ok, and delete previous ok deps
-    for (i, dep) in enumerate(job.dependency)
+    # break while loop when found dep not ok, and change _dep_check_id to the current id
+
+    # _dep_check_id = 1 when init Job
+    n = length(job.dependency)
+    while job._dep_check_id <= n
+        dep = job.dependency[job._dep_check_id]
         state = dep.first
         if dep.second isa Integer
             dep_job = job_query_by_id_no_lock(dep.second)
 
             if isnothing(dep_job)
-                res = false
-                break
+                # considered finished because done job with no name will not be stored.
+                job._dep_check_id += 1
+                continue
             end
-            job.dependency[i] = state => dep_job
+            job.dependency[job._dep_check_id] = state => dep_job
         else
             dep_job = dep.second
         end
@@ -193,7 +193,7 @@ function is_dependency_ok(job::Job)
 
         if (state === dep_state) ||
         (state === PAST && dep_state in (FAILED, CANCELLED, DONE))
-            deps_to_delete = i
+            job._dep_check_id += 1
             continue
         end
 
@@ -201,21 +201,16 @@ function is_dependency_ok(job::Job)
             # change job state to cancelled
             @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is $(dep_job.state)."
             job.state = CANCELLED
-            res = false
             break
         elseif dep_state == DONE
             # change job state to cancelled
             @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is done, but the required state is $(state)."
             job.state = CANCELLED
-            res = false
             break
         end
 
-        res = false
         break
     end
-    if deps_to_delete > 0
-        deleteat!(job.dependency, 1:deps_to_delete)
-    end
-    return res
+
+    return n < job._dep_check_id
 end

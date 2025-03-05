@@ -2,6 +2,7 @@
 
 v0.11.5
 
+- Change/Optim: items in `job.dependency` will not be deleted when states meet. Use `job._dep_check_id` to store the next dependency id. Backup will remove `job.dependency` before storing a job.
 - Organize: new file `job_state_change.jl` takes some code from `scheduler.jl`.
 - Optim: `id_delete = Int[]` is reusable now in many functions in `JobQueue.jl`.
 
