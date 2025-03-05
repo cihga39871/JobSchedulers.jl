@@ -2,10 +2,10 @@
 """
     JobQueue(; max_done::Int = 10000, max_cancelled::Int = 10000)
     mutable struct JobQueue
-        const queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}  # priority => Job List
-        const queuing_0cpu::Vector{Job}              # ncpu = 0, can run immediately
-        const future::Vector{Job}                    # all jobs with schedule_time > now()
-        const running::Vector{Job}
+        const queuing::SortedDict{Int,MutableLinkedList{Job},Base.Order.ForwardOrdering}  # priority => Job List
+        const queuing_0cpu::MutableLinkedList{Job}              # ncpu = 0, can run immediately
+        const future::MutableLinkedList{Job}                    # all jobs with schedule_time > now()
+        const running::MutableLinkedList{Job}        const running::Vector{Job}
         const done::Vector{Job}
         const failed::Vector{Job}
         const cancelled::Vector{Job}
@@ -17,10 +17,10 @@
     end
 """
 mutable struct JobQueue
-    const queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}  # priority => Job List
-    const queuing_0cpu::Vector{Job}              # ncpu = 0, can run immediately
-    const future::Vector{Job}                    # all jobs with schedule_time > now()
-    const running::Vector{Job}
+    const queuing::SortedDict{Int,MutableLinkedList{Job},Base.Order.ForwardOrdering}  # priority => Job List
+    const queuing_0cpu::MutableLinkedList{Job}              # ncpu = 0, can run immediately
+    const future::MutableLinkedList{Job}                    # all jobs with schedule_time > now()
+    const running::MutableLinkedList{Job}
     const done::Vector{Job}
     const failed::Vector{Job}
     const cancelled::Vector{Job}
@@ -33,10 +33,10 @@ end
 
 function JobQueue(; max_done::Int = 10000, max_cancelled::Int = 10000)
     JobQueue(
-        SortedDict{Int,Vector{Job}}(20 => Vector{Job}()),
-        Vector{Job}(),
-        Vector{Job}(),
-        Vector{Job}(),
+        SortedDict{Int,MutableLinkedList{Job}}(20 => MutableLinkedList{Job}()),
+        MutableLinkedList{Job}(),
+        MutableLinkedList{Job}(),
+        MutableLinkedList{Job}(),
         Vector{Job}(),
         Vector{Job}(),
         Vector{Job}(),
@@ -61,46 +61,47 @@ function destroy_unnamed_jobs_when_done(b::Bool)
     global DESTROY_UNNAMED_JOBS_WHEN_DONE = b
 end
 
-function push_queuing!(queue::SortedDict{Int,Vector{Job}}, job::Job)
+function push_queuing!(queue::SortedDict{Int,MutableLinkedList{Job}}, job::Job)
     if haskey(queue, job.priority)
         push!(queue[job.priority], job)
     else
-        queue[job.priority] = Job[job]
+        queue[job.priority] = MutableLinkedList{Job}(job)
     end
     nothing
 end
 function push_running!(job::Job)
-    @debug "push_running! lock_running"
+    # @debug "push_running! lock_running"
     lock(JOB_QUEUE.lock_running) do 
         push!(JOB_QUEUE.running, job)
     end
-    @debug "push_running! lock_running ok"
+    # @debug "push_running! lock_running ok"
 end
 function push_failed!(job::Job)
-    @debug "push_failed! lock_past"
+    # @debug "push_failed! lock_past"
     lock(JOB_QUEUE.lock_past) do 
         push!(JOB_QUEUE.failed, job)
     end
-    @debug "push_failed! lock_past ok"
+    # @debug "push_failed! lock_past ok"
 end
 function push_done!(job::Job)
+    global DESTROY_UNNAMED_JOBS_WHEN_DONE
     if DESTROY_UNNAMED_JOBS_WHEN_DONE && isempty(job.name)
         #no push
     else
-        @debug "push_done! lock_past"
+        # @debug "push_done! lock_past"
         lock(JOB_QUEUE.lock_past) do 
             push!(JOB_QUEUE.done, job)
         end
-        @debug "push_done! lock_past ok"
+        # @debug "push_done! lock_past ok"
     end
     try_push_next_recur!(job)
 end
 function push_cancelled!(job::Job)
-    @debug "push_cancelled! lock_past"
+    # @debug "push_cancelled! lock_past"
     lock(JOB_QUEUE.lock_past) do 
         push!(JOB_QUEUE.cancelled, job)
     end
-    @debug "push_cancelled! lock_past ok"
+    # @debug "push_cancelled! lock_past ok"
 end
 
 
@@ -113,17 +114,17 @@ function try_push_next_recur!(job::Job)
     next_job = next_recur_job(job)
     isnothing(next_job) && return
 
-    @debug "try_push_next_recur! lock_queuing"
+    # @debug "try_push_next_recur! lock_queuing"
     lock(JOB_QUEUE.lock_queuing) do
         push!(JOB_QUEUE.future, next_job)
     end
-    @debug "try_push_next_recur! lock_queuing ok"
+    # @debug "try_push_next_recur! lock_queuing ok"
     return
 end
 
 function n_job_remaining()
     n = 0
-    @debug "n_job_remaining lock_queuing"
+    # @debug "n_job_remaining lock_queuing"
     lock(JOB_QUEUE.lock_queuing) do
         for jobs in values(JOB_QUEUE.queuing)
             n += length(jobs)
@@ -131,7 +132,7 @@ function n_job_remaining()
         n += length(JOB_QUEUE.queuing_0cpu) 
         n += length(JOB_QUEUE.future) 
     end
-    @debug "n_job_remaining lock_queuing ok"
+    # @debug "n_job_remaining lock_queuing ok"
     n += length(JOB_QUEUE.running)
     n
 end
@@ -140,7 +141,7 @@ function are_remaining_jobs_more_than(x::Integer)
     n = length(JOB_QUEUE.running)
     n > x && return true
 
-    @debug "n_job_remaining lock_queuing"
+    # @debug "n_job_remaining lock_queuing"
     lock(JOB_QUEUE.lock_queuing) do
         for jobs in values(JOB_QUEUE.queuing)
             n += length(jobs)
@@ -150,15 +151,14 @@ function are_remaining_jobs_more_than(x::Integer)
         n += length(JOB_QUEUE.future)
         n > x && return
     end
-    @debug "n_job_remaining lock_queuing ok"
+    # @debug "n_job_remaining lock_queuing ok"
     n > x
 end
 
-
-
+const priority_delete = Int[]
 
 function update_queue!()
-    @debug "update_queue! start"
+    # @debug "update_queue! start"
     current = now()
 
     move_future_to_queuing(current)
@@ -173,26 +173,28 @@ function update_queue!()
 
     # clean done and cancelled queue if exceed max_done and max_cancelled
     clean_queue!()
-    @debug "update_queue! done"
+    # @debug "update_queue! done"
 end
 
 """
     update_running!(current::DateTime)
 
 update running: update state, cancel jobs reaching wall time, moving finished from running to others
+
+Return `(used_ncpu::Float64, used_mem::Int64)`
 """
 function update_running!(current::DateTime)
     isempty(JOB_QUEUE.running) && return (0.0, Int64(0))
     
-    @debug "update_running! lock_running"
+    # @debug "update_running! lock_running"
     used_ncpu, used_mem = lock(JOB_QUEUE.lock_running) do
-        id_delete = Int[]
         used_ncpu = 0.0
         used_mem = Int64(0)
-        for (i, job) in enumerate(JOB_QUEUE.running)
+        for node in NodeIterate(JOB_QUEUE.running)
+            job = node.data
             
             if job.state === CANCELLED
-                push!(id_delete, i)
+                deleteat!(JOB_QUEUE.running, node)
                 free_thread(job)
                 push_cancelled!(job)
                 PROGRESS_METER && update_group_state!(job)
@@ -202,20 +204,20 @@ function update_running!(current::DateTime)
             # update state
             if istaskfailed2(job.task)
                 unsafe_update_as_failed!(job, current)
-                push!(id_delete, i)
+                deleteat!(JOB_QUEUE.running, node)
                 free_thread(job)
                 push_failed!(job)
                 PROGRESS_METER && update_group_state!(job)
                 continue
             elseif job.state === DONE
-                push!(id_delete, i)
+                deleteat!(JOB_QUEUE.running, node)
                 free_thread(job)
                 push_done!(job)
                 PROGRESS_METER && update_group_state!(job)
                 continue
             elseif job.task.state === DONE
                 unsafe_update_as_done!(job, current)
-                push!(id_delete, i)
+                deleteat!(JOB_QUEUE.running, node)
                 free_thread(job)
                 push_done!(job)
                 PROGRESS_METER && update_group_state!(job)
@@ -227,19 +229,19 @@ function update_running!(current::DateTime)
                 if job.start_time + job.wall_time < current
                     state = unsafe_cancel!(job, current)
                     if state === CANCELLED
-                        push!(id_delete, i)
+                        deleteat!(JOB_QUEUE.running, node)
                         free_thread(job)
                         push_cancelled!(job)
                         PROGRESS_METER && update_group_state!(job)
                         continue
                     elseif state === DONE
-                        push!(id_delete, i)
+                        deleteat!(JOB_QUEUE.running, node)
                         free_thread(job)
                         push_done!(job)
                         PROGRESS_METER && update_group_state!(job)
                         continue
                     elseif state === FAILED
-                        push!(id_delete, i)
+                        deleteat!(JOB_QUEUE.running, node)
                         free_thread(job)
                         push_failed!(job)
                         PROGRESS_METER && update_group_state!(job)
@@ -252,10 +254,9 @@ function update_running!(current::DateTime)
             used_ncpu += job.ncpu
             used_mem += job.mem
         end
-        deleteat!(JOB_QUEUE.running, id_delete)
         used_ncpu, used_mem
     end
-    @debug "update_running! lock_running ok"
+    # @debug "update_running! lock_running ok"
     used_ncpu, used_mem
 end
 
@@ -263,10 +264,10 @@ end
 function move_future_to_queuing(current::DateTime)
     isempty(JOB_QUEUE.future) && return
     
-    @debug "move_future_to_queuing lock_queuing"
+    # @debug "move_future_to_queuing lock_queuing"
     lock(JOB_QUEUE.lock_queuing) do
-        id_delete = Int[]
-        for (i, job) in enumerate(JOB_QUEUE.future)
+        for node in NodeIterate(JOB_QUEUE.future)
+            job = node.data
             if job.schedule_time <= current
                 # move out from future
                 if job.ncpu == 0
@@ -274,24 +275,24 @@ function move_future_to_queuing(current::DateTime)
                 else
                     push_queuing!(JOB_QUEUE.queuing, job)
                 end
-                push!(id_delete, i)
+                deleteat!(JOB_QUEUE.future, node)
             end
         end
-        deleteat!(JOB_QUEUE.future, id_delete)
     end
-    @debug "move_future_to_queuing lock_queuing ok"
+    # @debug "move_future_to_queuing lock_queuing ok"
 end
 
 function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
-    @debug "run_queuing! lock_queuing"
+    global priority_delete
+    # @debug "run_queuing! lock_queuing"
     lock(JOB_QUEUE.lock_queuing)
     try
-        id_delete = Int[]
         
         # check queuing_0cpu first
         if !isempty(JOB_QUEUE.queuing_0cpu)
-            @debug "run_queuing! lock_queuing - check queuing_0cpu"
-            for (i, job) in enumerate(JOB_QUEUE.queuing_0cpu)
+            # @debug "run_queuing! lock_queuing - check queuing_0cpu"
+            for node in NodeIterate(JOB_QUEUE.queuing_0cpu)
+                job = node.data
                 if job.mem <= free_mem && is_dependency_ok(job)
                     is_run_successful = try
                         unsafe_run!(job, current)
@@ -301,10 +302,10 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                     end
                     if is_run_successful
                         free_mem  -= job.mem
-                        push!(id_delete, i)
+                        deleteat!(JOB_QUEUE.queuing_0cpu, node)
                         push_running!(job)
                     else
-                        push!(id_delete, i)
+                        deleteat!(JOB_QUEUE.queuing_0cpu, node)
                         if job.state === CANCELLED
                             push_cancelled!(job)
                         elseif job.state === DONE
@@ -316,21 +317,20 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                     PROGRESS_METER && update_group_state!(job)
                 end
             end
-            deleteat!(JOB_QUEUE.queuing_0cpu, id_delete)
         end
 
         free_ncpu < 0.999 && return
         free_mem <= 0 && return
 
-        # check normal queue: SortedDict{Int,Vector{Job}}
+        # check normal queue: SortedDict{Int,MutableLinkedList{Job}}
 
         need_clean_empty_priority = length(JOB_QUEUE.queuing) > 10
         if need_clean_empty_priority
-            priority_delete = Int[]
+            empty!(priority_delete)
         end
         for p in JOB_QUEUE.queuing # lowest priority comes first
             priority, jobs = p
-            @debug "run_queuing! lock_queuing - scan priority = $priority"
+            # @debug "run_queuing! lock_queuing - scan priority = $priority"
 
             # remove empty priority
             if length(jobs) == 0
@@ -340,18 +340,18 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                 continue
             end
 
-            @debug "run_queuing! lock_queuing - scan priority = $priority - try run jobs"
-            empty!(id_delete)
-            for (i, job) in enumerate(jobs)
+            # @debug "run_queuing! lock_queuing - scan priority = $priority - try run jobs"
+            for node in NodeIterate(jobs)
+                job = node.data
                 if job.state === CANCELLED
-                    push!(id_delete, i)
+                    deleteat!(jobs, node)
                     push_cancelled!(job)
                     PROGRESS_METER && update_group_state!(job)
                     continue
                 end
 
                 if job.ncpu <= free_ncpu + 0.001 && job.mem <= free_mem && is_dependency_ok(job)
-                    @debug "run_queuing! lock_queuing - scan priority = $priority - try run $(job.id) $(job.name)"
+                    # @debug "run_queuing! lock_queuing - scan priority = $priority - try run $(job.id) $(job.name)"
                     is_run_successful = try
                         unsafe_run!(job, current)
                     catch e
@@ -361,13 +361,13 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                     if is_run_successful
                         free_ncpu -= job.ncpu
                         free_mem  -= job.mem
-                        push!(id_delete, i)
+                        deleteat!(jobs, node)
                         push_running!(job)
 
                         free_ncpu < 0.999 && break
                         free_mem <= 0 && break
                     else
-                        push!(id_delete, i)
+                        deleteat!(jobs, node)
                         if job.state === CANCELLED
                             push_cancelled!(job)
                         elseif job.state === DONE
@@ -377,10 +377,12 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                         end
                     end
                     PROGRESS_METER && update_group_state!(job)
+                else
+                    # TODO
+                    # save if the next job's condition is the same, so we can skip.
                 end
             end
-            @debug "run_queuing! lock_queuing - scan priority = $priority - delete running jobs"
-            deleteat!(jobs, id_delete)
+            # @debug "run_queuing! lock_queuing - scan priority = $priority - delete running jobs"
 
             free_ncpu < 0.999 && break
             free_mem <= 0 && break
@@ -394,29 +396,29 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
         rethrow()
     finally
         unlock(JOB_QUEUE.lock_queuing)
-        @debug "run_queuing! lock_queuing ok"
+        # @debug "run_queuing! lock_queuing ok"
     end
 end
 
 """
-    clean done and cancelled queue if exceed max_done and max_cancelled
+    clean done and cancelled queue if exceed `max_done` and `max_cancelled`
 """
 function clean_queue!()
     if length(JOB_QUEUE.done) >= JOB_QUEUE.max_done * 1.5
-        @debug "clean_queue! JOB_QUEUE.lock_past 1"
+        # @debug "clean_queue! JOB_QUEUE.lock_past 1"
         lock(JOB_QUEUE.lock_past) do
             n_delete = length(JOB_QUEUE.done) - JOB_QUEUE.max_done
             deleteat!(JOB_QUEUE.done, 1:n_delete)
         end
-        @debug "clean_queue! JOB_QUEUE.lock_past 1 ok"
+        # @debug "clean_queue! JOB_QUEUE.lock_past 1 ok"
     end
 
     if length(JOB_QUEUE.cancelled) >= JOB_QUEUE.max_cancelled * 1.5
-        @debug "clean_queue! JOB_QUEUE.lock_past 2"
+        # @debug "clean_queue! JOB_QUEUE.lock_past 2"
         lock(JOB_QUEUE.lock_past) do
             n_delete = length(JOB_QUEUE.cancelled) - JOB_QUEUE.max_cancelled
             deleteat!(JOB_QUEUE.cancelled, 1:n_delete)
         end
-        @debug "clean_queue! JOB_QUEUE.lock_past 2 ok"
+        # @debug "clean_queue! JOB_QUEUE.lock_past 2 ok"
     end
 end

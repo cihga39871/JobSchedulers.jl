@@ -1,5 +1,16 @@
 # Changelog
 
+v0.11.5
+
+- Change/Optim: items in `job.dependency` will not be deleted when states meet. Use `job._dep_check_id` to store the next dependency id. Backup will remove `job.dependency` before storing a job.
+- Organize: new file `job_state_change.jl` takes some code from `scheduler.jl`.
+- Optim: `JobQueue` uses linked list rather than vectors. It provides O(1) deletion speed, which is useful when a flood of jobs (>100,000) are submitted.
+- Optim: remove unused dependendies.
+
+TODO:
+
+- `JOB_QUEUE.queuing::SortedDict{Int,Vector{Job},Base.Order.ForwardOrdering}`: change `Vector{Job}` to a certain type that can group same condition (ncpu, mem), to avoid greedy search all jobs in `JOB_QUEUE.queuing` when ncpu and mem not met for all queuing jobs.
+
 v0.11.4
 
 - Compat: Julia v1.12: `t::Task._state` is atomic now.

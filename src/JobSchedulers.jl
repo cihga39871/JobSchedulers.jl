@@ -1,7 +1,7 @@
 
 module JobSchedulers
 
-using Revise
+# using Revise
 
 using Reexport
 using Base.Threads
@@ -26,13 +26,16 @@ isqueuing, isrunning, isdone, iscancelled, isfailed, ispast
 
 include("thread_utils.jl")
 
+include("LinkedListIterate.jl")
+
 include("JobQueue.jl")
 
-
-include("scheduler.jl")
+include("job_state_change.jl")
 export B, KB, MB, GB, TB
 export submit!, cancel!
 export QUEUING, RUNNING, DONE, FAILED, CANCELLED, PAST
+
+include("scheduler.jl")
 
 include("pretty_print.jl")
 export queue, all_queue, json_queue

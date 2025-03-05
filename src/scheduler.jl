@@ -1,8 +1,3 @@
-const B = Int64(1)
-const KB = Int64(1024)
-const MB = 1024KB
-const GB = 1024MB
-const TB = 1024GB
 
 SCHEDULER_MAX_CPU::Int = -1              # set in __init__
 SCHEDULER_MAX_MEM::Int64 = Int64(-1)     # set in __init__
@@ -31,257 +26,8 @@ function set_scheduler_while_loop(b::Bool)
     global SCHEDULER_WHILE_LOOP = b
 end
 
-const QUEUING = :queuing
-const RUNNING = :running
-const DONE = :done
-const FAILED = :failed
-const CANCELLED = :cancelled
-
-const PAST = :past # super set of DONE, FAILED, CANCELLED
-
 SLEEP_HANDELED_TIME::Int = 10
 
-"""
-    istaskfailed2(t::Task)
-
-Extend `Base.istaskfailed` to fit Pipelines and JobSchedulers packages, which will return a `StackTraceVector` in `t.result`, while Base considered it as `:done`. The function checks the situation and modifies the real task status and other properties.
-"""
-function istaskfailed2(t::Task)
-    if Base.istaskfailed(t)
-        return true
-    end
-    @static if hasfield(Task, :_state)
-        if t._state === 0x02 # Base.task_state_failed
-            return true
-        end
-    elseif hasfield(Task, :state)
-        # TODO: this field name should be deprecated in 2.0
-        if t.state === :failed
-            return true
-        end
-    end
-    if getproperty(t, :result) isa Pipelines.StackTraceVector
-        # it is failed, but task is showing done, so we make it failed manually.
-        @static if hasfield(Task, :_state)
-            @static if VERSION >= v"1.12-"  # 1.12: t._state is atomic
-                @atomic t._state = 0x02  # Base.task_state_failed
-            else
-                t._state = 0x02  # Base.task_state_failed
-            end
-        end
-        @static if hasfield(Task, :_isexception)
-            t._isexception = true
-        end
-        @static if hasfield(Task, :state)
-            # TODO: this field name should be deprecated in 2.0
-            t.state = :failed
-        end
-        @static if hasfield(Task, :exception)
-            # TODO: this field name should be deprecated in 2.0
-            t.exception = t.result
-        end
-        @static if hasfield(Task, :backtrace)
-            # TODO: this field name should be deprecated in 2.0
-            t.backtrace = t.result[end][2]
-        end
-        return true
-    end
-    return false
-end
-
-"""
-    submit!(job::Job)
-    submit!(args_of_Job...; kwargs_of_Job...)
-
-Submit the job to queue. 
-
-> `submit!(Job(...))` can be simplified to `submit!(...)`. They are equivalent.
-
-See also [`Job`](@ref), [`@submit`](@ref)
-"""
-function submit!(job::Job)
-    global JOB_QUEUE
-    global QUEUING
-
-    # cannot run a task recovered from backup, since task is nothing.
-    @boundscheck begin
-        if isnothing(job.task)
-            if job.state in (RUNNING, QUEUING)
-                job.state = CANCELLED
-            end
-            error("Cannot submit a job recovered from backup! Job ID: $(job.id). Name: $(job.name)")
-        end
-
-        # check task state
-        if job.state !== QUEUING || istaskstarted(job.task)
-            error("Cannot submit running/done/failed/cancelled job! Job ID: $(job.id). Name: $(job.name)")
-        end
-    end
-
-    current = now()
-    # job.state = QUEUING
-    if job.submit_time == DateTime(0)
-        job.submit_time = current
-    else
-        # duplicate submission
-        error("Cannot re-submit the same job! Job ID: $(job.id). Name: $(job.name)")
-    end
-
-    # if recur need to be set
-    if job.schedule_time == DateTime(0) && !isempty(job.cron)
-        next_time = tonext(job.submit_time, job.cron)
-        if isnothing(next_time)
-            error("Cannot submit the job: no date and time matching its $(job.cron)")
-        else
-            job.schedule_time = next_time
-        end
-    end
-
-    @debug "submit!(job::Job) id=$(job.id) name=$(job.name) lock_queuing"
-    lock(JOB_QUEUE.lock_queuing) do 
-        if job.schedule_time > current  # run in future
-            push!(JOB_QUEUE.future, job)
-        elseif job.ncpu == 0
-            push!(JOB_QUEUE.queuing_0cpu, job)
-        else
-            push_queuing!(JOB_QUEUE.queuing, job)
-        end
-
-        if PROGRESS_METER
-            update_group_state!(job)
-        end
-    end
-    @debug "submit!(job::Job) id=$(job.id) name=$(job.name) lock_queuing ok"
-    scheduler_need_action()
-
-    return job
-end
-
-function submit!(args...; kwargs...)
-    submit!(Job(args...; kwargs...))
-end
-
-"""
-    unsafe_run!(job::Job, current::DateTime=now()) :: Bool
-
-Jump the queue and run `job` immediately, no matter what other jobs are running or waiting. If successful initiating to run, return `true`, else `false`. 
-
-Caution: it will not trigger `scheduler_need_action()`.
-"""
-function unsafe_run!(job::Job, current::DateTime=now()) :: Bool
-    global QUEUING
-    global RUNNING
-    global FAILED
-    global DONE
-    global CANCELLED
-
-    # cannot run a backup task
-    if isnothing(job.task)
-        @error "Cannot run a job recovered from backup!" job
-        if job.state in (RUNNING, QUEUING)
-            job.state = CANCELLED
-        end
-        return false
-    end
-
-    try
-        schedule_thread(job)
-        job.start_time = current
-        job.state = RUNNING
-        true
-    catch e
-        # check status when fail
-        if istaskfailed2(job.task)
-            if job.state !== CANCELLED
-                job.state = FAILED
-                @error "A job has failed: $(job.id)" exception=job.task.result
-            end
-            false
-        elseif istaskdone(job.task)
-            job.state = DONE
-            false
-        elseif istaskstarted(job.task)
-            job.state = RUNNING
-            false
-        else
-            rethrow(e)
-            false
-        end
-    end
-end
-
-"""
-    cancel!(job::Job)
-
-Cancel `job`, stop queuing or running.
-"""
-function cancel!(job::Job)
-    @debug "cancel!(job::Job) id=$(job.id) name=$(job.name) lock_queuing"
-    lock(JOB_QUEUE.lock_queuing) do
-    #     @debug "cancel!(job::Job) id=$(job.id) name=$(job.name) lock_running"
-    #     lock(JOB_QUEUE.lock_running) do
-            unsafe_cancel!(job)
-    #     end
-    #     @debug "cancel!(job::Job) id=$(job.id) name=$(job.name) lock_running ok"
-    end
-    @debug "cancel!(job::Job) id=$(job.id) name=$(job.name) lock_queuing ok"
-end
-
-"""
-    unsafe_cancel!(job::Job, current::DateTime=now())
-
-Caution: it is unsafe and should only be called within lock. Do not call from other module.
-
-Caution: it will not trigger `scheduler_need_action()`.
-"""
-function unsafe_cancel!(job::Job, current::DateTime=now())
-    global CANCELLED
-    global RUNNING
-
-    # cannot cancel a backup task (can never be run)
-    if isnothing(job.task)
-        if job.state in (RUNNING, QUEUING)
-            job.state = CANCELLED
-        end
-        return job.state
-    end
-
-    # no need to cancel finished ones
-    if istaskfailed2(job.task)
-        if job.state !== CANCELLED
-            job.state = FAILED
-            # job.task.result isa Exception, notify errors
-            @error "A job has failed: $(job.id)" exception=job.task.result
-        end
-        # free_thread(job)
-        return job.state
-    elseif istaskdone(job.task)
-        if job.state !== DONE
-            job.state = DONE
-        end
-        # free_thread(job)J
-        return job.state
-    end
-
-    try
-        schedule(job.task, InterruptException(), error=true)
-        job.stop_time = current
-        job.state = CANCELLED
-    catch e
-        unsafe_update_state!(job)
-        if job.state === RUNNING
-            @error "unsafe_cancel!(job): cannot cancel a job." job
-        end
-        job.state
-    finally
-        # TODO: what if InterruptException did not stop the job?
-        # free_thread(job)
-        return job.state
-    end
-end
-
-
-### Scheduler main
 const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
 const SCHEDULER_ACTION_LOCK = ReentrantLock()
 
@@ -378,13 +124,10 @@ end
 
 function unsafe_update_as_failed!(job::Job, current::DateTime = now())
     job.stop_time = current
-    # free_thread(job)
-    # @error "A job failed: $(job.id): $(job.name)" # exception=job.task.result
     job.state = FAILED
 end
 function unsafe_update_as_done!(job::Job, current::DateTime = now())
     job.stop_time = current
-    # free_thread(job)
     job.state = DONE
 end
 
@@ -418,27 +161,30 @@ end
 
 Caution: run it within lock only.
 
-Algorithm: Break for loop when found a dep not ok, and delete previous ok deps.
+Algorithm: Break while loop when found dep not ok, and change `job._dep_check_id` to the current id.
 
 If dep is provided as Integer, query Integer for job and then replace Integer with the job.
 """
 function is_dependency_ok(job::Job)
-    if length(job.dependency) == 0
+    if length(job.dependency) < job._dep_check_id
         return true
     end
-    deps_to_delete = 0
-    res = true
-    # break for loop when found dep not ok, and delete previous ok deps
-    for (i, dep) in enumerate(job.dependency)
+    # break while loop when found dep not ok, and change _dep_check_id to the current id
+
+    # _dep_check_id = 1 when init Job
+    n = length(job.dependency)
+    while job._dep_check_id <= n
+        dep = job.dependency[job._dep_check_id]
         state = dep.first
         if dep.second isa Integer
             dep_job = job_query_by_id_no_lock(dep.second)
 
             if isnothing(dep_job)
-                res = false
-                break
+                # considered finished because done job with no name will not be stored.
+                job._dep_check_id += 1
+                continue
             end
-            job.dependency[i] = state => dep_job
+            job.dependency[job._dep_check_id] = state => dep_job
         else
             dep_job = dep.second
         end
@@ -447,7 +193,7 @@ function is_dependency_ok(job::Job)
 
         if (state === dep_state) ||
         (state === PAST && dep_state in (FAILED, CANCELLED, DONE))
-            deps_to_delete = i
+            job._dep_check_id += 1
             continue
         end
 
@@ -455,21 +201,16 @@ function is_dependency_ok(job::Job)
             # change job state to cancelled
             @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is $(dep_job.state)."
             job.state = CANCELLED
-            res = false
             break
         elseif dep_state == DONE
             # change job state to cancelled
             @warn "Cancel job ($(job.id)) because one of its dependency ($(dep_job.id)) is done, but the required state is $(state)."
             job.state = CANCELLED
-            res = false
             break
         end
 
-        res = false
         break
     end
-    if deps_to_delete > 0
-        deleteat!(job.dependency, 1:deps_to_delete)
-    end
-    return res
+
+    return n < job._dep_check_id
 end
