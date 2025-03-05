@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Overhead Benchmark · JobSchedulers.jl</title><meta name="title" content="Overhead Benchmark · JobSchedulers.jl"/><meta property="og:title" content="Overhead Benchmark · JobSchedulers.jl"/><meta property="twitter:title" content="Overhead Benchmark · JobSchedulers.jl"/><meta name="description" content="Documentation for JobSchedulers.jl."/><meta property="og:description" content="Documentation for JobSchedulers.jl."/><meta property="twitter:description" content="Documentation for JobSchedulers.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">JobSchedulers.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../manual/">Manual</a></li><li><a class="tocitem" href="../use_cases/">Use Cases</a></li><li class="is-active"><a class="tocitem" href>Overhead Benchmark</a><ul class="internal"><li><a class="tocitem" href="#System-information"><span>System information</span></a></li><li><a class="tocitem" href="#Scripts"><span>Scripts</span></a></li><li><a class="tocitem" href="#Results"><span>Results</span></a></li><li><a class="tocitem" href="#Conclusions"><span>Conclusions</span></a></li></ul></li><li><a class="tocitem" href="../best_practice/">Best Practice (Please Read)</a></li><li><a class="tocitem" href="../API/">API</a></li><li><a class="tocitem" href="../changelog/">Change Log</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Overhead Benchmark</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Overhead Benchmark</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/cihga39871/JobSchedulers.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/cihga39871/JobSchedulers.jl/blob/main/docs/src/overhead.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Overhead-Test-of-Scheduling-Systems"><a class="docs-heading-anchor" href="#Overhead-Test-of-Scheduling-Systems">Overhead Test of Scheduling Systems</a><a id="Overhead-Test-of-Scheduling-Systems-1"></a><a class="docs-heading-anchor-permalink" href="#Overhead-Test-of-Scheduling-Systems" title="Permalink"></a></h1><p>To test the overhead of scheduling systems, I compared <code>Base.Threads</code>, <code>Dagger.jl</code>, and <code>JobSchedulers</code> using tiny tasks (<code>x::Int += y::Int</code>).</p><div class="admonition is-warning"><header class="admonition-header">Warning</header><div class="admonition-body"><p><code>x += y</code> is not thread-safe, and it is for overhead test only. BenchmarkTools.jl cannot be used in this case because it competes scheduling systems.</p></div></div><h2 id="System-information"><a class="docs-heading-anchor" href="#System-information">System information</a><a id="System-information-1"></a><a class="docs-heading-anchor-permalink" href="#System-information" title="Permalink"></a></h2><ul><li>Julia v1.11.3 with <code>-t 24,1</code> (24 threads in the default thread pool, and 1 interactive thread).</li><li>Each script run on seperate Julia sessions.</li><li>Ubuntu 22.04 system.</li><li>CPU: i9-13900K.</li><li>Memory: 196GB DDR5 4800 MT/s.</li></ul><h2 id="Scripts"><a class="docs-heading-anchor" href="#Scripts">Scripts</a><a id="Scripts-1"></a><a class="docs-heading-anchor-permalink" href="#Scripts" title="Permalink"></a></h2><p>The following scripts are used to test overhead of scheduling systems.</p><h3 id="overhead-baseline.jl"><a class="docs-heading-anchor" href="#overhead-baseline.jl">overhead-baseline.jl</a><a id="overhead-baseline.jl-1"></a><a class="docs-heading-anchor-permalink" href="#overhead-baseline.jl" title="Permalink"></a></h3><pre><code class="language-julia hljs">using .Threads
+function experiments_threads(a, K=10000)
+    x = 0
+    Threads.@threads for i in 1:K
+        x += a
+    end
+    x
+end
+
+# compile
+experiments_threads(1, 10)
+
+# test
+@time experiments_threads(1, 10000);
+@time experiments_threads(1, 10000);
+@time experiments_threads(1, 10000);
+#   0.000267 seconds (9.61 k allocations: 160.906 KiB)
+#   0.000244 seconds (8.87 k allocations: 149.297 KiB)
+#   0.000186 seconds (9.35 k allocations: 156.750 KiB)
+
+@time experiments_threads(1, 100000);
+@time experiments_threads(1, 100000);
+@time experiments_threads(1, 100000);
+#   0.001288 seconds (98.01 k allocations: 1.506 MiB)
+#   0.001620 seconds (99.14 k allocations: 1.523 MiB)
+#   0.001470 seconds (99.61 k allocations: 1.530 MiB)</code></pre><h3 id="overhead-jobschedulers.jl"><a class="docs-heading-anchor" href="#overhead-jobschedulers.jl">overhead-jobschedulers.jl</a><a id="overhead-jobschedulers.jl-1"></a><a class="docs-heading-anchor-permalink" href="#overhead-jobschedulers.jl" title="Permalink"></a></h3><pre><code class="language-julia hljs">using JobSchedulers
+
+function experiments_jobschedulers(a, K=10000)
+    x = 0
+    f() = x += a
+    for i in 1:K
+        submit!(f)
+    end
+    wait_queue()
+    x
+end
+
+# compile
+experiments_jobschedulers(1, 10)
+
+# test
+@time experiments_jobschedulers(1, 10000);
+@time experiments_jobschedulers(1, 10000);
+@time experiments_jobschedulers(1, 10000);
+#   0.007842 seconds (183.09 k allocations: 10.913 MiB, 153 lock conflicts)
+#   0.007895 seconds (175.75 k allocations: 10.796 MiB, 105 lock conflicts)
+#   0.007898 seconds (178.11 k allocations: 10.833 MiB, 156 lock conflicts)
+
+@time experiments_jobschedulers(1, 100000);
+@time experiments_jobschedulers(1, 100000);
+@time experiments_jobschedulers(1, 100000);
+#   0.131069 seconds (1.77 M allocations: 108.108 MiB, 44.85% gc time, 2504 lock conflicts)
+#   0.129815 seconds (1.77 M allocations: 108.115 MiB, 36.40% gc time, 2375 lock conflicts)
+#   0.116019 seconds (1.77 M allocations: 108.131 MiB, 33.54% gc time, 2423 lock conflicts)</code></pre><h3 id="overhead-dagger.jl"><a class="docs-heading-anchor" href="#overhead-dagger.jl">overhead-dagger.jl</a><a id="overhead-dagger.jl-1"></a><a class="docs-heading-anchor-permalink" href="#overhead-dagger.jl" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Dagger
+function experiments_dagger(a, K=10000)
+    x = 0
+    f() = x += a
+    @sync for i in 1:K
+        Dagger.@spawn f()
+    end
+    x
+end
+
+# compile
+experiments_dagger(1, 10)
+
+# test
+@time experiments_dagger(1, 10000);
+@time experiments_dagger(1, 10000);
+@time experiments_dagger(1, 10000);
+#   1.097989 seconds (31.55 M allocations: 2.315 GiB, 33.66% gc time, 761375 lock conflicts)
+#   1.314606 seconds (27.20 M allocations: 1.944 GiB, 33.19% gc time, 622269 lock conflicts)
+#   1.121939 seconds (30.54 M allocations: 2.227 GiB, 32.63% gc time, 738192 lock conflicts)
+
+@time experiments_dagger(1, 100000);
+@time experiments_dagger(1, 100000);
+@time experiments_dagger(1, 100000);
+#  11.078450 seconds (305.29 M allocations: 22.357 GiB, 36.32% gc time, 7429201 lock conflicts)
+#  12.931351 seconds (316.35 M allocations: 23.249 GiB, 35.22% gc time, 7587318 lock conflicts)
+#  11.318478 seconds (121.07 M allocations: 7.953 GiB, 22.46% gc time, 1476778 lock conflicts, 0.04% compilation time)</code></pre><h2 id="Results"><a class="docs-heading-anchor" href="#Results">Results</a><a id="Results-1"></a><a class="docs-heading-anchor-permalink" href="#Results" title="Permalink"></a></h2><p>Table. Benchmark of average elapsed time to schedule 10,000 and 100,000 tasks using different scheduling systems.</p><table><tr><th style="text-align: left">Modules</th><th style="text-align: right">10,000 Tasks</th><th style="text-align: right">100,000 Tasks</th></tr><tr><td style="text-align: left">Base.Threads</td><td style="text-align: right">0.000232 s</td><td style="text-align: right">0.001459 s</td></tr><tr><td style="text-align: left">JobSchedulers</td><td style="text-align: right">0.007878 s</td><td style="text-align: right">0.125634 s</td></tr><tr><td style="text-align: left">Dagger</td><td style="text-align: right">1.178178 s</td><td style="text-align: right">11.776093 s</td></tr></table><ul><li><p>JobSchedulers.jl can schedule 10,000 tasks within 0.01 second, which is 150X faster than Dagger.</p></li><li><p>JobSchedulers.jl is robust, and able to achive a decent speed when scaling up to 100,000 tasks.</p></li></ul><h2 id="Conclusions"><a class="docs-heading-anchor" href="#Conclusions">Conclusions</a><a id="Conclusions-1"></a><a class="docs-heading-anchor-permalink" href="#Conclusions" title="Permalink"></a></h2><p>JobSchedulers.jl has very little overhead when comparing with Base.Threads, but provides strong extensive features than Base.Threads.</p><p>The low overhead of JobSchedulers.jl makes it interchangable with Base.Threads.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../use_cases/">« Use Cases</a><a class="docs-footer-nextpage" href="../best_practice/">Best Practice (Please Read) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Wednesday 5 March 2025 19:42">Wednesday 5 March 2025</span>. Using Julia version 1.10.8.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
