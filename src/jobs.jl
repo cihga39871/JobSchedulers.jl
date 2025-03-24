@@ -415,7 +415,7 @@ function next_recur_job(j::Job)
     job = Job(generate_id(), j.name, j.user, j.ncpu, j.mem, schedule_time, now(), DateTime(0), DateTime(0), j.wall_time, j.cron, j.until, QUEUING, j.priority, j.dependency, nothing, j.stdout, j.stderr, 0, j._func, j._need_redirect, j._group)
 
     if job._need_redirect
-        task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
+        task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = "a+") do
             try
                 res = Base.invokelatest(job._func)
                 unsafe_update_as_done!(job)

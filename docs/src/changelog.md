@@ -1,5 +1,9 @@
 # Changelog
 
+v0.11.6
+
+- Fix: `append` not defined when calling `next_recur_job(::Job)` and the job need IO redirection.
+
 v0.11.5
 
 - Change/Optim: items in `job.dependency` will not be deleted when states meet. Use `job._dep_check_id` to store the next dependency id. Backup will remove `job.dependency` before storing a job.
