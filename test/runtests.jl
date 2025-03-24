@@ -3,7 +3,17 @@ using JobSchedulers
 using Base.Threads
 using Test
 
+scheduler_balance_check(title::String) = @testset "Balance check after $title" begin
+	wait_queue()
+	@test scheduler_status() === RUNNING
+	
+	@test length(JobSchedulers.THREAD_POOL[].data) == length(JobSchedulers.TIDS)
+	@test Set(JobSchedulers.THREAD_POOL[].data) == Set(JobSchedulers.TIDS)
+end
+
 @testset "JobSchedulers" begin
+
+	include("test_linked_job_list.jl")
 
 	@testset "Basic" begin
 
@@ -25,6 +35,7 @@ using Test
 		submit!(command_job)
 		submit!(task_job)
 		submit!(function_job)
+		@test scheduler_status() === :running
 		wait_queue()
 		@test scheduler_status() === :running
 
@@ -32,7 +43,7 @@ using Test
 		display(job)
 		submit!(job)
 
-		wait_queue()
+		scheduler_balance_check("job submission")
 
 		@test scheduler_status() === :running
 
@@ -70,6 +81,8 @@ using Test
 
 		@test_throws Exception submit!(job2) # cannot resubmit
 		@test_throws Exception submit!(job) # cannot resubmit
+		scheduler_balance_check("job cancellation")
+
 	end
 
 	@testset "Dependency" begin
@@ -298,17 +311,23 @@ using Test
 		@warn "`JobSchedulers.SINGLE_THREAD_MODE[]` during testing. It will not test multi-thread related codes."
 	end
 
+	scheduler_balance_check("thread ID test")
+
 	@testset "Terming" begin
 		include("terming.jl")
 	end
+
+	scheduler_balance_check("terminal tests")
+
 	@testset "Recur" begin
 		include("recur.jl")
 	end
+
+	scheduler_balance_check("recur job tests")
 
 	@testset "Macro" begin
 		include("test_macro.jl")
 	end
 
-
-	@test scheduler_status() === RUNNING
+	scheduler_balance_check("all tests")
 end

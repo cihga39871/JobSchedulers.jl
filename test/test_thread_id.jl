@@ -7,17 +7,14 @@
 
     jobs = Job[]
     @time for i in 1:100
-        local job = Job() do
+        local job = submit!() do
             x = Threads.threadid()
-            sleep(rand())
-            sleep(rand())
+            yield()
+            yield()
+            sleep(rand()*0.3)
+            yield()
             y = Threads.threadid()
             return (x, y)
-        end
-        c = JobSchedulers.THREAD_POOL[]
-        JobSchedulers.schedule_thread(job)
-        if !JobSchedulers.SINGLE_THREAD_MODE[]
-            put!(JobSchedulers.THREAD_POOL[], 2)
         end
         push!(jobs, job)
     end
@@ -34,7 +31,7 @@
                 @show job._thread_id, x, y
                 error("Test fail. Job migrating is observed but should be disallowed in JobSchedulers.")
             end
-            if x != job._thread_id
+            if x != abs(job._thread_id)
                 # the job is not freed, so job._thread_id will not become -job._thread_id
                 @show job._thread_id, x, y
                 error("Test fail. Job migrating is observed but should be disallowed in JobSchedulers.")

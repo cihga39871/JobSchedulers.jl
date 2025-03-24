@@ -122,8 +122,9 @@ end
     display(queue("recur print"))
 
     @test length(js) > 1
-    @test js[1].id != js[2].id && js[1].name == js[2].name
-    
-    # cancel!.(queue(QUEUING, "recur print date time"))
-    
+    if length(js) >= 2
+        @test js[1].id != js[2].id && js[1].name == js[2].name
+    else
+        error("Recur job not submitted!")
+    end
 end

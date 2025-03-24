@@ -145,7 +145,7 @@ all_queue(id::Integer) = job_query(id)
 all_queue(state::Symbol) = queue(state)
 all_queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}) = queue(:all, needle)
 
-const JOB_PUBLIC_NAMES = tuple(filter!(x -> string(x)[1] != '_', collect(fieldnames(Job)))...)
+const JOB_PUBLIC_NAMES = tuple(filter!(x -> string(x)[1] != '_' && x !== :task, collect(fieldnames(Job)))..., :task)
 function Base.propertynames(j::Job, private::Bool=false)
     if private
         fieldnames(Job)
@@ -154,53 +154,79 @@ function Base.propertynames(j::Job, private::Bool=false)
     end
 end
 
+function trygetfield(obj, sym)
+    if isdefined(obj, sym)
+        getfield(obj, sym)
+    else
+        "#undef"
+    end
+end
+
 @eval function Base.show(io::IO, ::MIME"text/plain", job::Job)
     fs = JOB_PUBLIC_NAMES
     fs_string = $(map(string, JOB_PUBLIC_NAMES))
     max_byte = $(maximum(length, map(string, JOB_PUBLIC_NAMES)))
-    result = "Job:\n"
+
+    lock(io)
+    println(io, "Job:")
     for (i,f) in enumerate(fs)
-        result *= string("  ", f, " " ^ (max_byte - length(fs_string[i])) * " → ")
+        print(io, string("  ", f, " " ^ (max_byte - length(fs_string[i])) * " → "))
         if f === :mem
-            result *= simplify_memory(getfield(job, f), true) * "\n"
+            println(io, simplify_memory(trygetfield(job, f), true))
+        elseif f === :task
+            if isdefined(job, :task)
+                if job.task isa Task
+                    show(io, "text/plain", job.task)
+                    println(io)
+                else
+                    println(io, "nothing")
+                end
+            else
+                println(io, "#undef")
+            end
         else
-            result *= simplify(getfield(job, f), true) * "\n"
+            println(io, simplify(trygetfield(job, f), true))
         end
     end
-    print(io, result)
+    unlock(io)
 end
 
 function Base.show(io::IO, job::Job)
-    if isempty(job.name)
+    if !isdefined(job, :state)
+        print(io, "Job(#undef)")
+    elseif isempty(job.name)
         print(io, "Job($(job.id): $(job.state))")
     else
         print(io, "Job($(job.id) \"$(job.name)\": $(job.state))")
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", job_queue::Vector{Job};
+function Base.show(io::IO, ::MIME"text/plain", job_queue::T;
     allrows::Bool = !get(io, :limit, false),
     allcols::Bool = !get(io, :limit, false)
-)
+) where T <: Union{Vector{Job},LinkedJobList}
+
     field_order = [:state, :id, :name, :user, :ncpu, :mem, :priority, :dependency, :start_time, :stop_time, :schedule_time, :submit_time, :wall_time, :cron, :until]
-    mat = [JobSchedulers.simplify(getfield(j,f)) for j in job_queue, f in field_order]
-    mat = hcat(
-        [JobSchedulers.simplify(getfield(j, :state)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :id)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :name)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :user)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :ncpu)) for j in job_queue],
-        [JobSchedulers.simplify_memory(getfield(j, :mem)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :priority)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :dependency)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :start_time)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :stop_time)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :schedule_time)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :submit_time)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :wall_time)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :cron)) for j in job_queue],
-        [JobSchedulers.simplify(getfield(j, :until)) for j in job_queue],
-    )
+
+    mat = Matrix{String}(undef, length(job_queue), length(field_order))
+
+    for (i, j) in enumerate(job_queue)
+        mat[i, 1] = JobSchedulers.simplify(trygetfield(j, :state))
+        mat[i, 2] = JobSchedulers.simplify(trygetfield(j, :id))
+        mat[i, 3] = JobSchedulers.simplify(trygetfield(j, :name))
+        mat[i, 4] = JobSchedulers.simplify(trygetfield(j, :user))
+        mat[i, 5] = JobSchedulers.simplify(trygetfield(j, :ncpu))
+        mat[i, 6] = JobSchedulers.simplify_memory(trygetfield(j, :mem))
+        mat[i, 7] = JobSchedulers.simplify(trygetfield(j, :priority))
+        mat[i, 8] = JobSchedulers.simplify(trygetfield(j, :dependency))
+        mat[i, 9] = JobSchedulers.simplify(trygetfield(j, :start_time))
+        mat[i, 10] = JobSchedulers.simplify(trygetfield(j, :stop_time))
+        mat[i, 11] = JobSchedulers.simplify(trygetfield(j, :schedule_time))
+        mat[i, 12] = JobSchedulers.simplify(trygetfield(j, :submit_time))
+        mat[i, 13] = JobSchedulers.simplify(trygetfield(j, :wall_time))
+        mat[i, 14] = JobSchedulers.simplify(trygetfield(j, :cron))
+        mat[i, 15] = JobSchedulers.simplify(trygetfield(j, :until))
+    end
 
     if allcols && allrows
         crop = :none
@@ -211,15 +237,17 @@ function Base.show(io::IO, ::MIME"text/plain", job_queue::Vector{Job};
     else
         crop = :both
     end
-    println(io, "$(length(job_queue))-element Vector{Job}:")
+    lock(io)
+    println(io, "$(length(job_queue))-element $(T):")
     JobSchedulers.pretty_table(io, mat; header = field_order, crop = crop, maximum_columns_width = 20, vcrop_mode = :middle, show_row_number = true)
+    unlock(io)
 end
 
 
 
 simplify(x::Symbol, detail::Bool = false) = ":$x"
 simplify(x::Integer, detail::Bool = false) = string(x)
-simplify(x::AbstractString, detail::Bool = false) = "\"$x\""
+simplify(x::AbstractString, detail::Bool = false) = x == "#undef" ? x : "\"$x\""
 simplify(x::Float64, detail::Bool = false) = string(round(x, digits=1))
 
 function simplify(x::DateTime, detail::Bool = false)

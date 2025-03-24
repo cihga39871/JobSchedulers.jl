@@ -10,6 +10,7 @@ To test the overhead of scheduling systems, I compared `Base.Threads`, `Dagger.j
 
 - Julia v1.11.3 with `-t 24,1` (24 threads in the default thread pool, and 1 interactive thread).
 - Each script run on seperate Julia sessions.
+- JobSchedulers.jl v0.11.6; Dagger v0.18.14.
 - Ubuntu 22.04 system.
 - CPU: i9-13900K.
 - Memory: 196GB DDR5 4800 MT/s.
@@ -71,16 +72,16 @@ experiments_jobschedulers(1, 10)
 @time experiments_jobschedulers(1, 10000);
 @time experiments_jobschedulers(1, 10000);
 @time experiments_jobschedulers(1, 10000);
-#   0.007842 seconds (183.09 k allocations: 10.913 MiB, 153 lock conflicts)
-#   0.007895 seconds (175.75 k allocations: 10.796 MiB, 105 lock conflicts)
-#   0.007898 seconds (178.11 k allocations: 10.833 MiB, 156 lock conflicts)
+#  0.007719 seconds (170.36 k allocations: 10.767 MiB, 197 lock conflicts)
+#  0.007741 seconds (159.35 k allocations: 10.566 MiB, 198 lock conflicts)
+#  0.010097 seconds (157.05 k allocations: 10.524 MiB, 14.18% gc time, 70 lock conflicts)
 
 @time experiments_jobschedulers(1, 100000);
 @time experiments_jobschedulers(1, 100000);
 @time experiments_jobschedulers(1, 100000);
-#   0.131069 seconds (1.77 M allocations: 108.108 MiB, 44.85% gc time, 2504 lock conflicts)
-#   0.129815 seconds (1.77 M allocations: 108.115 MiB, 36.40% gc time, 2375 lock conflicts)
-#   0.116019 seconds (1.77 M allocations: 108.131 MiB, 33.54% gc time, 2423 lock conflicts)
+#  0.119578 seconds (1.57 M allocations: 105.162 MiB, 30.19% gc time, 2344 lock conflicts)
+#  0.122050 seconds (1.56 M allocations: 105.044 MiB, 37.64% gc time, 2216 lock conflicts)
+#  0.113245 seconds (1.56 M allocations: 105.055 MiB, 33.09% gc time, 2205 lock conflicts)
 ```
 
 ### overhead-dagger.jl
@@ -122,7 +123,7 @@ Table. Benchmark of average elapsed time to schedule 10,000 and 100,000 tasks us
 | Modules       | 10,000 Tasks | 100,000 Tasks |
 | :------------ | -----------: | ------------: |
 | Base.Threads  | 0.000232 s   |  0.001459 s   |
-| JobSchedulers | 0.007878 s   |  0.125634 s   |
+| JobSchedulers | 0.008519 s   |  0.118291 s   |
 | Dagger        | 1.178178 s   | 11.776093 s   |
 
 - JobSchedulers.jl can schedule 10,000 tasks within 0.01 second, which is 150X faster than Dagger.

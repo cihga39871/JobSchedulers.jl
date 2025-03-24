@@ -27,6 +27,7 @@ isqueuing, isrunning, isdone, iscancelled, isfailed, ispast
 include("thread_utils.jl")
 
 include("LinkedListIterate.jl")
+export LinkedJobList
 
 include("JobQueue.jl")
 

@@ -83,9 +83,9 @@ function backup()
     # update running: update state, cancel jobs reaching wall time, moving finished from running to others, add next recur of successfully finished job to future queue, and compute current usage.
     update_running!(now())
 
-    q_cancelled = Vector{Job}()
-    q_done = Vector{Job}()
-    q_failed = Vector{Job}()
+    q_cancelled = Vector{JobSerialization}()
+    q_done = Vector{JobSerialization}()
+    q_failed = Vector{JobSerialization}()
     lock(JOB_QUEUE.lock_queuing) do 
         for jobs in values(JOB_QUEUE.queuing)
             for j in jobs
@@ -130,12 +130,83 @@ end
 
 atexit(backup)
 
-function backup_job!(q_cancelled::Vector{Job}, q_done::Vector{Job}, q_failed::Vector{Job}, j::Job)
-    job = deepcopy(j)
-    job.task = nothing
-    job._func = nothing
-    job._dep_check_id = 1
-    empty!(job.dependency)
+mutable struct JobSerialization
+    id::Int64
+    name::String
+    user::String
+    ncpu::Float64
+    mem::Int64
+    schedule_time::DateTime
+    submit_time::DateTime
+    start_time::DateTime
+    stop_time::DateTime
+    wall_time::Period
+    cron::Cron
+    until::DateTime
+    state::Symbol
+    priority::Int
+end
+function JobSerialization(j::Job)
+    JobSerialization(
+        j.id,
+        j.name,
+        j.user,
+        j.ncpu,
+        j.mem,
+        j.schedule_time,
+        j.submit_time,
+        j.start_time,
+        j.stop_time,
+        j.wall_time,
+        j.cron,
+        j.until,
+        j.state,
+        j.priority
+    )
+end
+
+JLD2.writeas(::Type{Job}) = JobSerialization
+Base.convert(::Type{JobSerialization}, j::Job) = JobSerialization(j)
+JLD2.readas(::Type{JobSerialization}) = Job
+function Base.convert(::Type{Job}, s::JobSerialization)
+    j = Job(undef)
+    
+    j.id = s.id
+    j.name = s.name
+    j.user = s.user
+    j.ncpu = s.ncpu
+    j.mem = s.mem
+    j.schedule_time = s.schedule_time
+    j.submit_time = s.submit_time
+    j.start_time = s.start_time
+    j.stop_time = s.stop_time
+    j.wall_time = s.wall_time
+    j.cron = s.cron
+    j.until = s.until
+    j.state = if s.state === DONE
+        DONE
+    elseif s.state === FAILED
+        FAILED
+    else
+        CANCELLED
+    end
+    j.priority = s.priority
+    j.dependency = Vector{Pair{Symbol,Union{Int64, Job}}}()
+    j.task = nothing
+    j.stdout = nothing
+    j.stderr = nothing
+    j._thread_id = 0
+    j._func = nothing
+    j._need_redirect = false
+    j._group = ""
+    j._group_state = :nothing
+    j._dep_check_id = 1
+    return j
+end
+
+function backup_job!(q_cancelled::Vector{JobSerialization}, q_done::Vector{JobSerialization}, q_failed::Vector{JobSerialization}, j::Job)
+    job = JobSerialization(j)
+
     if job.state === DONE
         push!(q_done, job)
     elseif job.state === FAILED
@@ -145,12 +216,8 @@ function backup_job!(q_cancelled::Vector{Job}, q_done::Vector{Job}, q_failed::Ve
         push!(q_cancelled, job)
     end
 end
-function backup_job!(q::Vector{Job}, j::Job)
-    job = deepcopy(j)
-    job.task = nothing
-    job._func = nothing
-    job._dep_check_id = 1
-    empty!(job.dependency)
+function backup_job!(q::Vector{JobSerialization}, j::Job)
+    job = JobSerialization(j)
     push!(q, job)
 end
 

@@ -3,6 +3,9 @@
 v0.11.6
 
 - Fix: `append` not defined when calling `next_recur_job(::Job)` and the job need IO redirection.
+- Optim: better text/plain output for Job. If Job is failed, show error and stack trace.
+- Optim: faster processing of showing job lists/vectors.
+- Optim: linked list updates: Job now has internal `_prev` and `_next` fields to replace `MutableLinkedList`, which creates a node wrapper for each job in each list. Now saves a little bit memory.
 
 v0.11.5
 
