@@ -316,6 +316,7 @@ function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
         end
         PROGRESS_WAIT = false
     end
+    @info "wait queue done."
     nothing
 end
 
