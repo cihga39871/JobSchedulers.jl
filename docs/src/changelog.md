@@ -1,5 +1,9 @@
 # Changelog
 
+v0.11.7
+
+- Fix: `are_remaining_jobs_more_than(x)` not always return a Bool, which causes seg fault.
+
 v0.11.6
 
 - Fix: `append` not defined when calling `next_recur_job(::Job)` and the job need IO redirection.
