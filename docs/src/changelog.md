@@ -1,6 +1,6 @@
 # Changelog
 
-v0.11.7
+v0.11.7-8
 
 - Fix: `are_remaining_jobs_more_than(x)` not always return a Bool, which causes seg fault.
 

@@ -141,19 +141,20 @@ function are_remaining_jobs_more_than(x::Integer) :: Bool
     n = 0
     # @debug "n_job_remaining lock_queuing"
     lock(JOB_QUEUE.lock_queuing) do
-        for jobs in values(JOB_QUEUE.queuing)
-            n += length(jobs)
-            n > x && return true
+        lock(JOB_QUEUE.lock_running) do
+            n += length(JOB_QUEUE.running)
+            n > x && return
+
+            for jobs in values(JOB_QUEUE.queuing)
+                n += length(jobs)
+                n > x && return
+            end
+            n += length(JOB_QUEUE.queuing_0cpu)
+            n += length(JOB_QUEUE.future)
+            n > x && return
         end
-        n += length(JOB_QUEUE.queuing_0cpu)
-        n += length(JOB_QUEUE.future)
-        n > x && return true
     end
     # @debug "n_job_remaining lock_queuing ok"
-    lock(JOB_QUEUE.lock_running) do
-        n += length(JOB_QUEUE.running)
-        n > x && return true
-    end
     n > x
 end
 
