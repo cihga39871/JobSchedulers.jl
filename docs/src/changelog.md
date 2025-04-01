@@ -1,8 +1,16 @@
 # Changelog
 
-v0.11.7-8
+v0.11.8
 
-- Fix: `are_remaining_jobs_more_than(x)` not always return a Bool, which causes seg fault.
+- Optim: update struct of `global RESOURCE = Resource(ncpu, mem, njob)`. njob is new here. When job is submitted, njob += 1. When job is done/fail/cancelled, njob -= 1. 
+- Optim: `are_remaining_jobs_more_than(x) = RESOURCE.njob > x`, which does not use lock anymore.
+- Optim: `put!(SCHEDULER_PROGRESS_ACTION[], 1)` is moved from `scheduler_need_action()` to `update_queue!()`, assuring progress check/update is always after queue update and resource computation.
+- Optim: remove `SCHEDULER_ACTION_LOCK` because Channel are thread safe in Julia.
+- Change: `try_push_next_recur!` now `try_submit_next_recur!`. submit has more checks.
+
+v0.11.7
+
+- Change: `are_remaining_jobs_more_than(x)` uses lock. Later in v0.11.8 will find unnecessary.
 
 v0.11.6
 

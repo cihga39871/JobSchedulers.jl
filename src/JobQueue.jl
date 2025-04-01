@@ -94,7 +94,7 @@ function push_done!(job::Job)
         end
         # @debug "push_done! lock_past ok"
     end
-    try_push_next_recur!(job)
+    try_submit_next_recur!(job)
 end
 function push_cancelled!(job::Job)
     # @debug "push_cancelled! lock_past"
@@ -106,19 +106,20 @@ end
 
 
 """
-    try_push_next_recur!(job::Job)
+    try_submit_next_recur!(job::Job)
 
 This need to be done only when `job.state === DONE`.
 """
-function try_push_next_recur!(job::Job)
+function try_submit_next_recur!(job::Job)
     next_job = next_recur_job(job)
     isnothing(next_job) && return
 
-    # @debug "try_push_next_recur! lock_queuing"
-    lock(JOB_QUEUE.lock_queuing) do
-        push!(JOB_QUEUE.future, next_job)
-    end
-    # @debug "try_push_next_recur! lock_queuing ok"
+    # @debug "try_submit_next_recur! lock_queuing"
+    submit!(next_job)
+    # lock(JOB_QUEUE.lock_queuing) do
+    #     push!(JOB_QUEUE.future, next_job)
+    # end
+    # @debug "try_submit_next_recur! lock_queuing ok"
     return
 end
 
@@ -138,24 +139,24 @@ function n_job_remaining()
 end
 
 function are_remaining_jobs_more_than(x::Integer) :: Bool
-    n = 0
+    # n = 0
     # @debug "n_job_remaining lock_queuing"
-    lock(JOB_QUEUE.lock_queuing) do
-        lock(JOB_QUEUE.lock_running) do
-            n += length(JOB_QUEUE.running)
-            n > x && return
+    # lock(JOB_QUEUE.lock_queuing) do
+    #     lock(JOB_QUEUE.lock_running) do
+    #         n += length(JOB_QUEUE.running)
+    #         n > x && return
 
-            for jobs in values(JOB_QUEUE.queuing)
-                n += length(jobs)
-                n > x && return
-            end
-            n += length(JOB_QUEUE.queuing_0cpu)
-            n += length(JOB_QUEUE.future)
-            n > x && return
-        end
-    end
+    #         for jobs in values(JOB_QUEUE.queuing)
+    #             n += length(jobs)
+    #             n > x && return
+    #         end
+    #         n += length(JOB_QUEUE.queuing_0cpu)
+    #         n += length(JOB_QUEUE.future)
+    #         n > x && return
+    #     end
+    # end
     # @debug "n_job_remaining lock_queuing ok"
-    n > x
+    RESOURCE.njob > x
 end
 
 const priority_delete = Int[]
@@ -166,13 +167,26 @@ function update_queue!()
 
     move_future_to_queuing(current)
 
-    # update running: update state, cancel jobs reaching wall time, moving finished from running to others, add next recur of successfully finished job to future queue, and compute current usage.
+    # update running: 
+        # update state, 
+        # cancel jobs reaching wall time, 
+        # moving finished from running to others, 
+        # add next recur of successfully finished job to future queue, 
+        # compute current usage and compute minus of RESOURCE.njob
     used_ncpu, used_mem = update_running!(current)
     update_resource(used_ncpu, used_mem)
 
+    # run_queuing!:
+        # go through queuing jobs,
+        # if status is CANCELLED/DONE/FAILED, move out and compute RESOURCE.njob -= 1
+        # else, unsafe run an move to running list.
     free_ncpu = SCHEDULER_MAX_CPU - used_ncpu
     free_mem = SCHEDULER_MAX_MEM - used_mem
     run_queuing!(current, free_ncpu, free_mem)
+
+    if (PROGRESS_METER || PROGRESS_WAIT) && !isready(SCHEDULER_PROGRESS_ACTION[]) 
+        put!(SCHEDULER_PROGRESS_ACTION[], 1)
+    end
 
     # clean done and cancelled queue if exceed max_done and max_cancelled
     clean_queue!()
@@ -199,6 +213,7 @@ function update_running!(current::DateTime)
                 deleteat!(JOB_QUEUE.running, job)
                 free_thread(job)
                 push_cancelled!(job)
+                @atomic RESOURCE.njob -= 1
                 PROGRESS_METER && update_group_state!(job)
                 continue
             end
@@ -209,12 +224,14 @@ function update_running!(current::DateTime)
                 deleteat!(JOB_QUEUE.running, job)
                 free_thread(job)
                 push_failed!(job)
+                @atomic RESOURCE.njob -= 1
                 PROGRESS_METER && update_group_state!(job)
                 continue
             elseif job.state === DONE
                 deleteat!(JOB_QUEUE.running, job)
                 free_thread(job)
                 push_done!(job)
+                @atomic RESOURCE.njob -= 1
                 PROGRESS_METER && update_group_state!(job)
                 continue
             elseif job.task.state === DONE
@@ -222,6 +239,7 @@ function update_running!(current::DateTime)
                 deleteat!(JOB_QUEUE.running, job)
                 free_thread(job)
                 push_done!(job)
+                @atomic RESOURCE.njob -= 1
                 PROGRESS_METER && update_group_state!(job)
                 continue
             end
@@ -234,18 +252,21 @@ function update_running!(current::DateTime)
                         deleteat!(JOB_QUEUE.running, job)
                         free_thread(job)
                         push_cancelled!(job)
+                        @atomic RESOURCE.njob -= 1
                         PROGRESS_METER && update_group_state!(job)
                         continue
                     elseif state === DONE
                         deleteat!(JOB_QUEUE.running, job)
                         free_thread(job)
                         push_done!(job)
+                        @atomic RESOURCE.njob -= 1
                         PROGRESS_METER && update_group_state!(job)
                         continue
                     elseif state === FAILED
                         deleteat!(JOB_QUEUE.running, job)
                         free_thread(job)
                         push_failed!(job)
+                        @atomic RESOURCE.njob -= 1
                         PROGRESS_METER && update_group_state!(job)
                         continue
                     end
@@ -313,6 +334,8 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                         elseif job.state === FAILED
                             push_failed!(job)
                         end
+                        free_thread(job)
+                        @atomic RESOURCE.njob -= 1
                     end
                     PROGRESS_METER && update_group_state!(job)
                 end
@@ -345,6 +368,8 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                 if job.state === CANCELLED
                     deleteat!(jobs, job)
                     push_cancelled!(job)
+                    free_thread(job)
+                    @atomic RESOURCE.njob -= 1
                     PROGRESS_METER && update_group_state!(job)
                     continue
                 end
@@ -374,6 +399,8 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                         elseif job.state === FAILED
                             push_failed!(job)
                         end
+                        free_thread(job)
+                        @atomic RESOURCE.njob -= 1
                     end
                     PROGRESS_METER && update_group_state!(job)
                 else

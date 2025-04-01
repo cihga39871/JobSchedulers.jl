@@ -11,15 +11,16 @@ const BAR_RIGHT = "▎"
 const BLOCK = "█"
 
 mutable struct Resource
-    cpu::Float64
-    mem::Int64
+    @atomic cpu::Float64
+    @atomic mem::Int64
+    @atomic njob::Int  # number of job in queuing and running.
 end
-const RESOURCE = Resource(0,0)
+const RESOURCE = Resource(Float64(0), Int64(0), 0)
 
 function update_resource(cpu::Real, mem::Int64)
     global RESOURCE
-    RESOURCE.cpu = cpu
-    RESOURCE.mem = mem
+    @atomic RESOURCE.cpu = cpu
+    @atomic RESOURCE.mem = mem
 end
 
 """

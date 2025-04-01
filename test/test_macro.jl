@@ -1,6 +1,6 @@
 
 
-@testset "@submit" begin
+@testset "macro @submit" begin
     j = @submit name = "abc" dependency = [] 1+1
     wait(j)
     @test result(j) == 2

@@ -307,7 +307,7 @@ function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
     else
         PROGRESS_WAIT = true
         while true
-            (@show are_remaining_jobs_more_than(exit_num_jobs)) || break
+            are_remaining_jobs_more_than(exit_num_jobs) || break
             if scheduler_status(verbose=false) !== RUNNING
                 @error "Scheduler was not running. Jump out from wait_queue()"
                 break
@@ -316,7 +316,6 @@ function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
         end
         PROGRESS_WAIT = false
     end
-    @info "wait queue done."
     nothing
 end
 

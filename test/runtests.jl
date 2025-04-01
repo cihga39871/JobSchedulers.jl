@@ -4,9 +4,11 @@ using Base.Threads
 using Test
 
 scheduler_balance_check(title::String) = @testset "Balance check after $title" begin
+	@info "scheduler_balance_check: wait_queue: $title"
 	wait_queue()
 	@test scheduler_status() === RUNNING
 	
+	@test JobSchedulers.RESOURCE.njob == 0
 	@test length(JobSchedulers.THREAD_POOL[].data) == length(JobSchedulers.TIDS)
 	@test Set(JobSchedulers.THREAD_POOL[].data) == Set(JobSchedulers.TIDS)
 end
@@ -72,7 +74,7 @@ end
 				println(now())
 				sleep(1)
 			end
-		end), name="to_cancel", priority = 20)
+		end), name="to_cancel2", priority = 20)
 		
 		@info "submit!(job2)"
 		submit!(job2)
@@ -329,5 +331,5 @@ end
 		include("test_macro.jl")
 	end
 
-	scheduler_balance_check("all tests")
+	scheduler_balance_check("macro @submit tests")
 end

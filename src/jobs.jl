@@ -425,7 +425,7 @@ function next_recur_job(j::Job)
     end
     # This job needs to be submitted using push!(new_job, JOB_QUEUE), cannot be submitted by submit!(new_job)
 
-    job = Job(generate_id(), j.name, j.user, j.ncpu, j.mem, schedule_time, now(), DateTime(0), DateTime(0), j.wall_time, j.cron, j.until, QUEUING, j.priority, j.dependency, nothing, j.stdout, j.stderr, 0, j._func, j._need_redirect, j._group)
+    job = Job(generate_id(), j.name, j.user, j.ncpu, j.mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), j.wall_time, j.cron, j.until, QUEUING, j.priority, j.dependency, nothing, j.stdout, j.stderr, 0, j._func, j._need_redirect, j._group)
 
     if job._need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = "a+") do

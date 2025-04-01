@@ -135,7 +135,6 @@ JobSchedulers.TIDS
 
 ```julia
 const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
-const SCHEDULER_ACTION_LOCK = ReentrantLock()
 const SCHEDULER_PROGRESS_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
 
 SCHEDULER_MAX_CPU::Int = -1              # set in __init__
