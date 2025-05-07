@@ -1,8 +1,12 @@
 # Changelog
 
+v0.11.9
+
+- Fix: Jobs not garbage collected: dereferencing jobs after removing from Linked Job List.
+
 v0.11.8
 
-- Optim: update struct of `global RESOURCE = Resource(ncpu, mem, njob)`. njob is new here. When job is submitted, njob += 1. When job is done/fail/cancelled, njob -= 1. 
+- Optim: update struct of `global RESOURCE = Resource(ncpu, mem, njob)`. njob is new here. When job is submitted, njob += 1. When job is done/fail/cancelled, njob -= 1.
 - Optim: `are_remaining_jobs_more_than(x) = RESOURCE.njob > x`, which does not use lock anymore.
 - Optim: `put!(SCHEDULER_PROGRESS_ACTION[], 1)` is moved from `scheduler_need_action()` to `update_queue!()`, assuring progress check/update is always after queue update and resource computation.
 - Optim: remove `SCHEDULER_ACTION_LOCK` because Channels are thread safe in Julia.
@@ -59,7 +63,7 @@ v0.11.0
 
 v0.10.7
 
-- Fix: crash when showing progress meter after all jobs finished while stdout/sterr are redirected to files. Remove call to legacy `queue_summary`, which was replaced a while ago. 
+- Fix: crash when showing progress meter after all jobs finished while stdout/sterr are redirected to files. Remove call to legacy `queue_summary`, which was replaced a while ago.
 
 v0.10.6
 
@@ -69,14 +73,14 @@ v0.10.6
 
 v0.10.5
 
-- Fix: when showing progress meter, changing `JobGroup.x` was not thread safe. 
+- Fix: when showing progress meter, changing `JobGroup.x` was not thread safe.
 - Fix: when showing progress meter, now CPU and MEM was not computed again from JobGroup, but just fetch from a global variable `RESOURCE(cpu, mem)::Resource`. `RESOURCE` is computed when `update_queue!()`
 
 v0.10.4
 
 - Optimize: remove extra `scheduler_status` check in `queue_progress(...)`.
 - Optimize: `wait_queue(show_progress=false)` no longer took 100% CPU. Now it computes exit condition only when scheduler updates.
-- Change: explicit error when calling the second `wait_queue(...)`. Only one is allowed each time. 
+- Change: explicit error when calling the second `wait_queue(...)`. Only one is allowed each time.
 - Compat: JLD2 0.5.
 
 v0.10.3
@@ -124,7 +128,7 @@ v0.8.2
 
 - Feat: not replace `Base.istaskfailed`. Use `istaskfailed2` instead.
 - Feat: recurring job: job does not immediately after submit, except manually set `Job(..., schedule_time)`. (#8)
-- Feat: no double printing stacktrace when a job failed. 
+- Feat: no double printing stacktrace when a job failed.
 - Feat: progress bar: dim job count == 0. (#9)
 
 v0.8.1
@@ -175,7 +179,6 @@ v0.7.6
 v0.7.5
 
 - Change: remove extra blank lines after `wait_queue(show_progress = true)`.
-
 - Fix a benign error (task switch error for `sleep()`).
 
 v0.7.4
@@ -198,19 +201,12 @@ v0.7.1
 v0.7.0
 
 - Remove dependency DataFrames and change to PrettyTables. The loading time of DataFrames is high.
-
 - Feature: now a Job is sticky to one thread (>1). JobSchedulers allocates and manuages it. The SCHEDULER_TASK is sticky to thread 1.
-
 - Feature: `queue(...)` is rewritten.
-
 - Feature: Better pretty print of Job and queue().
-
 - Feature: New function: `wait_queue()` waits for all jobs in `queue()` become finished.
-
 - Feature: New function: `set_scheduler()`
-
 - Fix: `set_scheduler_max_cpu(percent::Float64)`: use default_ncpu() if error.
-
 - Change: SCHEDULER_UPDATE_SECOND to 0.05 from 0.6
 
 v0.6.12
@@ -240,19 +236,16 @@ v0.6.7
 v0.6.6
 
 - Optimize: `job.dependency` now accepts `DONE => job`, `[DONE => job1.id; PAST => job2]`.
-
 - Optimize: `is_dependency_ok(job::Job)::Bool` is rewritten: for loop when found a dep not ok, and delete previous ok deps. If dep is provided as Int, query Int for job and then replace Int with the job.
 
 v0.6.5
 
 - Fix: If an app is built, SCHEDULER_MAX_CPU and SCHEDULER_MAX_MEM will be fixed to the building computer: fix by re-defining `SCHEDULER_MAX_CPU` and `SCHEDULER_MAX_MEM` in `__init__()`.
-
 - Debug: add debug outputs.
 
 v0.6.4
 
 - Fix: `scheduler_stop()` cannot stop because v0.6.1 update. Now `scheduler_stop` does not send ^C to `SCHEDULER_TASK`, but a new global variable `SCHEDULER_WHILE_LOOP::Bool` is added to control the while loop in `scheduler()`.
-
 - Optimize: the package now can be precompiled: global Task cannot be precompiled, so we do not define `SCHEDULER_TASK::Task` when loading the package. Define it only when needed.
 
 v0.6.3
@@ -286,17 +279,12 @@ v0.4.1
 v0.4.0
 
 - If running with multi-threads Julia, `SCHEDULER_TASK` runs in thread 1, and other jobs spawn at other threads. Thread assignment was achieved by JobScheduler. Besides, `SCHEDULER_MAX_CPU = nthreads() > 1 ? nthreads()-1 : Sys.CPU_THREADS`.
-
 - New feature: `queue(job_state::Symbol)`.
-
 - Use try-finally for all locks.
 
 v0.3.0
 
 - Tasks run on different threads, if Julia version supports and `nthreads() > 1`.
-
 - Use `SpinLock`.
-
 - Fix typo "queuing" from "queueing".
-
 - Notify when a job is failed.

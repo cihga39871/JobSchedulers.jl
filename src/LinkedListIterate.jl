@@ -1,19 +1,3 @@
-# struct NodeIterate
-#     l::MutableLinkedList
-# end
-
-# Base.iterate(ni::NodeIterate) = ni.l.len == 0 ? nothing : (ni.l.node.next, ni.l.node.next.next)
-# Base.iterate(ni::NodeIterate, n::DataStructures.ListNode) = n === ni.l.node ? nothing : (n, n.next)
-
-# function Base.deleteat!(l::MutableLinkedList, node::DataStructures.ListNode)
-#     prev = node.prev
-#     next = node.next
-#     prev.next = next
-#     next.prev = prev
-#     l.len -= 1
-#     return l
-# end
-
 
 """
     LinkedJobList()
@@ -45,6 +29,10 @@ function Base.deleteat!(l::LinkedJobList, node::Job)
         prev._next = next
         next._prev = prev
         l.len -= 1
+
+        # dereference the node
+        node._prev = node
+        node._next = node
     # end
     return l
 end
@@ -182,9 +170,10 @@ function Base.setindex!(l::LinkedJobList, data::Job, idx::Int)
 
     prev_node._next = data
     data._next._prev = data
-    # old_node link to itself
-    # old_node._prev = old_node
-    # old_node._next = old_node
+
+    # old_node link to itself for dereference
+    old_node._prev = old_node
+    old_node._next = old_node
 
     return l
 end
@@ -221,6 +210,11 @@ function Base.delete!(l::LinkedJobList, idx::Int)
     next = node._next
     prev._next = next
     next._prev = prev
+    
+    # dereference the node
+    node._prev = node
+    node._next = node
+
     l.len -= 1
     return l
 end
@@ -230,13 +224,18 @@ Base.deleteat!(l::LinkedJobList, r::UnitRange) = Base.delete!(l::LinkedJobList, 
 function Base.delete!(l::LinkedJobList, r::UnitRange)
     @boundscheck 0 < first(r) < last(r) <= l.len || throw(BoundsError(l, r))
     node = l.node
-    for i in 1:first(r)
+    for _ in 1:first(r)
         node = node._next
     end
     prev = node._prev
     len = length(r)
-    for j in 1:len
+    node_to_deref = node
+    for _ in 1:len
         node = node._next
+        # dereference the node
+        node_to_deref._prev = node_to_deref
+        node_to_deref._next = node_to_deref
+        node_to_deref = node
     end
     next = node
     prev._next = next
@@ -280,6 +279,11 @@ function Base.pop!(l::LinkedJobList)
     last._next = l.node
     l.node._prev = last
     l.len -= 1
+
+    # dereference
+    data._next = data
+    data._prev = data
+
     return data
 end
 
@@ -290,6 +294,10 @@ function Base.popfirst!(l::LinkedJobList)
     first._prev = l.node
     l.node._next = first
     l.len -= 1
+
+    # dereference
+    data._next = data
+    data._prev = data
     return data
 end
 
