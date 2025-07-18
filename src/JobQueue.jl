@@ -314,6 +314,15 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
         if !isempty(JOB_QUEUE.queuing_0cpu)
             # @debug "run_queuing! lock_queuing - check queuing_0cpu"
             for job in JOB_QUEUE.queuing_0cpu
+                if job.state === CANCELLED
+                    deleteat!(JOB_QUEUE.queuing_0cpu, job)
+                    push_cancelled!(job)
+                    free_thread(job)
+                    @atomic RESOURCE.njob -= 1
+                    PROGRESS_METER && update_group_state!(job)
+                    continue
+                end
+
                 if job.mem <= free_mem && is_dependency_ok(job)
                     is_run_successful = try
                         unsafe_run!(job, current)

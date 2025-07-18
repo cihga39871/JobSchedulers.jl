@@ -1,5 +1,9 @@
 # Changelog
 
+v0.11.10
+
+- Fix: Job might not be removed from `JOB_QUEUE.queuing_0cpu` if dependency is not ok and cancel is set to the job.
+
 v0.11.9
 
 - Fix: Jobs not garbage collected: dereferencing jobs after removing from Linked Job List.
