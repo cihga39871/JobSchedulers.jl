@@ -70,6 +70,9 @@ export queue_progress
 include("macro.jl")
 export @submit
 
+include("supervisor.jl")
+export supervise
+
 function __init__()
     # Fixing precompilation hangs due to open tasks or IO
     # https://docs.julialang.org/en/v1/devdocs/precompile_hang/
