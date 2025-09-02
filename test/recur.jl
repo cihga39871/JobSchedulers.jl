@@ -21,6 +21,7 @@
     @test JobSchedulers.cron_value_parse([1,3,5, "*"]) == 0xffffffffffffffff
 
     c = Cron()
+    show(stdout, MIME("text/plain"), c)
     @test JobSchedulers.tonext(Time(23,59,59), c) == Time(0,0,0)
     @test JobSchedulers.tonext(Time(23,59,55), c) == Time(0,0,0)
     @test JobSchedulers.tonext(Time(0,0,0), c) == Time(0,1,0)
@@ -28,6 +29,7 @@
     @test JobSchedulers.tonext(Time(0,59,00), c) == Time(1,0,0)
 
     c1 = Cron(:hourly)
+    show(stdout, MIME("text/plain"), c1)
     @test JobSchedulers.tonext(Time(23,59,59), c1) == Time(0,0,0)
     @test JobSchedulers.tonext(Time(23,59,00), c1) == Time(0,0,0)
     @test JobSchedulers.tonext(Time(23,00,00), c1, same=true) == Time(23,00,0)
@@ -39,6 +41,7 @@
 
 
     for c2 in (Cron(:yearly), Cron(0,0,0,1,1,0))
+    show(stdout, MIME("text/plain"), c2)
     @test JobSchedulers.date_based_on(c2) == :day_of_month
     @test JobSchedulers.tonext(Date(2023,1,2), c2) == Date(2024,1,1)
     @test JobSchedulers.tonext(Date(2023,1,1), c2) == Date(2024,1,1)
@@ -46,6 +49,7 @@
     end
 
     for c3 in (Cron(:monthly), Cron(0,0,0,1,*,0))
+    show(stdout, MIME("text/plain"), c3)
     @test JobSchedulers.date_based_on(c3) == :day_of_month
     @test JobSchedulers.tonext(Date(2023,1,2), c3) == Date(2023,2,1)
     @test JobSchedulers.tonext(Date(2023,1,1), c3) == Date(2023,2,1)
@@ -55,6 +59,7 @@
     end
 
     for c4 in (Cron(:weekly), Cron(0,0,0,0,*,1))
+    show(stdout, MIME("text/plain"), c4)
     @test JobSchedulers.date_based_on(c4) == :day_of_week
     @test JobSchedulers.tonext(Date(2023,1,2), c4) == Date(2023,1,9)
     @test JobSchedulers.tonext(Date(2023,1,2), c4, same=true) == Date(2023,1,2)
@@ -69,20 +74,24 @@
     end
 
     c5 = Cron(:daily)
+    show(stdout, MIME("text/plain"), c5)
     @test JobSchedulers.date_based_on(c5) == :everyday
     @test JobSchedulers.tonext(Date(2023,1,2), c5) == Date(2023,1,3)
     @test JobSchedulers.tonext(Date(2023,1,2), c5, same=true) == Date(2023,1,2)
 
     c6 = Cron(30, 45, 20, "*/2", *, *)
+    show(stdout, MIME("text/plain"), c6)
     @test JobSchedulers.tonext(DateTime(2023,1,2,12,30,00), c6) == DateTime(2023,1,2,20,45,30)
     @test JobSchedulers.tonext(DateTime(2023,1,2,20,45,00), c6) == DateTime(2023,1,2,20,45,30)
     @test JobSchedulers.tonext(DateTime(2023,1,2,20,46,00), c6) == DateTime(2023,1,4,20,45,30)
 
     c7 = Cron(0,0,0,0,0,0)
+    show(stdout, MIME("text/plain"), c7)
     @test JobSchedulers.date_based_on(c7) == :none
     @test JobSchedulers.tonext(DateTime(2023,1,2,12,30,00), c7) === nothing
 
     c8 = Cron("*/10", *,*,*,*,*)
+    show(stdout, MIME("text/plain"), c8)
     @test JobSchedulers.tonext(DateTime(2023,1,2,12,30,00), c8) == DateTime(2023,1,2,12,30,10)
     @test JobSchedulers.tonext(DateTime(2023,1,2,12,30,00), c8, same=true) == DateTime(2023,1,2,12,30,00)
     @test JobSchedulers.tonext(DateTime(2023,1,2,12,30,50), c8, same=false) == DateTime(2023,1,2,12,31,00)
@@ -91,6 +100,7 @@
 
     # 24 0 1-31/10 1 */2
     c9 = Cron(0,24, 0, "1-31/10", 1, "*/2")
+    show(stdout, MIME("text/plain"), c9)
     dt = DateTime(2025,1,1,0,12,0)
     dt = JobSchedulers.tonext(dt, c9)
     @test dt == DateTime(2025,1,11,0,24,0)
@@ -101,12 +111,29 @@
     dt = JobSchedulers.tonext(dt, c9)
     @test dt == DateTime(2026,1,31,0,24,0)
 
+    JobSchedulers.get_time_description(c9)
+    JobSchedulers.get_second_description([1,4,7]) 
+    JobSchedulers.get_second_description([1,4]) 
+    JobSchedulers.get_second_description([1]) 
+    JobSchedulers.get_minute_description([1,4,7])
+    JobSchedulers.get_minute_description([1,4])
+    JobSchedulers.get_minute_description([1])
+    JobSchedulers.get_hour_description([1,4,7])
+    JobSchedulers.get_hour_description([1,4])
+    JobSchedulers.get_hour_description([1])
+    JobSchedulers.get_date_description(c9)
+    JobSchedulers.get_dow_description(c9)
+    JobSchedulers.get_month_description(c9)
+    JobSchedulers.get_dom_description(c9)
+    JobSchedulers.get_monthday_description(c9)
+
+    JobSchedulers.is_valid_day(now(), c9)
 end
 
 
 @testset "Recur jobs" begin
     j = Job(
-        name = "recur print date time $(rand(UInt))",
+        name = "recur print date time: $(rand(UInt))",
         cron = Cron("*/1", *,*,*,*,*)
     ) do 
         println("--- Recur Job Start at $(now())")
@@ -127,4 +154,20 @@ end
     else
         error("Recur job not submitted!")
     end
+    @info "Waiting recur jobs to finish"
+    
+    jsdone = queue("recur print", DONE)
+    wait(jsdone)
+
+    j2 = Job(
+        name = "recur print date time: $(rand(UInt))",
+        cron = Cron("*/1", *,*,*,*,*),
+        stdout = IOBuffer()
+    ) do 
+        println("--- Recur Job Start at $(now())")
+        return now()
+    end
+    submit!(j2)
+    sleep(2)
+    cancel!.(queue(QUEUING, "recur print date time"))
 end

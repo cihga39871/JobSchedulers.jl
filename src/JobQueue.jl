@@ -123,20 +123,20 @@ function try_submit_next_recur!(job::Job)
     return
 end
 
-function n_job_remaining()
-    n = 0
-    # @debug "n_job_remaining lock_queuing"
-    lock(JOB_QUEUE.lock_queuing) do
-        for jobs in values(JOB_QUEUE.queuing)
-            n += length(jobs)
-        end
-        n += length(JOB_QUEUE.queuing_0cpu) 
-        n += length(JOB_QUEUE.future) 
-    end
-    # @debug "n_job_remaining lock_queuing ok"
-    n += length(JOB_QUEUE.running)
-    n
-end
+# function n_job_remaining()
+#     n = 0
+#     # @debug "n_job_remaining lock_queuing"
+#     lock(JOB_QUEUE.lock_queuing) do
+#         for jobs in values(JOB_QUEUE.queuing)
+#             n += length(jobs)
+#         end
+#         n += length(JOB_QUEUE.queuing_0cpu) 
+#         n += length(JOB_QUEUE.future) 
+#     end
+#     # @debug "n_job_remaining lock_queuing ok"
+#     n += length(JOB_QUEUE.running)
+#     n
+# end
 
 function are_remaining_jobs_more_than(x::Integer) :: Bool
     # n = 0
@@ -273,7 +273,7 @@ function update_running!(current::DateTime)
                 end
             end
 
-            # after moving, still running:
+            # for jobs still running
             used_ncpu += job.ncpu
             used_mem += job.mem
         end

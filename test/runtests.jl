@@ -19,6 +19,19 @@ end
 
 	@testset "Basic" begin
 
+		jq = JobSchedulers.JobQueue()
+		@test JobSchedulers.destroy_unnamed_jobs_when_done(true)
+
+		@test JobSchedulers.check_need_redirect(nothing, nothing) == false
+		@test JobSchedulers.check_need_redirect("", nothing) == false
+		@test JobSchedulers.check_need_redirect("abc", nothing)
+		@test JobSchedulers.check_need_redirect(IOBuffer())
+		@test_broken JobSchedulers.check_need_redirect(5)
+		@test !JobSchedulers.check_need_redirect(nothing)
+		@test JobSchedulers.convert_dependency_element(DONE => 1) == (DONE => 1)
+		@test JobSchedulers.convert_dependency_element(DONE => Int32(1)) == (DONE => Int64(1))
+		@test JobSchedulers.convert_dependency_element(Int32(1)) == (DONE => Int64(1))
+
 		scheduler_start()
 		scheduler_status()
 
@@ -35,6 +48,7 @@ end
 		    sleep(1)
 		end
 		submit!(command_job)
+		JobSchedulers.unsafe_update_state!(command_job)
 		submit!(task_job)
 		submit!(function_job)
 		@test scheduler_status() === :running
@@ -44,6 +58,19 @@ end
 		job = Job(@task(begin; sleep(2); println("highpriority"); end), name="high_priority", priority = 0)
 		display(job)
 		submit!(job)
+		fetch(job)
+
+		@test !isqueuing(job)
+		@test !isrunning(job)
+		@test isdone(job)
+		@test !iscancelled(job)
+		@test !isfailed(job)
+		@test ispast(job)
+		@test JobSchedulers.get_thread_id(job) <= 0
+		@test JobSchedulers.get_priority(job) == 0
+
+		solve_optimized_ncpu(5)
+
 
 		scheduler_balance_check("job submission")
 
@@ -51,16 +78,21 @@ end
 
 
 		j2 = job_query_by_id(job.id)
+		j3 = job_query_by_id(job)
+		j3 = JobSchedulers.job_query_by_id_no_lock(job)
 		@test j2 === job
+		@test j3 === job
 
-		job2 = Job(@task(begin; sleep(2); println("lowpriority"); end), name="low_priority", priority = 20)
+		job2 = Job(@task(begin; sleep(0.5); println("lowpriority"); end), name="low_priority", priority = 20)
 		submit!(job2)
-		job = Job(@task(begin; sleep(2); println("highpriority"); end), name="high_priority", priority = 0)
+		job = Job(@task(begin; sleep(0.5); println("highpriority"); end), name="high_priority", priority = 0)
 		submit!(job)
-		job = Job(@task(begin; sleep(2); println("midpriority"); end), name="mid_priority", priority = 15)
+		job = Job(@task(begin; sleep(0.5); println("midpriority"); end), name="mid_priority", priority = 15)
 		submit!(job)
-		for i in 1:10
-			local job = Job(@task(begin; sleep(2); println(i); end), name="batch: $i", priority = 20)
+		@test_throws Exception submit!(job) # cannot resubmit
+
+		for i in 1:15
+			local job = Job(@task(begin; sleep(0.5); println(i); end), name="batch: $i", priority = 20+i)
 			submit!(job)
 		end
 
@@ -83,6 +115,21 @@ end
 
 		@test_throws Exception submit!(job2) # cannot resubmit
 		@test_throws Exception submit!(job) # cannot resubmit
+
+		j = Job(@task 1+1)
+		j.task = nothing
+		@test_throws Exception submit!(j)
+		@test JobSchedulers.unsafe_run!(j) == false
+		@test JobSchedulers.unsafe_cancel!(j) == CANCELLED
+
+		jobx2 = Job(@task(begin; sleep(20); println("run_success"); end), name="to_cancel", priority = 20, stdout=IOBuffer())
+		jobx3 = Job(() -> (begin; sleep(20); println("run_success"); end), name="to_cancel", priority = 20, stdout=IOBuffer())
+		jobx4 = Job(`sleep 1`, name="to_cancel", priority = 20, stdout=IOBuffer())
+
+
+		fetch(job)
+		@test JobSchedulers.unsafe_cancel!(job) == :done
+
 		scheduler_balance_check("job cancellation")
 
 	end
@@ -141,16 +188,24 @@ end
 			]
 		)
 
+		io = IOBuffer()
+		close_in_future(io, job_with_dep)
+		close_in_future(io, [job_with_dep2, job_with_dep3])
+
 		wait_queue()
 	end
 
 	@testset "Backup" begin
 		### set backup
-		rm("/tmp/jl_job_scheduler_backup", force=true)
-		rm("/tmp/jl_job_scheduler_backup2", force=true)
-		set_scheduler_backup("/tmp/jl_job_scheduler_backup")
 
-		set_scheduler_backup("/tmp/jl_job_scheduler_backup", migrate=true) # do nothing because file not exist
+		tmp1 = tempname()
+		tmp2 = tempname()
+		
+		rm(tmp1, force=true)
+		rm(tmp2, force=true)
+		set_scheduler_backup(tmp1)
+
+		set_scheduler_backup(tmp1, migrate=true) # do nothing because file not exist
 
 		backup()
 		njobs = length(JobSchedulers.JOB_QUEUE.done) + length(JobSchedulers.JOB_QUEUE.failed) + length(JobSchedulers.JOB_QUEUE.cancelled)
@@ -160,34 +215,34 @@ end
 		deleteat!(JobSchedulers.JOB_QUEUE.cancelled, 1:3:length(JobSchedulers.JOB_QUEUE.cancelled))
 
 		# set_scheduler_max_cpu(2)
-		set_scheduler_backup("/tmp/jl_job_scheduler_backup")
+		set_scheduler_backup(tmp1)
 		@test njobs == length(JobSchedulers.JOB_QUEUE.done) + length(JobSchedulers.JOB_QUEUE.failed) + length(JobSchedulers.JOB_QUEUE.cancelled)
 
 		deleteat!(JobSchedulers.JOB_QUEUE.done, 1:3:length(JobSchedulers.JOB_QUEUE.done))
 		deleteat!(JobSchedulers.JOB_QUEUE.failed, 1:3:length(JobSchedulers.JOB_QUEUE.failed))
 		deleteat!(JobSchedulers.JOB_QUEUE.cancelled, 1:3:length(JobSchedulers.JOB_QUEUE.cancelled))
 
-		set_scheduler_backup("/tmp/jl_job_scheduler_backup")
+		set_scheduler_backup(tmp1)
 
 		@test njobs == length(JobSchedulers.JOB_QUEUE.done) + length(JobSchedulers.JOB_QUEUE.failed) + length(JobSchedulers.JOB_QUEUE.cancelled)
 
-		set_scheduler_backup("/tmp/jl_job_scheduler_backup2", migrate=true)
+		set_scheduler_backup(tmp2, migrate=true)
 		backup()
 
 		deleteat!(JobSchedulers.JOB_QUEUE.done, 2:3:length(JobSchedulers.JOB_QUEUE.done))
 		deleteat!(JobSchedulers.JOB_QUEUE.failed, 2:3:length(JobSchedulers.JOB_QUEUE.failed))
 		deleteat!(JobSchedulers.JOB_QUEUE.cancelled, 2:3:length(JobSchedulers.JOB_QUEUE.cancelled))
 		
-		set_scheduler_backup("/tmp/jl_job_scheduler_backup")
+		set_scheduler_backup(tmp1)
 		@test njobs == length(JobSchedulers.JOB_QUEUE.done) + length(JobSchedulers.JOB_QUEUE.failed) + length(JobSchedulers.JOB_QUEUE.cancelled)
 
-		set_scheduler_backup("/tmp/jl_job_scheduler_backup2", migrate=true, delete_old=true)
+		set_scheduler_backup(tmp2, migrate=true, delete_old=true)
 
-		@test !isfile("/tmp/jl_job_scheduler_backup")
-		@test isfile("/tmp/jl_job_scheduler_backup2")
+		@test !isfile(tmp1)
+		@test isfile(tmp2)
 
 		set_scheduler_backup("", delete_old=true)
-		@test !isfile("/tmp/jl_job_scheduler_backup2")
+		@test !isfile(tmp2)
 	end
 
 	@testset "Compat Pipelines.jl" begin
@@ -202,11 +257,13 @@ end
 			"INPUT2" => `Pipeline.jl`
 		)
 		cmdprog_job = Job(echo, inputs, touch_run_id_file=false)
-		cmdprog_job2 = Job(echo, inputs=inputs, touch_run_id_file=false)
-		@test_throws ErrorException cmdprog_job3 = Job(echo, touch_run_id_file=false)
+		cmdprog_job2 = Job(echo, inputs, Dict(), touch_run_id_file=false)
+		cmdprog_job3 = Job(echo; INPUT1 = "H", INPUT2 = "P", touch_run_id_file=false)
+		@test_throws ErrorException Job(echo, touch_run_id_file=false)
 
 		submit!(cmdprog_job)
 		submit!(cmdprog_job2)
+		submit!(cmdprog_job3)
 	end
 
 	### Compat Pipeline v0.5.0
@@ -304,7 +361,6 @@ end
 			sleep(1)
 		end
 		@test result(job) == (true, Dict{String, Any}())
-
 	end
 
 	if !JobSchedulers.SINGLE_THREAD_MODE[]
@@ -332,4 +388,17 @@ end
 	end
 
 	scheduler_balance_check("macro @submit tests")
+
+	@testset "Scoped Values" begin
+		include("scoped_values.jl")
+	end
+
+	scheduler_balance_check("scoped value tests")
+	
+	default_mem()
+	default_ncpu()
+	set_scheduler_max_mem(0.85)
+	@test_warn "between 0 and 1" set_scheduler_max_mem(1.85)
+	@test set_scheduler_update_second(1) == 1.0
+	set_scheduler()
 end

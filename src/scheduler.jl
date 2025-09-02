@@ -101,6 +101,7 @@ function scheduler()
                     @warn "JobScheduler.scheduler() catched a InterruptException during wait. Max time to catch: $SLEEP_HANDELED_TIME. To stop the scheduler, please use JobSchedulers.set_scheduler_while_loop(false), or send InterruptException $SLEEP_HANDELED_TIME more times." exception=ex
                 end
             else
+                @error "JobScheduler.scheduler() stopped because of an internal error." exception=(ex, catch_backtrace())  # display the error. throw(ex) will not display the error.
                 set_scheduler_while_loop(false)
                 throw(ex)
             end
@@ -129,9 +130,6 @@ If a repeative job is PAST, submit a new job.
 Caution: it is unsafe and should only be called within lock.
 """
 function unsafe_update_state!(job::Job)
-    global RUNNING
-    global DONE
-    global FAILED
     if job.state === RUNNING
         task_state = job.task.state
         if istaskfailed2(job.task)

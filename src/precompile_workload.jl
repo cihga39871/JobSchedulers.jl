@@ -1,3 +1,4 @@
+# COV_EXCL_START
 @compile_workload begin
     using Pipelines
     jp = JuliaProgram(
@@ -85,3 +86,4 @@
     # scheduler_stop(verbose=false)
     nothing
 end
+# COV_EXCL_STOP

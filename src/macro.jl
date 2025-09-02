@@ -120,10 +120,30 @@ macro submit(args...)
     end
 end
 
-isajob(x::Job) = true
-isajob(x) = false
-isnotajob(x::Job) = false
-isnotajob(x) = true
+macro yield_current(ex)
+    return quote
+        local res
+        local job = current_job()
+        if job === nothing || job.ncpu == 0
+            res = $(esc(ex))
+        else
+            local ncpu = job.ncpu
+            job.ncpu = 0.0
+
+            res = $(esc(ex))  # no need to try catch. the job will be marked as failed if error happens so ncpu does not need to be restored.
+            job.ncpu = ncpu
+        end
+        res
+    end
+end
+@inline function yield_current(f::Function)
+    @yield_current f()
+end
+
+@inline isajob(x::Job) = true
+@inline isajob(x) = false
+@inline isnotajob(x::Job) = false
+@inline isnotajob(x) = true
 
 function opt2parameters(opts::NTuple{N, Expr}) where N
     for opt in opts

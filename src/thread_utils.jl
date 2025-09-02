@@ -24,6 +24,127 @@ Defined in `__init__()`. All tids in the default thread pool, excluding tid 1.
 """
 const TIDS = Vector{Int}()
 
+"""
+    const CURRENT_JOB = ScopedValue{Union{Job, Nothing}}(nothing)
+
+The `Job` that is running in the current scope, `nothing` if the current scope is not within a job.
+
+See also `current_job()`.
+"""
+const CURRENT_JOB = ScopedValue{Union{Job, Nothing}}(nothing)
+
+"""
+    current_job() :: Union{Job, Nothing}
+
+Return the `Job` that is running in the current scope, `nothing` if the current scope is not within a job.
+"""
+@inline current_job() = CURRENT_JOB[]
+
+"""
+    const CURRENT_JOB_YIELDED = ScopedValue{Bool}(false)
+
+Whether the current job yields its thread when it is waiting (e.g. waiting for child jobs to finish).
+"""
+const CURRENT_JOB_YIELDED = ScopedValue{Bool}(false)
+
+@inline current_job_yielded() = CURRENT_JOB_YIELDED[]
+
+
+"""
+# How JobSchedulers.jl sets thread ID (tid) for Jobs that is submitted within its parent Job?
+
+Start Julia with `julia -t 1,1`, and run the following example:
+
+```julia
+using JobSchedulers
+
+parent_job = submit!(@task begin
+    println("Parent job running on thread ", Threads.threadid())
+
+    @yield_current begin  # yield to allow child jobs to be scheduled
+        child_job1 = Job(@task begin
+            println("Child job 1 running on thread ", Threads.threadid())
+        end; ncpu=1)
+        child_job2 = Job(@task begin
+            println("Child job 2 running on thread ", Threads.threadid())
+        end; ncpu=1)
+        
+        submit!(child_job1)
+        submit!(child_job2)
+        
+        wait(child_job1)
+        wait(child_job2)
+    end
+end; ncpu=1)
+```
+
+Normally, the parent will not finish because the only available thread is occupied by the parent job itself, and the child jobs cannot be scheduled.
+
+However, JobSchedulers.jl detects that the child jobs are submitted within any parent jobs, and assigns the nearest parent's not-occupied thread to the child jobs. If all parent jobs' threads are occupied, or freed to the pool, then the child jobs will take the next available thread from the pool.
+"""
+function help_submit_job_within_job end
+
+"""
+    const OCCUPIED_MARK = 1<<30
+
+A large number added to `job._thread_id` to mark the thread is yielded.
+"""
+const OCCUPIED_MARK = 1<<30
+
+"""
+    unsafe_occupy_tid!(j::Job) :: Int
+
+Return the `j._thread_id` before changing, and mark the tid as occupied by adding `OCCUPIED_MARK` to `j._thread_id`.
+
+Unsafe when:
+- If `j._thread_id <= 0` or `j` is occupied, `j._thread_id` will not be changed, and return `j._thread_id`.
+"""
+@inline function unsafe_occupy_tid!(j::Job)
+    tid = j._thread_id
+    j._thread_id |= OCCUPIED_MARK
+    return tid
+end
+
+"""
+    unsafe_unoccupy_tid!(j::Job) :: Bool
+
+Remove `OCCUPIED_MARK` from `j._thread_id` to mark the tid is ready to yield. Please ensure the tid is occupied (`is_tid_occupied(j)`) before calling this function.
+
+Unsafe when:
+- If `j._thread_id < 0`, the tid will be changed to a very small negative number, which does not make sense.
+- If `j._thread_id == 0`, the tid will remain 0.
+- If `j` is not occupied, the tid will remain unchanged.
+"""
+@inline unsafe_unoccupy_tid!(j::Job) = j._thread_id &= ~OCCUPIED_MARK
+
+"""
+    @inline unsafe_original_tid(j::Job) = j._thread_id & ~OCCUPIED_MARK
+
+Only useful when `j._thread_id > 0`.
+Used to get the original tid of a job, without `OCCUPIED_MARK`. 
+"""
+@inline unsafe_original_tid(j::Job) = j._thread_id & ~OCCUPIED_MARK
+
+"""
+    is_tid_ready_to_occupy(j::Job) :: Bool
+
+Return Bool. `true` means job is able to occupy (`j.ncpu == 0 && j._thread_id > 0`) and not occupied (`j._thread_id & OCCUPIED_MARK == 0`).
+"""
+@inline function is_tid_ready_to_occupy(j::Job)
+    # j.ncpu == 0 && j._thread_id > 0 && (j._thread_id & OCCUPIED_MARK == 0)
+    j.ncpu == 0 && (0 < j._thread_id < OCCUPIED_MARK)  # optimized version
+end
+
+"""
+    is_tid_occupied(j::Job) :: Bool
+
+Return Bool. `false` means job not occupied (`j._thread_id & OCCUPIED_MARK != 0`) or not able to occupy (`j._thread_id <= 0`).
+"""
+@inline function is_tid_occupied(j::Job)
+    # j._thread_id > 0 && (j._thread_id & OCCUPIED_MARK != 0)
+    j._thread_id > OCCUPIED_MARK  # optimized version
+end
+
 
 function schedule_thread(j::Job)
     if j.ncpu > 0
@@ -35,12 +156,27 @@ function schedule_thread(j::Job)
                 else
                     j.task.sticky = false
                 end
+
+                # if any parent job's tid is not occupied by one of its child tasks, then give the thread to this child.
+                parent = j._parent
+                while parent !== nothing # isa Job
+                    # if parent don't yield (ncpu != 0), cannot give it to child tasks.
+                    if is_tid_ready_to_occupy(parent)
+                        j._thread_id = unsafe_occupy_tid!(parent)
+                        if j._thread_id > 0  # just in case if race condition happens and parent job's tid is occupied by another child task. Even it is unlikely to happen because the function should be only be called within the main scheduler task.
+                            ccall(:jl_set_task_tid, Cvoid, (Any, Cint), j.task, j._thread_id-1)
+                        end
+                        return schedule(j.task)
+                    end
+                    parent = parent._parent
+                end
+                
                 # take the next free thread... Will block/wait until a thread becomes free
                 j._thread_id = take!(THREAD_POOL[])
                 ccall(:jl_set_task_tid, Cvoid, (Any, Cint), j.task, j._thread_id-1)
             end
         end
-    else  # ncpu == 0
+    # else  # ncpu == 0
         # allow task migration which was introduced in 1.7
     end
     schedule(j.task)
@@ -52,8 +188,33 @@ end
 Make thread available again after work is done!
 """
 function free_thread(j::Job)
-    j._thread_id <= 0 && return # do nothing. 0 means (1) nthreads = 1 or j.ncpu = 0 (2) job is not started;
-    # <0 means the thread was freed.
+    if j._thread_id <= 0
+        # do nothing. 
+        # 0 means (1) nthreads = 1 or j.ncpu = 0 (2) job is not started; 
+        # <0 means the thread was freed before.
+        return 
+    end
+
+    # if j is the parent job and is occupied, then do not free the thread to the pool, but mark the tid as done.
+    if is_tid_occupied(j)
+        j._thread_id = - unsafe_original_tid(j)
+        return
+    end
+
+    # if j has any parent jobs, and one of them is occupying the same thread,
+    # then do not free the thread to the pool, 
+    # but mark that parent job's tid as not occupied, and mark j's tid as done.
+    parent = j._parent
+    while parent !== nothing # not nothing
+        if unsafe_original_tid(parent) == j._thread_id  # it is ok to use unsafe_original_tid if j._thread_id < 0 because it won't be equal.
+            is_tid_occupied(parent) && unsafe_unoccupy_tid!(parent)
+            j._thread_id = - j._thread_id
+            return
+        end
+        parent = parent._parent
+    end
+    
+    # if j does not have a parent job, or its parent job is not occupying the same thread, then free the thread to the pool.
     put!(THREAD_POOL[], j._thread_id)
     j._thread_id = - j._thread_id
     return

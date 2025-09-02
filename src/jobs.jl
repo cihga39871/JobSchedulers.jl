@@ -1,6 +1,7 @@
 
 const JOB_ID = Ref{Int64}()
 const JOB_ID_INCREMENT_LOCK = ReentrantLock()
+
 """
     generate_id() :: Int64
 
@@ -80,6 +81,7 @@ mutable struct Job
     _dep_check_id::Int
     _prev::Union{Job,Nothing}            # one-by-one mutable linked list
     _next::Union{Job,Nothing}            # one-by-one mutable linked list
+    _parent::Union{Job,Nothing}          # the job is submitted by _parent job
 
     function Job(::UndefInitializer)
         j = new()
@@ -88,12 +90,12 @@ mutable struct Job
         return j
     end
     function Job(id::Integer, name::String, user::String, ncpu::Real, mem::Integer, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout::Union{IO,AbstractString,Nothing}, stderr::Union{IO,AbstractString,Nothing}, _thread_id::Int, _func::Union{Function,Nothing}, _need_redirect::Bool = check_need_redirect(stdout, stderr), _group::AbstractString = "") where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
-        global JOB_PLACE_HOLDER
         check_ncpu_mem(ncpu, mem)
         check_priority(priority)
         dep = convert_dependency(dependency)
         check_dep(dep)
-        j = new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, dep, task, stdout, stderr, _thread_id, _func, _need_redirect, _group, :nothing, 1, nothing, nothing)
+        _parent = current_job() # the job is submitted by _parent job, or nothing
+        j = new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, dep, task, stdout, stderr, _thread_id, _func, _need_redirect, _group, :nothing, 1, nothing, nothing, _parent)
 
         j._prev = j
         j._next = j
@@ -128,7 +130,7 @@ function Job(task::Task;
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
             try
-                res = task.code()
+                res = ScopedValues.@with(CURRENT_JOB=>job, task.code())
                 unsafe_update_as_done!(job)
                 res
             catch e
@@ -141,7 +143,7 @@ function Job(task::Task;
     else
         task2 = @task begin
             try
-                res = task.code()
+                res = ScopedValues.@with(CURRENT_JOB=>job, task.code())
                 unsafe_update_as_done!(job)
                 res
             catch e
@@ -176,12 +178,12 @@ function Job(f::Function;
 
     need_redirect = check_need_redirect(stdout, stderr)
     
-    job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, "", "", 0, f, need_redirect)
+    job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, stdout, stderr, 0, f, need_redirect)
 
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
             try
-                res = f()
+                res = ScopedValues.@with(CURRENT_JOB=>job, f())
                 unsafe_update_as_done!(job)
                 res
             catch e
@@ -194,7 +196,7 @@ function Job(f::Function;
     else
         task2 = @task begin
             try
-                res = f()
+                res = ScopedValues.@with(CURRENT_JOB=>job, f())
                 unsafe_update_as_done!(job)
                 res
             catch e
@@ -231,7 +233,7 @@ function Job(command::Base.AbstractCmd;
     if need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
             try
-                res = f()
+                res = f()  # no need to use ScopedValues here, as run(command) does not change Job context.
                 unsafe_update_as_done!(job)
                 res
             catch e
@@ -244,7 +246,7 @@ function Job(command::Base.AbstractCmd;
     else
         task2 = @task begin
             try
-                res = f()
+                res = f()  # no need to use ScopedValues here, as run(command) does not change Job context.
                 unsafe_update_as_done!(job)
                 res
             catch e
@@ -301,7 +303,7 @@ function check_dep(dependency::Vector{Pair{Symbol,Union{Int64, Job}}})
 end
 
 check_need_redirect(stdout::Nothing, stderr::Nothing) = false
-check_need_redirect(stdout, stderr) = check_need_redirect(stdout) && check_need_redirect(stderr)
+check_need_redirect(stdout, stderr) = check_need_redirect(stdout) | check_need_redirect(stderr)
 
 check_need_redirect(file::AbstractString) = file != ""
 check_need_redirect(io::IO) = true
@@ -430,7 +432,7 @@ function next_recur_job(j::Job)
     if job._need_redirect
         task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = "a+") do
             try
-                res = Base.invokelatest(job._func)
+                res = ScopedValues.@with(CURRENT_JOB=>job, Base.invokelatest(job._func))
                 unsafe_update_as_done!(job)
                 res
             catch e
@@ -443,7 +445,7 @@ function next_recur_job(j::Job)
     else
         task2 = @task begin
             try
-                res = Base.invokelatest(job._func)
+                res = ScopedValues.@with(CURRENT_JOB=>job, Base.invokelatest(job._func))
                 unsafe_update_as_done!(job)
                 res
             catch e

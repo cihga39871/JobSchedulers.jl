@@ -80,7 +80,7 @@ function Job(p::Program;
 
     task = @task begin
         try
-            res = f()
+            res = ScopedValues.@with(CURRENT_JOB=>job, f())
             if res isa Pipelines.StackTraceVector
                 unsafe_update_as_failed!(job)
             else
@@ -112,14 +112,15 @@ program_close_io = JuliaProgram(
     id_file = ".close-julia-io",
     inputs = "io" => IO,
     main = (inputs, outputs) -> begin
-        close(inputs["io"])
-        if inputs["io"] == Base.stdout
+        io = inputs["io"]
+        close(io)
+        if io == Base.stdout
             Pipelines.restore_stdout()
         end
-        if inputs["io"] == Base.stderr
+        if io == Base.stderr
             Pipelines.restore_stderr()
         end
-        Dict{String,Any}()
+        outputs
     end
 )
 
@@ -130,7 +131,6 @@ program_close_io = JuliaProgram(
 Close `io` after `job` is in PAST status (either DONE/FAILED/CANCELLED). It is userful if jobs uses `::IO` as `stdout` or `stderr`, because the program will not close `::IO` manually!
 
 `kwargs...` include keyword arguments of `Job(::BaseAbstractCmd, ...)` and `run(::Program, ...)`.
-
 """
 function close_in_future(io::IO, job::Job; kwargs...)
     close_job = Job(program_close_io, "io" => io, kwargs..., touch_run_id_file=false, dependency = [PAST => job])

@@ -290,7 +290,7 @@ function style_line(line::String, log_style::Symbol)
         else
             line_1
         end
-        if line_1 == "└"  # close of log message
+        if line[1] == '└'  # close of log message
             log_style = :nothing
         end
         a = nextind(line, 1, 1) - 2  # first_utf_char_additional_length
@@ -345,6 +345,7 @@ function view_update_resources(h::Integer, w::Integer; row::Integer = 2, max_cpu
     return row
 end
 
+# COV_EXCL_START
 function view_update_job_group_title(h::Integer, w::Integer; row::Integer = 2, is_in_terminal::Bool = true)
     
     if is_in_terminal
@@ -414,7 +415,7 @@ function view_update_job_group(h::Integer, w::Integer; row::Integer = 2, job_gro
         text_counts = "[" * running * ", " *
                             failed * "+" *
                             cancelled * ", " * 
-                            done * "/"
+                            done * "/" *
                             total * "]"
     end
     
@@ -527,28 +528,6 @@ function reset_term(row_from, row_to)
     end
 end
 
-# function handle_keyboard_event()
-#     bb = bytesavailable(Base.stdin)
-#     bb == 0 && return :nothing
-#     data = read(stdin, bb)
-#     for c in data
-#         if c == 0x71 || c == 0x78 # q or x
-#             return :quit
-#         end
-#     end
-#     return :nothing
-# end
-
-function normal_print_queue_progress(; group_seperator = GROUP_SEPERATOR, wait_all_jobs = true)
-    if wait_all_jobs
-        wait_queue(show_progress = false)
-    end
-    # queue_summary(;group_seperator = group_seperator)
-    println()
-    group_seperator_at_begining = Regex("^" * group_seperator.pattern)
-    view_update(39871, 120; row = 1, groups_shown = JobGroup[], is_in_terminal = false, is_interactive = false, group_seperator_at_begining = group_seperator_at_begining)
-    println()
-end
 
 """
     view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[], is_in_terminal::Bool = true, is_interactive = true, group_seperator_at_begining = Regex("^" * GROUP_SEPERATOR.pattern))
@@ -609,4 +588,29 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
     #     T.print("Press q or x to quit.")
     # end
     return row
+end
+
+# COV_EXCL_STOP
+
+# function handle_keyboard_event()
+#     bb = bytesavailable(Base.stdin)
+#     bb == 0 && return :nothing
+#     data = read(stdin, bb)
+#     for c in data
+#         if c == 0x71 || c == 0x78 # q or x
+#             return :quit
+#         end
+#     end
+#     return :nothing
+# end
+
+function normal_print_queue_progress(; group_seperator = GROUP_SEPERATOR, wait_all_jobs = true)
+    if wait_all_jobs
+        wait_queue(show_progress = false)
+    end
+    # queue_summary(;group_seperator = group_seperator)
+    println()
+    group_seperator_at_begining = Regex("^" * group_seperator.pattern)
+    view_update(39871, 120; row = 1, groups_shown = JobGroup[], is_in_terminal = false, is_interactive = false, group_seperator_at_begining = group_seperator_at_begining)
+    println()
 end

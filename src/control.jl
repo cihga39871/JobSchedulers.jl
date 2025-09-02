@@ -260,7 +260,7 @@ function set_scheduler(;
     max_cpu::Real = JobSchedulers.SCHEDULER_MAX_CPU,
     max_mem::Real = JobSchedulers.SCHEDULER_MAX_MEM,
     max_job::Int = JobSchedulers.JOB_QUEUE.max_done,
-    max_cancelled_job::Int = JobSchedulers.JOB_QUEUE.max_cancelled_job,
+    max_cancelled_job::Int = JobSchedulers.JOB_QUEUE.max_cancelled,
     update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND
 )
     set_scheduler_max_cpu(max_cpu)

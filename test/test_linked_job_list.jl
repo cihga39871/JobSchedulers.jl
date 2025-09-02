@@ -165,6 +165,23 @@
 
         end
 
+        @testset "delete in for loop" begin
+            js = [Job(do_nothing, name="$i") for i in 1:10]
+            l = LinkedJobList(js...)
+            l2 = LinkedJobList()
+
+            i = 1
+            for j in l
+                if i % 2 == 0
+                    deleteat!(l, j)
+                    push!(l2, j)
+                end
+                @test parse(Int, j.name) == i
+                i += 1
+            end
+            @test jobnameids(l2) == [2,4,6,8,10]
+            @test jobnameids(l) == [1,3,5,7,9]
+        end
         # @testset "map / filter" begin
         #     for i = 1:n
         #         @testset "map" begin

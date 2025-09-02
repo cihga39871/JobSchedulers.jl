@@ -11,7 +11,7 @@ using PrettyTables
 using JLD2
 using Pipelines
 using DataStructures
-
+using ScopedValues  # from v1.11, Base.ScopedValues exists, but I do not want the behavior to change with older Julia versions.
 using PrecompileTools
 
 include("bit.jl")
@@ -20,11 +20,13 @@ export Cron
 
 include("jobs.jl")
 export Job, result, solve_optimized_ncpu,
-isqueuing, isrunning, isdone, iscancelled, isfailed, ispast
+isqueuing, isrunning, isdone, iscancelled, isfailed, ispast,
+current_job
 
 
 
 include("thread_utils.jl")
+export current_job
 
 include("LinkedListIterate.jl")
 export LinkedJobList
@@ -68,7 +70,7 @@ include("progress_view.jl")
 export queue_progress
 
 include("macro.jl")
-export @submit
+export @submit, @yield_current, yield_current
 
 function __init__()
     # Fixing precompilation hangs due to open tasks or IO

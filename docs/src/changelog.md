@@ -1,5 +1,15 @@
 # Changelog
 
+v0.11.11-dev
+
+- Feat: Allow submit jobs within parent jobs, and use the parent jobs' thread ID: `@yield_current`.
+- More test code coverage:
+
+  - Fix: custom stdout and stderr had effect but not passed to Job struct for `Job(::Function, ...).` The bug did not apply to other Job methods.
+  - Fix: `set_scheduler()` typo when calling directly.
+  - Fix: `check_need_redirect(stdout, stderr)`: now return true if any needs redirection.
+  - Fix: `normal_print_queue_progress()`: missing `*` between lines to concatenate strings.
+
 v0.11.10
 
 - Fix: Job might not be removed from `JOB_QUEUE.queuing_0cpu` if dependency is not ok and cancel is set to the job.
