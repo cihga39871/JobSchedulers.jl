@@ -70,6 +70,10 @@ end
 		@test JobSchedulers.get_priority(job) == 0
 
 		solve_optimized_ncpu(5)
+		solve_optimized_ncpu(5; njob=2)
+		solve_optimized_ncpu(1; njob=2)
+		solve_optimized_ncpu(1; njob=0)
+		solve_optimized_ncpu(1; ncpu_range=9999:99999)
 
 
 		scheduler_balance_check("job submission")
@@ -129,6 +133,97 @@ end
 
 		fetch(job)
 		@test JobSchedulers.unsafe_cancel!(job) == :done
+
+		## test for query.jl
+		ref_running = Ref(true)
+
+		j_running = Job(@task begin
+			while ref_running[]
+				sleep(0.1)
+			end
+		end; name="j: running", ncpu=1) # will be done
+		
+		j_q_0cpou = Job(@task begin
+			error("j_q_0cpu ok: intended error for testing")
+		end; name="j: q_0cpu", ncpu=0, dependency=j_running)
+
+		j_q_future = Job(@task begin
+			println("j_q_future ok")
+		end; name="j: q_future", ncpu=1, schedule_time=Year(1))  # never run
+
+		submit!(j_running)
+		result(j_running)  # show warn
+		submit!(j_q_0cpou)
+		submit!(j_q_future)
+
+
+		# query running job
+		@test job_query_by_id(j_running.id) === j_running
+		@test JobSchedulers.job_query_by_id_no_lock(j_running.id) === j_running
+
+		# query queuing_0cpu
+		@test job_query_by_id(j_q_0cpou.id) === j_q_0cpou
+		@test JobSchedulers.job_query_by_id_no_lock(j_q_0cpou.id) === j_q_0cpou
+		@test length(JobSchedulers.JOB_QUEUE.queuing_0cpu) == 1
+
+		# query future
+		@test job_query_by_id(j_q_future.id) === j_q_future
+		@test JobSchedulers.job_query_by_id_no_lock(j_q_future.id) === j_q_future
+		@test length(JobSchedulers.JOB_QUEUE.future) == 1
+
+		# query cancelled job
+		ref_running[] = false
+		cancel!(j_q_future)
+		@test j_q_future.state == :cancelled
+		@test job_query_by_id(j_q_future.id) === j_q_future
+		@test JobSchedulers.job_query_by_id_no_lock(j_q_future.id) === j_q_future
+		sleep(1)
+		@test length(JobSchedulers.JOB_QUEUE.future) == 0
+
+
+		# query done job
+		wait(j_running)
+		@test j_running.state == :done
+		@test job_query_by_id(j_running.id) === j_running
+		@test JobSchedulers.job_query_by_id_no_lock(j_running.id) === j_running
+
+		# query failed job
+		try
+			wait(j_q_0cpou)
+		catch
+		end
+		@test j_q_0cpou.state == :failed
+		@test job_query_by_id(j_q_0cpou.id) === j_q_0cpou
+		@test JobSchedulers.job_query_by_id_no_lock(j_q_0cpou.id) === j_q_0cpou
+
+		# unsafe_update_state!
+		j_q_0cpou.state = :running
+		JobSchedulers.unsafe_update_state!(j_q_0cpou)
+		@test j_q_0cpou.state == :failed
+
+		j_running.state = :running
+		JobSchedulers.unsafe_update_state!(j_running)
+		@test j_running.state == :done
+
+		## test if running job is cancelled
+		ref_running[] = true
+		j_running2 = submit!(@task begin
+			while ref_running[]
+				sleep(0.1)
+			end
+		end; name="j: running2", ncpu=1) # will be cancelled
+		cancel!(j_running2)
+
+
+		## test wall time
+		j_running3 = submit!(@task begin
+			while ref_running[]
+				sleep(0.1)
+			end
+		end; name="j: running3", wall_time=Second(1)) # will be cancelled
+
+		@test_broken fetch(j_running3)
+		@test ispast(j_running3)
 
 		scheduler_balance_check("job cancellation")
 
@@ -193,9 +288,61 @@ end
 		close_in_future(io, [job_with_dep2, job_with_dep3])
 
 		wait_queue()
+
+		## is_dependency_ok
+		# dep ID not exist, considered ok
+		job_with_dep2.dependency = [DONE => 9999999999]
+		job_with_dep2._dep_check_id = 1
+		@test JobSchedulers.is_dependency_ok(job_with_dep2)
+		@test job_with_dep2._dep_check_id == 2
+
+		# dep cancelled but require done
+		job_cancelled = queue(CANCELLED)[1]
+		job_with_dep2._dep_check_id = 1
+		job_with_dep2.dependency = [DONE => job_cancelled]
+		@test_warn "Cancel job" JobSchedulers.is_dependency_ok(job_with_dep2)
+
+		# dep done but require cancelled
+		job_with_dep2._dep_check_id = 1
+		job_with_dep2.dependency = [CANCELLED => job_with_dep]
+		@test_warn "Cancel job" JobSchedulers.is_dependency_ok(job_with_dep2)
+
+		# dep done but require failed
+		job_with_dep2._dep_check_id = 1
+		job_with_dep2.dependency = [FAILED => job_with_dep]
+		@test_warn "Cancel job" JobSchedulers.is_dependency_ok(job_with_dep2)
+
+		# dep done and require PAST
+		job_with_dep2._dep_check_id = 1
+		job_with_dep2.dependency = [PAST => job_with_dep]
+		@test JobSchedulers.is_dependency_ok(job_with_dep2)
 	end
 
 	@testset "Backup" begin
+		
+		### small funcs
+		@test_warn "directory" set_scheduler_backup(homedir())
+		@test JobSchedulers.JLD2.writeas(Job) == JobSchedulers.JobSerialization
+		@test_nowarn js = convert(JobSchedulers.JobSerialization, Job(@task 1))
+		@test JobSchedulers.JLD2.readas(JobSchedulers.JobSerialization) == Job
+
+		q_cancelled = Vector{JobSchedulers.JobSerialization}()
+    	q_done = Vector{JobSchedulers.JobSerialization}()
+    	q_failed = Vector{JobSchedulers.JobSerialization}()
+		j_done = Job(@task 1)
+		j_done.state = DONE
+		j_failed = Job(@task 1)
+		j_failed.state = FAILED
+		j_normal = Job(@task 1)
+		JobSchedulers.backup_job!(q_cancelled, q_done, q_failed, j_done)
+		JobSchedulers.backup_job!(q_cancelled, q_done, q_failed, j_failed)
+		JobSchedulers.backup_job!(q_cancelled, q_done, q_failed, j_normal)
+
+		@test length(q_cancelled) == 1
+		@test length(q_done) == 1
+		@test length(q_failed) == 1
+		
+		
 		### set backup
 
 		tmp1 = tempname()
@@ -397,8 +544,72 @@ end
 	
 	default_mem()
 	default_ncpu()
+	set_scheduler_max_cpu(0.85)
 	set_scheduler_max_mem(0.85)
+	@test_warn "90%" set_scheduler_max_mem(0.95)
+	@test_warn "between 0 and 1" set_scheduler_max_cpu(1.85)
 	@test_warn "between 0 and 1" set_scheduler_max_mem(1.85)
 	@test set_scheduler_update_second(1) == 1.0
 	set_scheduler()
+
+	set_scheduler(max_job = 10, max_cancelled_job = 10)
+	JobSchedulers.clean_queue!()
+	@test length(JobSchedulers.queue(DONE)) <= 16
+	@test length(JobSchedulers.queue(CANCELLED)) <= 16
+
+	@test_warn "< 10" set_scheduler_max_job(5,99)
+
+	## unsafe_run!
+
+	ref_running = Ref(true)
+	j_running2 = submit!(@task begin
+		while ref_running[]
+			sleep(0.1)
+		end
+	end; name="j: running2", ncpu=1) # will be cancelled
+	sleep(1)
+	cancel!(j_running2)
+	sleep(1)
+	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running2)  # cancelled
+
+	j_running4 = Job() do 
+		nothing
+	end
+	schedule(j_running4.task)
+	sleep(1)
+	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running4)  # done
+	@test JobSchedulers.unsafe_cancel!(j_running4) === DONE
+	j_running4.state = RUNNING
+	@test JobSchedulers.unsafe_cancel!(j_running4) === DONE
+
+	j_running4.task = nothing
+	j_running4.state = QUEUING
+	@test_warn "Cannot run a job recovered from backup!" JobSchedulers.unsafe_run!(j_running4)  # no task
+	@test JobSchedulers.unsafe_cancel!(j_running4) === CANCELLED
+
+	j_running5 = Job() do 
+		while ref_running[]
+			sleep(0.1)
+		end
+	end
+	schedule(j_running5.task)
+	sleep(1)
+	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running5)  # running
+	ref_running[] = false
+
+	j_running6 = Job() do 
+		error("intended error")
+	end
+	schedule(j_running6.task)
+	sleep(1)
+	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running6)  # failed
+	@test_warn "A job has failed" JobSchedulers.unsafe_cancel!(j_running6)  # failed
+
+	j_ncpu_multi = Job(@task(1); ncpu=1.3)
+	@test_throws Exception Job(@task(1);ncpu=-1)
+	@test_throws Exception Job(@task(1);ncpu=0.5, mem=-1)
+	@test_throws Exception Job(@task(1);dependency=:abc => j_ncpu_multi)
+	
+	@test_throws Exception JobSchedulers.check_priority(10000)
+	@test_throws Exception JobSchedulers.check_priority(-10000)
 end

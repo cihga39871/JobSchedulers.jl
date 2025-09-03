@@ -80,7 +80,7 @@ function Job(p::Program;
 
     task = @task begin
         try
-            res = ScopedValues.@with(CURRENT_JOB=>job, f())
+            res = @with CURRENT_JOB=>job f()
             if res isa Pipelines.StackTraceVector
                 unsafe_update_as_failed!(job)
             else
@@ -88,7 +88,11 @@ function Job(p::Program;
             end
             res
         catch e
-            unsafe_update_as_failed!(job)
+            if e isa InterruptException
+                unsafe_update_as_cancelled!(job)
+            else
+                unsafe_update_as_failed!(job)
+            end
             rethrow(e)
         finally
             scheduler_need_action()

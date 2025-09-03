@@ -1,7 +1,23 @@
 
 @testset "Recur basic" begin
-        
+
+    @test JobSchedulers.bitfindnext(0x0000000000000001, 0) == 0
+    @test JobSchedulers.bitfindnext(0x0000000000000001, 1) === nothing
+    @test JobSchedulers.bitfindnext(0x0000000000000001, 64) === nothing
+    @test_throws Exception JobSchedulers.bitfindnext(0x0000000000000001, -1)
+    @test_throws Exception Cron(:abc)
+
+    @test !JobSchedulers.first_is_asterisk(1)
+    @test !JobSchedulers.first_is_asterisk([1])
+    @test JobSchedulers.first_is_asterisk([*])
+
     dt = DateTime("2023-04-21T10:25:09.719")
+
+    @test_throws Exception JobSchedulers.cron_value_parse(64)
+    @test_throws Exception JobSchedulers.cron_value_parse(+)
+    @test_throws Exception JobSchedulers.cron_value_parse("abc")
+    @test_throws Exception JobSchedulers.cron_value_parse('a')
+    
 
     @test JobSchedulers.cron_value_parse(0x0000000000000001) == 0x0000000000000001
     @test JobSchedulers.cron_value_parse([1,3,5,7,9]) == 0x00000000000002aa
@@ -17,6 +33,7 @@
     @test JobSchedulers.cron_value_parse("0-5,7,7,4") == 0x00000000000000bf
     @test JobSchedulers.cron_value_parse("5/2") == 0xaaaaaaaaaaaaaaa0
     @test JobSchedulers.cron_value_parse('*') == 0xffffffffffffffff
+    @test JobSchedulers.cron_value_parse('2') == 0x0000000000000004
     @test JobSchedulers.cron_value_parse([1,3,5, "7,9"]) == 0x00000000000002aa
     @test JobSchedulers.cron_value_parse([1,3,5, "*"]) == 0xffffffffffffffff
 
@@ -143,10 +160,18 @@ end
 
     sleep(3)
 
-    cancel!.(queue(QUEUING, "recur print date time"))
-    
+    while true
+        jqs = queue(QUEUING, "recur print date time")
+        if length(jqs) == 1
+            cancel!(jqs[1])
+            sleep(0.1)
+        else
+            break
+        end
+    end
+
     js = queue("recur print")
-    display(queue("recur print"))
+    display(js)
 
     @test length(js) > 1
     if length(js) >= 2
@@ -169,5 +194,14 @@ end
     end
     submit!(j2)
     sleep(2)
-    cancel!.(queue(QUEUING, "recur print date time"))
+
+    while true
+        jqs = queue(QUEUING, "recur print date time")
+        if length(jqs) == 1
+            cancel!(jqs[1])
+            sleep(0.1)
+        else
+            break
+        end
+    end
 end

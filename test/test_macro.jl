@@ -20,6 +20,23 @@
     wait(j2)
     @test result(j2) === 1 + 3247 + 32
 
+    p = JobSchedulers.Pipelines.JuliaProgram()
+    @submit touch_run_id_file=false p
+
+    @test (yield_current(now) isa Dates.DateTime)
+    @test JobSchedulers.isajob(j)
+    @test !JobSchedulers.isajob(p)
+    @test !JobSchedulers.isajob(1)
+    @test !JobSchedulers.isajob("")
+
+    @test !JobSchedulers.isnotajob(j)
+    @test JobSchedulers.isnotajob(p)
+    @test JobSchedulers.isnotajob(1)
+    @test JobSchedulers.isnotajob("")
+
+    @test JobSchedulers._sym_list!([], Set(), 5) === nothing
+
+
     function experiments_jobschedulers2(a, K=10000)
         x = 0
         for i in 1:K
@@ -48,5 +65,5 @@
         wait(jsum)
         x/K
     end
-    @test_nowarn test_sequential(4,50)
+    @test test_sequential(4,50) == 11050
 end

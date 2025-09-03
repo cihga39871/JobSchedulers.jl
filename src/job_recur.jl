@@ -133,6 +133,7 @@ function Base.isempty(c::Cron)
     c == cron_none
 end
 
+# COV_EXCL_START
 const stepmasks = map(1:64) do step
     final = 0x0000000000000000
     for i in 0:step:64
@@ -140,6 +141,7 @@ const stepmasks = map(1:64) do step
     end
     final
 end
+# COV_EXCL_STOP
 
 """
     is_union_of_days(day_of_month, day_of_week) :: Bool
@@ -436,8 +438,10 @@ function date_based_on(c::Cron)
         elseif some_dom
             return :day_of_month
         else
+            # COV_EXCL_START
             @warn "Undefined: Please report a bug with the Cron info. Thank you." c
             return :undefined
+            # COV_EXCL_STOP
         end
     else
         # both match dow and dom
@@ -450,8 +454,10 @@ function date_based_on(c::Cron)
         elseif some_dow && some_dom
             return :intersect
         else
+            # COV_EXCL_START
             @warn "Undefined: Please report a bug with the Cron info. Thank you." c
             return :undefined
+            # COV_EXCL_STOP
         end
     end
 end

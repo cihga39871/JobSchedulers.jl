@@ -1,7 +1,7 @@
 
 SCHEDULER_MAX_CPU::Int = -1              # set in __init__
 SCHEDULER_MAX_MEM::Int64 = Int64(-1)     # set in __init__
-SCHEDULER_UPDATE_SECOND::Float64 = 0.05  # set in __init__
+SCHEDULER_UPDATE_SECOND::Float64 = 0.05  # deprecated
 
 JOB_QUEUE_MAX_LENGTH::Int = 10000
 
@@ -57,6 +57,7 @@ function scheduler_reactivation()
             scheduler_need_action()
             sleep(0.1)
         catch ex
+            # COV_EXCL_START
             if isa(ex, InterruptException) && isinteractive()  # if someone sends ctrl + C to sleep, scheduler wont stop in interactive mode
                 SLEEP_HANDELED_TIME -= 1
                 if SLEEP_HANDELED_TIME < 0
@@ -69,6 +70,7 @@ function scheduler_reactivation()
                 set_scheduler_while_loop(false)
                 throw(ex)
             end
+            # COV_EXCL_STOP
         end
         
     end
@@ -93,6 +95,7 @@ function scheduler()
 
             update_queue!()  # put!(SCHEDULER_PROGRESS_ACTION[], 1) is in this function.
         catch ex
+            # COV_EXCL_START
             if isa(ex, InterruptException) && isinteractive()  # if someone sends ctrl + C to sleep, scheduler wont stop in interactive mode
                 SLEEP_HANDELED_TIME -= 1
                 if SLEEP_HANDELED_TIME < 0
@@ -105,6 +108,7 @@ function scheduler()
                 set_scheduler_while_loop(false)
                 throw(ex)
             end
+            # COV_EXCL_STOP
         end
     end
     @debug "scheduler() end"
@@ -115,6 +119,10 @@ function unsafe_update_as_failed!(job::Job, current::DateTime = now())
     job.stop_time = current
     job.state = FAILED
 end
+function unsafe_update_as_cancelled!(job::Job, current::DateTime = now())
+    job.stop_time = current
+    job.state = CANCELLED
+end
 function unsafe_update_as_done!(job::Job, current::DateTime = now())
     job.stop_time = current
     job.state = DONE
@@ -124,8 +132,6 @@ end
     unsafe_update_state!(job::Job)
 
 Update the state of `job` from `job.task` when `job.state === :running`.
-
-If a repeative job is PAST, submit a new job.
 
 Caution: it is unsafe and should only be called within lock.
 """

@@ -110,7 +110,7 @@ function __init__()
     # SCHEDULER_MAX_CPU must be the same as THREAD_POOL (if nthreads > 1), or the scheduler will stop.
     global SCHEDULER_MAX_CPU = default_ncpu()
     global SCHEDULER_MAX_MEM = round(Int64, Sys.total_memory() * 0.9)
-    global SCHEDULER_UPDATE_SECOND = Float64(ifelse(SINGLE_THREAD_MODE[], 0.05, 0.01))
+    # global SCHEDULER_UPDATE_SECOND = Float64(ifelse(SINGLE_THREAD_MODE[], 0.05, 0.01))
     scheduler_start(verbose=false)
 end
 

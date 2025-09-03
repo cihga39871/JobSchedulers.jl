@@ -183,11 +183,7 @@ function set_scheduler_max_cpu(ncpu::Int = default_ncpu())
 end
 function set_scheduler_max_cpu(percent::Float64)
     if 0.0 < percent <= 1.0
-        ncpu = round(Int, Sys.CPU_THREADS * percent)
-        if ncpu > default_ncpu()
-            @warn "Assigning number of CPU > default_ncpu() is not allowed. Set to `default_ncpu()`. Thread tid==1 is reserved for schedulers, and JobSchedulers use the rest threads of default thread pool. To use more threads, try to start Julia with sufficient threads. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads"
-            ncpu = default_ncpu()
-        end
+        ncpu = round(Int, default_ncpu() * percent)
         set_scheduler_max_cpu(ncpu)
     else
         @error "Percent::Float64 should be between 0 and 1. Are you looking for set_scheduler_max_cpu(ncpu::Int) ?"
@@ -261,12 +257,14 @@ function set_scheduler(;
     max_mem::Real = JobSchedulers.SCHEDULER_MAX_MEM,
     max_job::Int = JobSchedulers.JOB_QUEUE.max_done,
     max_cancelled_job::Int = JobSchedulers.JOB_QUEUE.max_cancelled,
-    update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND
+    update_second = nothing
 )
     set_scheduler_max_cpu(max_cpu)
     set_scheduler_max_mem(max_mem)
     set_scheduler_max_job(max_job, max_cancelled_job)
-    set_scheduler_update_second(update_second)
+    if update_second !== nothing
+        set_scheduler_update_second(update_second)
+    end
 
     scheduler_status()
 end

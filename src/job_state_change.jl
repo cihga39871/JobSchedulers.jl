@@ -176,8 +176,11 @@ function unsafe_cancel!(job::Job, current::DateTime=now())
         return job.state
     end
 
-    # no need to cancel finished ones
-    if istaskfailed2(job.task)
+    # no need to cancel not started / finished ones
+    if !istaskstarted(job.task)
+        job.state = CANCELLED
+        return job.state
+    elseif JobSchedulers.istaskfailed2(job.task)
         if job.state !== CANCELLED
             job.state = FAILED
             # job.task.result isa Exception, notify errors
@@ -195,7 +198,7 @@ function unsafe_cancel!(job::Job, current::DateTime=now())
         schedule(job.task, InterruptException(), error=true)
         job.stop_time = current
         job.state = CANCELLED
-    catch e
+    catch
         unsafe_update_state!(job)
         if job.state === RUNNING
             @error "unsafe_cancel!(job): cannot cancel a job." job

@@ -310,8 +310,7 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
             pushfirst!(JOB_QUEUE.failed, data["q_failed"]...)
         end
     end
-
-    nothing
+    return
 end
 
 function is_valid_backup_file(filepath::AbstractString)

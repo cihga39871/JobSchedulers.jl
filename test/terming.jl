@@ -12,6 +12,13 @@ io_from = open(joinpath(@__DIR__, "log.log"), "r")
 @test_nowarn JobSchedulers.print_rest_lines(Base.stdout, io_from, 0)
 close(io_from)
 
+@test JobSchedulers.progress_bar(NaN, 1; is_in_terminal=false) == "100.00% ▕████████████████████▎"
+@test JobSchedulers.progress_bar(NaN, 1; is_in_terminal=true) == "▕\e[32m█\e[39m▎"
+@test JobSchedulers.progress_bar(0.9, 20; is_in_terminal=false) == " 90.00% ▕██████████████████  ▎"
+@test JobSchedulers.progress_bar(0.3333, 20; is_in_terminal=false) == " 33.33% ▕██████▋             ▎"
+
+
+
 println(stdout, JobSchedulers.progress_bar(0.0, 3))
 println(stdout, JobSchedulers.progress_bar(0.4, 3))
 println(stdout, JobSchedulers.progress_bar(1.0, 3))
@@ -81,7 +88,10 @@ JobSchedulers.style_line("│ x = 5", :debug)
 JobSchedulers.style_line("│ x = 5", :warning)
 @test JobSchedulers.style_line("└ end", :warning)[2] == :nothing
 
-JobSchedulers.init_group_state!()
+@test_nowarn JobSchedulers.init_group_state!()
+
+@test_nowarn JobSchedulers.compute_other_job_group!([JobSchedulers.JOB_GROUPS["terming"]])
+@test JobSchedulers.get_group(j_stdlog) == "terming"
 
 queue(QUEUING)
 queue(RUNNING)

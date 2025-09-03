@@ -92,6 +92,7 @@ function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
         return
     end
 
+    # COV_EXCL_START
     now_str = Dates.format(now(),DateFormat("yyyymmdd_HHMMSS")) * "_$(round(Int, rand()*10000))"
     
     stdout_tmp_file = joinpath(homedir(), "julia_$(now_str).out")
@@ -112,6 +113,7 @@ function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
             rm(stderr_tmp_file)
         end
     end
+    # COV_EXCL_STOP
 end
 
 function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
@@ -125,6 +127,7 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
         return
     end
 
+    # COV_EXCL_START
     is_interactive = isinteractive() && Base.stdin isa Base.TTY
 
     old_stdout = Base.stdout
@@ -233,6 +236,7 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
         print_rest_lines(Pipelines.stdout_origin, stdout_tmp, start_pos_stdout_tmp)
         print_rest_lines(Pipelines.stderr_origin, stderr_tmp, start_pos_stderr_tmp)
     end
+    # COV_EXCL_STOP
 end
 
 function print_rest_lines(io_to::IO, io_from::IO, io_from_position::Integer; with_log_style::Bool = true)
