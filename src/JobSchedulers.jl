@@ -20,10 +20,7 @@ export Cron
 
 include("jobs.jl")
 export Job, result, solve_optimized_ncpu,
-isqueuing, isrunning, isdone, iscancelled, isfailed, ispast,
-current_job
-
-
+isqueuing, isrunning, isdone, iscancelled, isfailed, ispast
 
 include("thread_utils.jl")
 export current_job

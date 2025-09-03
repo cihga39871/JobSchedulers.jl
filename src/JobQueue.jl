@@ -324,17 +324,13 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                 end
 
                 if job.mem <= free_mem && is_dependency_ok(job)
-                    is_run_successful = try
-                        unsafe_run!(job, current)
-                    catch e
-                        @error "Cannot run $(job.id) $(job.name). Skip." exception=e
-                        false
-                    end
-                    if is_run_successful
+                    ret = unsafe_run!(job, current)
+
+                    if ret == OK
                         free_mem  -= job.mem
                         deleteat!(JOB_QUEUE.queuing_0cpu, job)
                         push_running!(job)
-                    else
+                    elseif ret == FAIL
                         deleteat!(JOB_QUEUE.queuing_0cpu, job)
                         if job.state === CANCELLED
                             push_cancelled!(job)
@@ -345,6 +341,7 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                         end
                         free_thread(job)
                         @atomic RESOURCE.njob -= 1
+                    # else  # SKIP
                     end
                     PROGRESS_METER && update_group_state!(job)
                 end
@@ -385,21 +382,20 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
 
                 if job.ncpu <= free_ncpu + 0.001 && job.mem <= free_mem && is_dependency_ok(job)
                     # @debug "run_queuing! lock_queuing - scan priority = $priority - try run $(job.id) $(job.name)"
-                    is_run_successful = try
-                        unsafe_run!(job, current)
-                    catch e
-                        @error "Cannot run $(job.id) $(job.name). Skip." exception=e
-                        false
-                    end
-                    if is_run_successful
+                    ret = unsafe_run!(job, current)
+                    
+                    if ret == OK
                         free_ncpu -= job.ncpu
                         free_mem  -= job.mem
                         deleteat!(jobs, job)
                         push_running!(job)
 
-                        free_ncpu < 0.999 && break
-                        free_mem <= 0 && break
-                    else
+                        free_ncpu < 0.999 && (@goto done_run_queuing)
+                        # free_mem <= 0 && (@goto done_run_queuing)
+                    elseif ret == SKIP
+                        # no free thread, skip this job. Other jobs may be able to run using their parent job's thread.
+                        continue
+                    else  # FAIL
                         deleteat!(jobs, job)
                         if job.state === CANCELLED
                             push_cancelled!(job)
@@ -422,6 +418,7 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
             free_ncpu < 0.999 && break
             free_mem <= 0 && break
         end
+        @label done_run_queuing
         if need_clean_empty_priority
             for priority in priority_delete
                 delete!(JOB_QUEUE.queuing, priority)

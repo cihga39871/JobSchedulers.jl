@@ -32,6 +32,59 @@
     @test current_job() === nothing
 
 
+    ## race condition test for taking threads
+    yield_wait = Ref(true)
+    yield_release = Ref(true)
+
+    jparent = Job(name="parent", ncpu=1) do
+        @info "running parent"
+        job = current_job()
+        @test job !== nothing
+        @test job.ncpu == 1
+        @test job._thread_id >= 0
+
+        children = Job[]  # store child jobs
+
+        @yield_current begin
+            @info "yield parent"
+            @test job.ncpu == 0
+
+            @info "yield waiting..."
+            while yield_wait[]
+                sleep(0.1)
+            end
+
+            for i in 1:10
+                child = Job(name="child: $i", ncpu=1) do
+                    @info "running child: $i"
+                end
+                push!(children, submit!(child))
+            end
+
+            for child in children
+                wait(child)
+            end
+            yield_release[] = false
+        end
+
+        @test job.ncpu == 1
+        return children
+    end
+    submit!(jparent)
+
+    # block all tids
+    ntids = length(JobSchedulers.TIDS)
+    for i in 1:ntids
+        jblock = Job(name="blocker: $i", ncpu=1) do
+            while yield_release[]
+                sleep(0.1)
+            end
+        end
+        submit!(jblock)
+    end
+    yield_wait[] = false
+    children = fetch(jparent)
+
     @test !JobSchedulers.is_tid_occupied(j)
     @test !JobSchedulers.is_tid_ready_to_occupy(j)
 

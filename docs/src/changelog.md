@@ -2,9 +2,10 @@
 
 v0.11.11-dev
 
-- Feat: Allow submit jobs within parent jobs, and use the parent jobs' thread ID: `@yield_current`.
-- More test code coverage:
-
+- Feat: `@yield_current expr` and `yield_current(f::Function)`: Allow submitting jobs within parent jobs without causing scheduler dead block. Within the block (expr or f), the parent job's ncpu is temporarily set to 0 and the child jobs can use its thread ID. Child jobs need to wait until finish within the block.
+- Feat: `current_job()`: Allow accessing to the job within its task. Return the `Job` that is running in the current scope, `nothing` if the current scope is not within a job.
+- Change: `unsafe_run!(j::Job)`, `schedule_thread(j::Job)` returns UInt8 representation of one of `OK, SKIP, FAIL`.
+- More code coverage:
   - Fix: custom stdout and stderr had effect but not passed to Job struct for `Job(::Function, ...).` The bug did not apply to other Job methods.
   - Fix: `set_scheduler()` typo when calling directly.
   - Fix: `check_need_redirect(stdout, stderr)`: now return true if any needs redirection.

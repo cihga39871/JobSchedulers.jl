@@ -89,13 +89,18 @@ function submit!(args...; kwargs...)
 end
 
 """
-    unsafe_run!(job::Job, current::DateTime=now()) :: Bool
+    unsafe_run!(job::Job, current::DateTime=now()) :: UInt8
 
-Jump the queue and run `job` immediately, no matter what other jobs are running or waiting. If successful initiating to run, return `true`, else `false`. 
+Jump the queue and run `job` immediately, no matter what other jobs are running or waiting.
+
+Return:
+- `OK`: successfully scheduled to run.
+- `SKIP`: no thread is available, skip this time.
+- `FAIL`: failed to schedule.
 
 Caution: it will not trigger `scheduler_need_action()`.
 """
-function unsafe_run!(job::Job, current::DateTime=now()) :: Bool
+function unsafe_run!(job::Job, current::DateTime=now()) :: UInt8
     global QUEUING
     global RUNNING
     global FAILED
@@ -108,32 +113,30 @@ function unsafe_run!(job::Job, current::DateTime=now()) :: Bool
         if job.state in (RUNNING, QUEUING)
             job.state = CANCELLED
         end
-        return false
+        return FAIL
     end
 
-    try
-        schedule_thread(job)
+    ret = schedule_thread(job)
+
+    if ret == OK
         job.start_time = current
         job.state = RUNNING
-        true
-    catch e
+        return OK
+    elseif ret == SKIP
+        return SKIP
+    else  # FAIL
         # check status when fail
         if istaskfailed2(job.task)
             if job.state !== CANCELLED
                 job.state = FAILED
                 @error "A job has failed: $(job.id)" exception=job.task.result
             end
-            false
         elseif istaskdone(job.task)
             job.state = DONE
-            false
         elseif istaskstarted(job.task)
             job.state = RUNNING
-            false
-        else
-            rethrow(e)
-            false
         end
+        return FAIL
     end
 end
 

@@ -119,7 +119,7 @@ end
 		j = Job(@task 1+1)
 		j.task = nothing
 		@test_throws Exception submit!(j)
-		@test JobSchedulers.unsafe_run!(j) == false
+		@test JobSchedulers.unsafe_run!(j) == JobSchedulers.FAIL
 		@test JobSchedulers.unsafe_cancel!(j) == CANCELLED
 
 		jobx2 = Job(@task(begin; sleep(20); println("run_success"); end), name="to_cancel", priority = 20, stdout=IOBuffer())

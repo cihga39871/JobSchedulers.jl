@@ -41,16 +41,6 @@ Return the `Job` that is running in the current scope, `nothing` if the current 
 @inline current_job() = CURRENT_JOB[]
 
 """
-    const CURRENT_JOB_YIELDED = ScopedValue{Bool}(false)
-
-Whether the current job yields its thread when it is waiting (e.g. waiting for child jobs to finish).
-"""
-const CURRENT_JOB_YIELDED = ScopedValue{Bool}(false)
-
-@inline current_job_yielded() = CURRENT_JOB_YIELDED[]
-
-
-"""
 # How JobSchedulers.jl sets thread ID (tid) for Jobs that is submitted within its parent Job?
 
 Start Julia with `julia -t 1,1`, and run the following example:
@@ -145,8 +135,11 @@ Return Bool. `false` means job not occupied (`j._thread_id & OCCUPIED_MARK != 0`
     j._thread_id > OCCUPIED_MARK  # optimized version
 end
 
+const SKIP = UInt8(0)
+const OK   = UInt8(1)
+const FAIL = UInt8(2)
 
-function schedule_thread(j::Job)
+function schedule_thread(j::Job) :: UInt8
     if j.ncpu > 0
         @static if :sticky in fieldnames(Task)
             if !SINGLE_THREAD_MODE[]
@@ -166,20 +159,34 @@ function schedule_thread(j::Job)
                         if j._thread_id > 0  # just in case if race condition happens and parent job's tid is occupied by another child task. Even it is unlikely to happen because the function should be only be called within the main scheduler task.
                             ccall(:jl_set_task_tid, Cvoid, (Any, Cint), j.task, j._thread_id-1)
                         end
-                        return schedule(j.task)
+                        @goto schedule_task
                     end
                     parent = parent._parent
                 end
                 
                 # take the next free thread... Will block/wait until a thread becomes free
-                j._thread_id = take!(THREAD_POOL[])
-                ccall(:jl_set_task_tid, Cvoid, (Any, Cint), j.task, j._thread_id-1)
+
+                if isready(THREAD_POOL[])
+                    j._thread_id = take!(THREAD_POOL[])
+                    ccall(:jl_set_task_tid, Cvoid, (Any, Cint), j.task, j._thread_id-1)
+                else
+                    # no free thread, skip this time
+                    return SKIP
+                end
+                
             end
         end
     # else  # ncpu == 0
         # allow task migration which was introduced in 1.7
     end
-    schedule(j.task)
+    @label schedule_task
+    try
+        schedule(j.task)
+        return OK
+    catch e
+        @error "Error scheduling job. Skip. id=$(j.id) name=$(j.name)" exception=(e, catch_backtrace())
+        return FAIL
+    end
 end
 
 """
