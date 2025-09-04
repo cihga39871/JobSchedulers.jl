@@ -219,8 +219,6 @@ function Base.delete!(l::LinkedJobList, idx::Int)
     return l
 end
 
-Base.deleteat!(l::LinkedJobList, r::UnitRange) = Base.delete!(l::LinkedJobList, r::UnitRange)
-
 function Base.delete!(l::LinkedJobList, r::UnitRange)
     @boundscheck 0 < first(r) < last(r) <= l.len || throw(BoundsError(l, r))
     node = l.node
@@ -243,6 +241,8 @@ function Base.delete!(l::LinkedJobList, r::UnitRange)
     l.len -= len
     return l
 end
+
+Base.deleteat!(l::LinkedJobList, r::UnitRange) = Base.delete!(l::LinkedJobList, r::UnitRange)
 
 function Base.push!(l::LinkedJobList, node::Job)
     oldlast = l.node._prev

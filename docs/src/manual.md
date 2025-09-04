@@ -103,10 +103,6 @@ job = submit!(@task(println("job")), priority = 0)
 
 Macro `@submit [args...] expression` is another way to submit a job. It automatically adds **explictly referred** `Job` dependencies by walking through the symbols in the `expression`.
 
-!!! tip "Submitting child jobs with a parent job"
-    Please submit and wait for all your child jobs within `@yield_current begin ... end` block to avoid blockage between parent and child jobs.
-    See more at Best Practice Page.
-
 ```julia
 job = @submit ncpu=1 1+1
 
@@ -124,6 +120,14 @@ job_block = @submit begin
 end
 @assert fetch(job_block) == (5+1)^2
 ```
+
+!!! tip "Submitting child jobs with a parent job"
+    If you have a parent job that creats child jobs, and the parent job relies on the results of the child jobs, you need to wrap your child jobs within [`@yield_current`](@ref). 
+    
+    `@yield_current` is used to prevent wasting threads and even blocking JobScheduler when submitting jobs within jobs.
+
+    See details [here](@ref submit-child-jobs).
+
 
 ## Get a Job's Result
 

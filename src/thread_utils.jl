@@ -29,7 +29,7 @@ const TIDS = Vector{Int}()
 
 The `Job` that is running in the current scope, `nothing` if the current scope is not within a job.
 
-See also `current_job()`.
+See also [`current_job`](@ref).
 """
 const CURRENT_JOB = ScopedValue{Union{Job, Nothing}}(nothing)
 
@@ -39,40 +39,6 @@ const CURRENT_JOB = ScopedValue{Union{Job, Nothing}}(nothing)
 Return the `Job` that is running in the current scope, `nothing` if the current scope is not within a job.
 """
 @inline current_job() = CURRENT_JOB[]
-
-"""
-# How JobSchedulers.jl sets thread ID (tid) for Jobs that is submitted within its parent Job?
-
-Start Julia with `julia -t 1,1`, and run the following example:
-
-```julia
-using JobSchedulers
-
-parent_job = submit!(@task begin
-    println("Parent job running on thread ", Threads.threadid())
-
-    @yield_current begin  # yield to allow child jobs to be scheduled
-        child_job1 = Job(@task begin
-            println("Child job 1 running on thread ", Threads.threadid())
-        end; ncpu=1)
-        child_job2 = Job(@task begin
-            println("Child job 2 running on thread ", Threads.threadid())
-        end; ncpu=1)
-        
-        submit!(child_job1)
-        submit!(child_job2)
-        
-        wait(child_job1)
-        wait(child_job2)
-    end
-end; ncpu=1)
-```
-
-Normally, the parent will not finish because the only available thread is occupied by the parent job itself, and the child jobs cannot be scheduled.
-
-However, JobSchedulers.jl detects that the child jobs are submitted within any parent jobs, and assigns the nearest parent's not-occupied thread to the child jobs. If all parent jobs' threads are occupied, or freed to the pool, then the child jobs will take the next available thread from the pool.
-"""
-function help_submit_job_within_job end
 
 """
     const OCCUPIED_MARK = 1<<30
@@ -139,6 +105,11 @@ const SKIP = UInt8(0)
 const OK   = UInt8(1)
 const FAIL = UInt8(2)
 
+"""
+    schedule_thread(j::Job) :: UInt8
+
+Internal: assign TID to and run the job.
+"""
 function schedule_thread(j::Job) :: UInt8
     if j.ncpu > 0
         @static if :sticky in fieldnames(Task)
@@ -192,7 +163,7 @@ end
 """
     free_thread(j::Job)
 
-Make thread available again after work is done!
+Make thread available again after job is finished.
 """
 function free_thread(j::Job)
     if j._thread_id <= 0

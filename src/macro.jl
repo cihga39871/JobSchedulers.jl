@@ -120,6 +120,52 @@ macro submit(args...)
     end
 end
 
+"""
+    @yield_current expr
+
+Used to prevent wasting threads and even blocking JobScheduler when submitting jobs within jobs.
+    
+If `@yield_current` is called within a `Job`'s scope, this `Job` is considered as the [`current_job`](@ref). If not called within a job's scope, `expr` will be evaluated as it is.
+
+Within the `expr` block, the current job's `ncpu` is temporarily set to `0`, and the thread of the current job can be occupied by any child jobs (including **grand-child** jobs). 
+
+Once leaving the `expr` block, the current job's `ncpu` is resumed, and its thread is not able to occupied.
+
+Therefore, the child jobs need to be submitted and **waited** within the `expr` block. 
+
+Example:
+
+```julia
+using JobSchedulers
+
+parent_job = Job(ncpu=1) do
+    # imagine preparing A and B takes lots of time
+    A = 0
+    B = 0
+
+    # compute A and B in parallel (imagine they take lots of time)
+    @yield_current begin
+        child_job_A = @submit A += 100
+        child_job_B = @submit B += 1000
+        wait(child_job_A)
+        wait(child_job_B)
+    end
+
+    # do computation based on results of child jobs 
+    return A + B
+end
+
+submit!(parent_job)
+res = fetch(parent_job)
+# 1100
+```
+
+If not using `@yield_current`, the thread taken by the current job is wasted when waiting. 
+
+In an extreme condition, the JobScheduler can be **blocked** if all threads are taken by parent jobs, and if their child jobs do not have any threads to run.
+
+To experience the blockage, you can start Julia with `julia -t 1,1`, and run the example code without `@yield_current`. You may kill the julia session by pressing Ctrl+C 10 times.
+"""
 macro yield_current(ex)
     return quote
         local res
@@ -136,6 +182,16 @@ macro yield_current(ex)
         res
     end
 end
+
+"""
+    yield_current(f::Function) = @yield_current f()
+
+The function version of [`@yield_current`](@ref). 
+
+Prevent wasting threads and even blocking JobScheduler when submitting jobs within jobs.
+
+See details at [`@yield_current`](@ref).
+"""
 @inline function yield_current(f::Function)
     @yield_current f()
 end

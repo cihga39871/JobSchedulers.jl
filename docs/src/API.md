@@ -38,6 +38,13 @@ isfailed
 ispast
 ```
 
+## Submit Job within Job
+```@docs
+@yield_current
+yield_current
+current_job
+```
+
 ## Cron: Job Recur/Repeat
 ```@docs
 Cron
@@ -50,6 +57,7 @@ Dates.tonext(::DateTime, ::Cron)
 queue
 all_queue
 job_query
+job_query_by_id
 ```
 
 ## Wait For Jobs
@@ -92,6 +100,62 @@ backup
 
 ## Internal
 
+### Internal - Const/Variable
+
+```@docs
+JobSchedulers.THREAD_POOL
+JobSchedulers.SINGLE_THREAD_MODE
+JobSchedulers.TIDS
+JobSchedulers.CURRENT_JOB
+JobSchedulers.OCCUPIED_MARK
+```
+
+```julia
+const SKIP = UInt8(0)
+const OK   = UInt8(1)
+const FAIL = UInt8(2)
+
+const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
+const SCHEDULER_PROGRESS_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
+
+SCHEDULER_MAX_CPU::Int = -1              # set in __init__
+SCHEDULER_MAX_MEM::Int64 = Int64(-1)     # set in __init__
+SCHEDULER_UPDATE_SECOND::Float64 = 0.05  # set in __init__
+
+const JOB_QUEUE = JobQueue(; max_done = JOB_QUEUE_MAX_LENGTH,  max_cancelled = max_done = JOB_QUEUE_MAX_LENGTH)
+
+SCHEDULER_BACKUP_FILE::String = ""
+
+SCHEDULER_WHILE_LOOP::Bool = true
+
+SLEEP_HANDELED_TIME::Int = 10
+
+DESTROY_UNNAMED_JOBS_WHEN_DONE::Bool = true
+
+const ALL_JOB_GROUP = JobGroup("ALL JOBS")
+const JOB_GROUPS = OrderedDict{String, JobGroup}()
+const OTHER_JOB_GROUP = JobGroup("OTHERS")
+```
+
+### Internal - Thread Utils
+
+```@docs
+JobSchedulers.schedule_thread
+JobSchedulers.free_thread
+JobSchedulers.is_tid_ready_to_occupy
+JobSchedulers.is_tid_occupied
+JobSchedulers.unsafe_occupy_tid!
+JobSchedulers.unsafe_unoccupy_tid!
+JobSchedulers.unsafe_original_tid
+```
+
+### Internal - LinkedJobList
+
+```@docs
+JobSchedulers.LinkedJobList
+Base.deleteat!(::LinkedJobList, ::Job)
+```
+
 ### Internal - Scheduling
 
 ```@docs
@@ -123,36 +187,5 @@ JobSchedulers.view_update
 JobSchedulers.PROGRESS_METER
 JobSchedulers.update_group_state!
 JobSchedulers.init_group_state!()
-```
-
-### Internal - Const/Variable
-
-```@docs
-JobSchedulers.THREAD_POOL
-JobSchedulers.SINGLE_THREAD_MODE
-JobSchedulers.TIDS
-```
-
-```julia
-const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
-const SCHEDULER_PROGRESS_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
-
-SCHEDULER_MAX_CPU::Int = -1              # set in __init__
-SCHEDULER_MAX_MEM::Int64 = Int64(-1)     # set in __init__
-SCHEDULER_UPDATE_SECOND::Float64 = 0.05  # set in __init__
-
-const JOB_QUEUE = JobQueue(; max_done = JOB_QUEUE_MAX_LENGTH,  max_cancelled = max_done = JOB_QUEUE_MAX_LENGTH)
-
-SCHEDULER_BACKUP_FILE::String = ""
-
-SCHEDULER_WHILE_LOOP::Bool = true
-
-SLEEP_HANDELED_TIME::Int = 10
-
-DESTROY_UNNAMED_JOBS_WHEN_DONE::Bool = true
-
-const ALL_JOB_GROUP = JobGroup("ALL JOBS")
-const JOB_GROUPS = OrderedDict{String, JobGroup}()
-const OTHER_JOB_GROUP = JobGroup("OTHERS")
 ```
 
