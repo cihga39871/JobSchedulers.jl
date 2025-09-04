@@ -566,7 +566,7 @@ end
 	@test_warn "< 10" set_scheduler_max_job(5,99)
 
 	## unsafe_run!
-
+	@info "Following has lots of @error messages for code coverage."
 	ref_running = Ref(true)
 	j_running2 = submit!(@task begin
 		while ref_running[]
@@ -580,7 +580,7 @@ end
 	while !ispast(j_running2)
 		sleep(0.1)
 	end
-	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running2)  # cancelled
+	JobSchedulers.unsafe_run!(j_running2) # cancelled
 
 	j_running4 = Job() do 
 		nothing
@@ -589,14 +589,14 @@ end
 	while !istaskstarted(j_running4.task)
 		sleep(0.1)
 	end
-	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running4)  # done
+	JobSchedulers.unsafe_run!(j_running4) # done
 	@test JobSchedulers.unsafe_cancel!(j_running4) === DONE
 	j_running4.state = RUNNING
 	@test JobSchedulers.unsafe_cancel!(j_running4) === DONE
 
 	j_running4.task = nothing
 	j_running4.state = QUEUING
-	@test_warn "Cannot run a job recovered from backup!" JobSchedulers.unsafe_run!(j_running4)  # no task
+	@test JobSchedulers.unsafe_run!(j_running4) == JobSchedulers.FAIL # no task
 	@test JobSchedulers.unsafe_cancel!(j_running4) === CANCELLED
 
 	j_running5 = Job() do 
@@ -608,7 +608,7 @@ end
 	while !istaskstarted(j_running5.task)
 		sleep(0.1)
 	end
-	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running5)  # running
+	@test JobSchedulers.unsafe_run!(j_running5) == JobSchedulers.FAIL  # running
 	ref_running[] = false
 
 	j_running6 = Job() do 
@@ -618,8 +618,8 @@ end
 	while !istaskfailed(j_running6.task)
 		sleep(0.1)
 	end
-	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running6)  # failed
-	@test_warn "A job has failed" JobSchedulers.unsafe_cancel!(j_running6)  # failed
+	@test JobSchedulers.unsafe_run!(j_running6) == JobSchedulers.FAIL  # failed
+	@test JobSchedulers.unsafe_cancel!(j_running6) == FAILED  # failed
 
 	j_ncpu_multi = Job(@task(1); ncpu=1.3)
 	@test_throws Exception Job(@task(1);ncpu=-1)
