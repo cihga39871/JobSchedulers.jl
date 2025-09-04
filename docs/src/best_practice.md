@@ -70,7 +70,7 @@ To prevent the side effects, it is always recommended to use [`@yield_current`](
 
 Why and when do the side effects happen?
 
-Each job with `ncpu > 0` takes a unique thread ID when started, and if a parent job submits and waits for a child job during its execution, the thread taken by the parent is wasted when waiting. In a worse senario, if there is no avaiable thread, the child job won't start, resulting a scheduler blockage. 
+Each job with `ncpu > 0` takes a unique thread ID when started, and if a parent job submits and waits for a child job during its execution, the thread taken by the parent is wasted when waiting. In a worse senario, if there is no Available thread, the child job won't start, resulting a scheduler blockage. 
 
 !!! details "An example to demonstrate the blockage"
     Start Julia with 1 interactive and 1 default thread: `julia -t 1,1`, and run the following code:
@@ -83,7 +83,7 @@ Each job with `ncpu > 0` takes a unique thread ID when started, and if a parent 
     parent_job = submit!(@task begin
         println("Parent job running on thread ", Threads.threadid())
 
-        println("Avaiable threads in the thread pool: ", JobSchedulers.THREAD_POOL[].data)
+        println("Available threads in the thread pool: ", JobSchedulers.THREAD_POOL[].data)
 
         child_job1 = Job(@task begin
             println("Child job 1 running on thread ", Threads.threadid())
@@ -99,7 +99,7 @@ Each job with `ncpu > 0` takes a unique thread ID when started, and if a parent 
         wait(child_job2)
     end; name="parent");
     # Parent job running on thread 2
-    # Avaiable threads in the thread pool: Int64[]
+    # Available threads in the thread pool: Int64[]
 
     sleep(1)
     queue()
@@ -113,7 +113,7 @@ Each job with `ncpu > 0` takes a unique thread ID when started, and if a parent 
     fetch(parent_job)
     ```
 
-    As it shows, the two child jobs is queuing because no avaiable thread in the thread pool. The scheduler is blocked forever until you kill the parent job (or the Julia session, of course).
+    As it shows, the two child jobs is queuing because no Available thread in the thread pool. The scheduler is blocked forever until you kill the parent job (or the Julia session, of course).
 
     If you do not wait for child jobs, the program will not block, but what if you need the results of child jobs in the parent?
 
@@ -130,7 +130,7 @@ using JobSchedulers
 parent_job = submit!(@task begin
     println("Parent job running on thread ", Threads.threadid())
 
-    println("Avaiable threads in the thread pool: ", JobSchedulers.THREAD_POOL[].data)
+    println("Available threads in the thread pool: ", JobSchedulers.THREAD_POOL[].data)
 
     @yield_current begin
         child_job1 = Job(@task begin
@@ -148,7 +148,7 @@ parent_job = submit!(@task begin
     end
 end; name="parent");
 # Parent job running on thread 2
-# Avaiable threads in the thread pool: Int64[]
+# Available threads in the thread pool: Int64[]
 # Child job 1 running on thread 2
 # Child job 2 running on thread 2
 
