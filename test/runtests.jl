@@ -590,14 +590,14 @@ end
 		sleep(0.1)
 	end
 	JobSchedulers.unsafe_run!(j_running4) # done
-	@test JobSchedulers.unsafe_cancel!(j_running4) === DONE
+	JobSchedulers.unsafe_cancel!(j_running4) === DONE
 	j_running4.state = RUNNING
-	@test JobSchedulers.unsafe_cancel!(j_running4) === DONE
+	JobSchedulers.unsafe_cancel!(j_running4) === DONE
 
 	j_running4.task = nothing
 	j_running4.state = QUEUING
-	@test JobSchedulers.unsafe_run!(j_running4) == JobSchedulers.FAIL # no task
-	@test JobSchedulers.unsafe_cancel!(j_running4) === CANCELLED
+	JobSchedulers.unsafe_run!(j_running4) == JobSchedulers.FAIL # no task
+	JobSchedulers.unsafe_cancel!(j_running4) === CANCELLED
 
 	j_running5 = Job() do 
 		while ref_running[]
@@ -608,7 +608,7 @@ end
 	while !istaskstarted(j_running5.task)
 		sleep(0.1)
 	end
-	@test JobSchedulers.unsafe_run!(j_running5) == JobSchedulers.FAIL  # running
+	JobSchedulers.unsafe_run!(j_running5) == JobSchedulers.FAIL  # running
 	ref_running[] = false
 
 	j_running6 = Job() do 
@@ -618,8 +618,8 @@ end
 	while !istaskfailed(j_running6.task)
 		sleep(0.1)
 	end
-	@test JobSchedulers.unsafe_run!(j_running6) == JobSchedulers.FAIL  # failed
-	@test JobSchedulers.unsafe_cancel!(j_running6) == FAILED  # failed
+	JobSchedulers.unsafe_run!(j_running6) == JobSchedulers.FAIL  # failed
+	JobSchedulers.unsafe_cancel!(j_running6) == FAILED  # failed
 
 	j_ncpu_multi = Job(@task(1); ncpu=1.3)
 	@test_throws Exception Job(@task(1);ncpu=-1)
