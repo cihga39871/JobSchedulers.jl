@@ -11,9 +11,11 @@ JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also 
 using JobSchedulers
 ```
 
-## Create a Job
+## Create and submit a Job
 
-A [`Job`](@ref) is the wrapper of `AbstractCmd`, `Function` or `Task`:
+A [`Job`](@ref) is the wrapper of `AbstractCmd`, `Function` or `Task`.
+
+*The package schedules `Job`, as `Base.Threads` schedules `Task`.*
 
 ```julia
 command_job = Job(
@@ -68,19 +70,24 @@ job_with_args = Job(
 #   task          → Task (runnable) @0x00007625b8d26720
 ```
 
-> `dependency` argument in [`Job`](@ref) controls when to start a job.
->
-> It is a vector with element `STATE => job` or `STATE => job.id`.
->
-> STATE is one of `DONE`, `FAILED`, `CANCELLED`, `QUEUING`, `RUNNING`, `PAST`.  
-> The first 5 states are real job states.  
-> `PAST` is the super set of `DONE`, `FAILED`, `CANCELLED`, which means the job will not run in the future.
->
-> `DONE => job` can be simplified to `job` from v0.8.
+!!! info "Dependency"
+    `dependency` argument in [`Job`](@ref) controls when to start a job based on other jobs.
 
-## Submit a Job
+    It is a `Vector` with element `STATE => job` or `STATE => job.id`.
 
-Submit a job to queue:
+    STATE is one of `DONE`, `FAILED`, `CANCELLED`, `QUEUING`, `RUNNING`, `PAST`.  
+    The first 5 states are real job states.  
+    `PAST` is the super set of `DONE`, `FAILED`, `CANCELLED`, which means the job will not run in the future.
+
+    The writing styles below have the same meaning:
+
+    ```julia
+    Job(...; dependency = [DONE => job1])
+    Job(...; dependency = DONE => job1)
+    Job(...; dependency = job1)
+    ```
+
+Submit a job to queue using [`submit!`](@ref):
 
 ```julia
 submit!(command_job)
@@ -88,17 +95,17 @@ submit!(task_job)
 submit!(job_with_args)
 ```
 
-> Details: [`submit!`](@ref)
-
-## Create and submit a Job
-
-`submit!(Job(...))` can be simplified to `submit!(...)` from v0.8.
+Besides, `submit!(Job(...))` can be simplified to `submit!(...)`:
 
 ```julia
 job = submit!(@task(println("job")), priority = 0)
 ```
 
-Macro `@submit [args...] expression` is available from v0.10.2. It will automatically add **explictly referred** `Job` dependencies by walking through the symbols in the `expression`.
+Macro `@submit [args...] expression` is another way to submit a job. It automatically adds **explictly referred** `Job` dependencies by walking through the symbols in the `expression`.
+
+!!! tip "Submitting child jobs with a parent job"
+    Please submit and wait for all your child jobs within `@yield_current begin ... end` block to avoid blockage between parent and child jobs.
+    See more at Best Practice Page.
 
 ```julia
 job = @submit ncpu=1 1+1
@@ -120,14 +127,14 @@ end
 
 ## Get a Job's Result
 
-Get the returned [`result`](@ref) imediately. If job is not finished, show a warning message and return nothing:
+Get the returned [`result`](@ref) immediately and do not block threads. If job is not finished, show a warning message and return nothing:
 
 ```julia
 result(job)
 # "result"
 ```
 
-You can also use [`fetch`](@ref) to wait for job to finish and return its result from JobSchedulers v0.10.2.
+You can also use [`fetch`](@ref) to wait for job to finish and return its result.
 
 ```julia
 fetch(job)
@@ -209,7 +216,7 @@ end
 # 2025-03-04T22:26:15.051
 ```
 
-> Details: [`Cron`](@ref)
+Details: [`Cron`](@ref)
 
 ## Queue
 
@@ -228,9 +235,13 @@ all_queue()
 #                                                           9 columns omitted
 ```
 
-!!! compat "Changes from v0.10"
+!!! compat "Behavior of Unnamed Jobs"
 
-    Before v0.10, all jobs will be saved to queue. However, from v0.10, unnamed jobs (`job.name == ""`) will not be saved if they **successfully** ran. If you want to save unnamed jobs, you can set using `JobSchedulers.destroy_unnamed_jobs_when_done(false)`.
+    Before v0.10, all jobs will be saved to queue. However, from v0.10, unnamed jobs (`job.name == ""`) will not be saved if they **successfully** ran. If you want to save unnamed jobs, you can set manually:
+    
+    ```julia
+    JobSchedulers.destroy_unnamed_jobs_when_done(false
+    ```
 
 Show queue (running and queuing jobs only):
 
@@ -297,9 +308,9 @@ queue(:all)[1]
 #   state         → :done
 #   priority      → 20
 #   dependency    → 2 jobs
-#   task          → Task
 #   stdout        → nothing
 #   stderr        → nothing
+#   task          → Task
 ```
 
 > See more at [`job_query`](@ref), and [`queue`](@ref).
@@ -356,14 +367,14 @@ scheduler_status()
 # :running
 ```
 
-!!! info "Number of CPU Optimization"
+!!! info "Experimental: Number of CPU Optimization"
     JobSchedulers.jl also provide a function to find optimized `ncpu` that a Job can use, based on current cpu usage. See more at [`solve_optimized_ncpu`](@ref).
 
 ## Compatibility with Pipelines.jl
 
-[Pipelines.jl](https://cihga39871.github.io/Pipelines.jl/dev/): A lightweight Julia package for computational pipelines and workflows.
+[Pipelines.jl](https://cihga39871.github.io/Pipelines.jl/dev/) is a lightweight Julia package for computational pipelines and workflows. It can work seamlessly with JobSchedulers.
 
-You can also create a `Job` by using `Program` types from Pipelines.jl:
+You can create a `Job` by using `Program` types from Pipelines.jl. `Program` is the abstract type of `JuliaProgram` and `CmdProgram`.
 
 ```julia
 Job(p::Program; program_kwargs..., run_kwargs..., job_kwargs...)
@@ -379,6 +390,8 @@ Details can be found by typing
 
 ```julia
 julia> using Pipelines, JobSchedulers
+julia> ?JuliaProgram
+julia> ?CmdProgram
 julia> ?run
 julia> ?Job
 ```
@@ -440,18 +453,15 @@ run(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)
 # (true, Dict{String, Any}("OUT" => "out"))
 
 ### run the program by submitting to JobSchedulers.jl
-program_job = submit!(p, IN1 = `in1`, IN2 = 2, OUT = "out", touch_run_id_file = false)
+program_job = submit!(p, IN1=`in1`, IN2=2, OUT="out", touch_run_id_fil =false)
 # same results as `run`
+
+### Or run the program using macro @submit
+program_job = @submit IN1=`in1` IN2=2 OUT="out" touch_run_id_file=false p
 
 # get the returned result
 result(program_job)
 # (true, Dict{String, Any}("OUT" => "out"))
-```
-
-[`@submit`](@ref) also works with `Program`s:
-
-```julia
-program_job2 = @submit IN1=`in1` IN2=2 OUT="out" touch_run_id_file=false p
 ```
 
 ## Scheduler settings

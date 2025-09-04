@@ -1,6 +1,6 @@
 # Overhead Test of Scheduling Systems
 
-To test the overhead of scheduling systems, I compared `Base.Threads`, `Dagger.jl`, and `JobSchedulers` using tiny tasks (`x::Int += y::Int`).
+To test the overhead of scheduling systems, I compared `Base.Threads`, `Dagger`, and `JobSchedulers` using tiny tasks (`x::Int += y::Int`).
 
 !!! warning
     `x += y` is not thread-safe, and it is for overhead test only.

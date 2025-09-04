@@ -6,7 +6,9 @@ In the following sections, we briefly go through a few techniques that can help 
 
 It is recommended to use JobSchedulers in multi-threaded Julia sessions. 
 
-`Job`s are controlled using a main scheduler task (`JobSchedulers.SCHEDULER_TASK[]`). This task always binds to thread ID (tid) 1 and does not migrate to other threads. During initiation, JobSchedulers.jl checks available tids in the **default** thread pool. If the default thread pool is empty after excluding tid 1, JobSchedulers.jl will use a single-thread mode (`JobSchedulers.SINGLE_THREAD_MODE[]`). Otherwise, JobSchedulers.jl will use a multi-thread mode.
+`Job`s are controlled using a main scheduler task (`JobSchedulers.SCHEDULER_TASK[]`). This task always binds to thread ID (tid) 1 and does not migrate to other threads. During initiation, JobSchedulers checks available tids in the **default** thread pool. 
+
+If the default thread pool is empty after excluding tid 1, JobSchedulers will use a single-thread mode (`JobSchedulers.SINGLE_THREAD_MODE[]::Bool`). Otherwise, JobSchedulers will use a multi-thread mode.
 
 ### Single-thread Mode
 
@@ -59,11 +61,12 @@ If you set `ncpu = 0` to your job,
       # 4.999998913757924e8
       ```
 
+### Submitting jobs within a parent job
 
 ## Avoid simultaneous use of `Job` and other multi-threaded methods using the `:default` thread pool
 
 Since a normal `Job` binds to a tid in the default thread pool and does not migrate, it is better not to simultaneously use `Job` and other threaded methods, such as `Threads.@spawn` and `Threads.@threads`. 
 
-Also, JobScheduers.jl has very low extra computational costs (scheduling 10,000 jobs within 0.01 second), so normal threaded methods can be replaced with `Job`.
+Also, JobScheduers has very low computational costs (1~2 us/job from creation to destroy), so normal threaded methods can be replaced with `Job`.
 
 If you really want to use both `Job` and other threaded methods, it is better to make sure to run them at different time. You may use `wait_queue()`, `scheduler_stop()`, and `scheduler_start()` in this situation.
