@@ -158,7 +158,7 @@ function is_union_of_days(day_of_month, day_of_week)
     return !do_intersect
 end
 
-first_is_asterisk(value::Integer) = false
+first_is_asterisk(value::Integer) = false  # COV_EXCL_LINE
 first_is_asterisk(value::Char) = value == '*'
 first_is_asterisk(value::Function) = value == *
 first_is_asterisk(value::String) = length(value) >= 1 && value[1] == '*'
@@ -336,7 +336,7 @@ function Dates.tonext(d::Date, c::Cron; same::Bool = false, limit::Date = d + Da
             d2 += Day(1)
         end
     end
-    return nothing
+    return nothing  # COV_EXCL_LINE
 end
 
 
@@ -509,7 +509,7 @@ end
 
 function get_second_description(seconds::Vector{Int})
     if length(seconds) == 0
-        "0 second"
+        "no second"
     elseif length(seconds) == 1
         "$(seconds[1]) second"
     else
@@ -519,7 +519,7 @@ function get_second_description(seconds::Vector{Int})
 end
 function get_minute_description(minutes::Vector{Int})
     if length(minutes) == 0
-        "0 minute"
+        "no minute"
     elseif length(minutes) == 1
         "$(minutes[1]) minute"
     else
@@ -529,7 +529,7 @@ function get_minute_description(minutes::Vector{Int})
 end
 function get_hour_description(hours::Vector{Int})
     if length(hours) == 0
-        "0 hour"
+        "no hour"
     elseif length(hours) == 1
         "$(hours[1]) hour"
     else
@@ -552,7 +552,7 @@ function get_date_description(c::Cron)
     elseif based === :intersect
         str *= get_dom_description(c) * " if it's " * get_dow_description(c)
     elseif based === :none
-        str *= "no repeated date"
+        return "no repeated date"
     end
 
     # month
@@ -567,6 +567,9 @@ end
 
 function get_dow_description(c::Cron)
     dows = bitsfind(c.day_of_week, 1:7)
+    if isempty(dows)
+        return "on no day of week"
+    end
     human_readables = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     dows2 = human_readables[dows]
     return "on " * join(dows2, ", ", " and ")
@@ -574,6 +577,9 @@ end
 
 function get_month_description(c::Cron)
     months = bitsfind(c.month, 1:12)
+    if isempty(months)
+        return " in no month"
+    end
     human_readables = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     months2 = human_readables[months]
     return " in " * join(months2, ", ", " and ")

@@ -6,11 +6,11 @@ const SCHEDULER_REACTIVATION_TASK = Base.RefValue{Task}()
 function new_scheduler_task()
     global SCHEDULER_TASK
     SCHEDULER_TASK[] = @task scheduler()
-    @static if :sticky in fieldnames(Task)
+    @static if :sticky in fieldnames(Task)  # COV_EXCL_LINE
         # make the scheduler task sticky to threadid == 1
         if !SINGLE_THREAD_MODE[]
             # sticky: disallow task migration which was introduced in 1.7
-            @static if VERSION >= v"1.7-"
+            @static if VERSION >= v"1.7-"  # COV_EXCL_LINE
                 SCHEDULER_TASK[].sticky = true
             else
                 SCHEDULER_TASK[].sticky = false
@@ -23,11 +23,11 @@ end
 function new_scheduler_reactivation_task()
     global SCHEDULER_REACTIVATION_TASK
     SCHEDULER_REACTIVATION_TASK[] = @task scheduler_reactivation()
-    @static if :sticky in fieldnames(Task)
+    @static if :sticky in fieldnames(Task)  # COV_EXCL_LINE
         # make the scheduler task sticky to threadid == 1
         if !SINGLE_THREAD_MODE[]
             # sticky: disallow task migration which was introduced in 1.7
-            @static if VERSION >= v"1.7-"
+            @static if VERSION >= v"1.7-"  # COV_EXCL_LINE
                 SCHEDULER_REACTIVATION_TASK[].sticky = true
             else
                 SCHEDULER_REACTIVATION_TASK[].sticky = false
@@ -87,7 +87,7 @@ function scheduler_stop(; verbose=true)
 
     for (task, name) in [SCHEDULER_TASK => "Scheduler task", SCHEDULER_REACTIVATION_TASK => "Scheduler reactivation task"]
         if !isassigned(task)
-            verbose && @warn "$name is not running."
+            verbose && @warn "$name is not running."  # COV_EXCL_LINE
         elseif Base.istaskfailed(task[]) || istaskdone(task[])
             verbose && @warn "$name is not running."
         elseif istaskstarted(task[]) # if done, started is also true
@@ -99,7 +99,7 @@ function scheduler_stop(; verbose=true)
             end
             verbose && @info "$name stops."
         else
-            verbose && @warn "$name is not running."
+            verbose && @warn "$name is not running."  # COV_EXCL_LINE
         end
     end
 end
@@ -115,17 +115,17 @@ function scheduler_status(; verbose=true)
     global SCHEDULER_MAX_CPU
     global SCHEDULER_MAX_MEM
     if !isassigned(SCHEDULER_TASK) || !isassigned(SCHEDULER_REACTIVATION_TASK)
-        verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled
-        :not_running
+        verbose && @warn "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled  # COV_EXCL_LINE
+        :not_running  # COV_EXCL_LINE
     elseif Base.istaskfailed(SCHEDULER_TASK[]) || istaskdone(SCHEDULER_TASK[]) || Base.istaskfailed(SCHEDULER_REACTIVATION_TASK[]) || istaskdone(SCHEDULER_REACTIVATION_TASK[]) 
         verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
-        :not_running
+        :not_running  # COV_EXCL_LINE
     elseif istaskstarted(SCHEDULER_TASK[]) || istaskstarted(SCHEDULER_REACTIVATION_TASK[])
         verbose && @info "Scheduler is running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
-        :running
+        :running  # COV_EXCL_LINE
     else
-        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]
-        :not_running
+        verbose && @info "Scheduler is not running." SCHEDULER_MAX_CPU SCHEDULER_MAX_MEM = simplify_memory(SCHEDULER_MAX_MEM) JOB_QUEUE.max_done JOB_QUEUE.max_cancelled SCHEDULER_TASK[] SCHEDULER_REACTIVATION_TASK[]  # COV_EXCL_LINE
+        :not_running  # COV_EXCL_LINE
     end
 end
 
@@ -145,7 +145,7 @@ set_scheduler_update_second(s) = set_scheduler_update_second(convert(Float64, s)
 function default_ncpu()
     global TIDS
     if isempty(TIDS)
-        Sys.CPU_THREADS
+        Sys.CPU_THREADS  # COV_EXCL_LINE
     else
         length(TIDS)
     end
@@ -167,9 +167,7 @@ function set_scheduler_max_cpu(ncpu::Int = default_ncpu())
     ncpu < 1 && error("number of CPU cannot be less than 1.")
     
     if SINGLE_THREAD_MODE[]
-        if ncpu > Sys.CPU_THREADS
-            @warn "Assigning number of CPU > total CPU."
-        end
+        ncpu > Sys.CPU_THREADS && (@warn "Assigning number of CPU > total CPU.")  # COV_EXCL_LINE
     else
         if ncpu > length(TIDS)
             @warn "Assigning number of CPU > default_ncpu() is not allowed. Set to `default_ncpu()`. Thread tid==1 is reserved for schedulers, and JobSchedulers use the rest threads of default thread pool. To use more threads, try to start Julia with sufficient threads. Help: https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads"

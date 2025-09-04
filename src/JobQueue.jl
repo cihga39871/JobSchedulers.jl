@@ -221,13 +221,21 @@ function update_running!(current::DateTime)
                 @atomic RESOURCE.njob -= 1
                 PROGRESS_METER && update_group_state!(job)
                 continue
+            elseif istaskdone(job.task)
+                unsafe_update_as_done!(job, current)
+                deleteat!(JOB_QUEUE.running, job)
+                free_thread(job)
+                push_done!(job)
+                @atomic RESOURCE.njob -= 1
+                PROGRESS_METER && update_group_state!(job)
+                continue
             end
 
             if state === RUNNING
                 # still running: check reaching wall time
                 if job.start_time + job.wall_time < current
                     state = unsafe_cancel!(job, current)
-                    @label move_out
+                    @label move_out  # COV_EXCL_LINE
                     deleteat!(JOB_QUEUE.running, job)
                     free_thread(job)
                     if state === CANCELLED
@@ -418,7 +426,7 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
             free_ncpu < 0.999 && break
             free_mem <= 0 && break
         end
-        @label done_run_queuing
+        @label done_run_queuing  # COV_EXCL_LINE
         if need_clean_empty_priority
             for priority in priority_delete
                 delete!(JOB_QUEUE.queuing, priority)

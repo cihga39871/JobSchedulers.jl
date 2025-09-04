@@ -56,7 +56,8 @@ function submit!(job::Job)
     if job.schedule_time == DateTime(0) && !isempty(job.cron)
         next_time = tonext(job.submit_time, job.cron)
         if isnothing(next_time)
-            error("Cannot submit the job: no date and time matching its $(job.cron)")
+            cron_description = get_time_description(job.cron) * " " * JobSchedulers.get_date_description(job.cron)
+            error("Cannot submit the job: the future schedule time will never come based on its cron ($cron_description): $(job.cron)")
         else
             job.schedule_time = next_time
         end

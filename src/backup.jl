@@ -44,8 +44,8 @@ function set_scheduler_backup(
     try
         mkpath(dirname(filepath))
     catch
-        @error "Cannot set backup file: cannot create directory."
-        return SCHEDULER_BACKUP_FILE
+        @error "Cannot set backup file: cannot create directory."  # COV_EXCL_LINE
+        return SCHEDULER_BACKUP_FILE  # COV_EXCL_LINE
     end
 
     if migrate
@@ -165,9 +165,9 @@ function JobSerialization(j::Job)
     )
 end
 
-JLD2.writeas(::Type{Job}) = JobSerialization
+JLD2.writeas(::Type{Job}) = JobSerialization  # COV_EXCL_LINE
 Base.convert(::Type{JobSerialization}, j::Job) = JobSerialization(j)
-JLD2.readas(::Type{JobSerialization}) = Job
+JLD2.readas(::Type{JobSerialization}) = Job  # COV_EXCL_LINE
 function Base.convert(::Type{Job}, s::JobSerialization)
     j = Job(undef)
     
@@ -246,8 +246,8 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
     # validate data
     for key in ["scheduler_max_cpu", "scheduler_max_mem", "max_done", "max_cancelled", "q_cancelled", "q_done", "q_failed"]
         if !haskey(data, key)
-            @error "Cannot recover backup: JobSchedulers version incompatible: $filepath"
-            return
+            @error "Cannot recover backup: JobSchedulers version incompatible: $filepath"  # COV_EXCL_LINE
+            return  # COV_EXCL_LINE
         end
     end
 
@@ -314,6 +314,7 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
 end
 
 function is_valid_backup_file(filepath::AbstractString)
+    isfile(filepath) || return false
     REQUIRED_FILE_HEADER = "HDF5-based Julia Data Format, version "
     io = open(filepath, "r")
     headermsg = String(read!(io, Vector{UInt8}(undef, length(REQUIRED_FILE_HEADER))))

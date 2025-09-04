@@ -102,6 +102,10 @@
     @test JobSchedulers.tonext(DateTime(2023,1,2,20,45,00), c6) == DateTime(2023,1,2,20,45,30)
     @test JobSchedulers.tonext(DateTime(2023,1,2,20,46,00), c6) == DateTime(2023,1,4,20,45,30)
 
+    c_never = Cron(*,*,*,0,0,0)
+    @test JobSchedulers.tonext(DateTime(2023,1,2,20,46,00), c_never) === nothing
+    @test_throws Exception submit!(now, cron=c_never)
+
     c7 = Cron(0,0,0,0,0,0)
     show(stdout, MIME("text/plain"), c7)
     @test JobSchedulers.date_based_on(c7) == :none
@@ -129,8 +133,15 @@
     @test dt == DateTime(2026,1,31,0,24,0)
 
     JobSchedulers.get_time_description(c9)
+    JobSchedulers.get_time_description(Cron(*,*,4,1,1,1))
+    JobSchedulers.get_time_description(Cron(*,3,4,1,1,1))
+    JobSchedulers.date_based_on(Cron(*,3,4,1,1,1))
+    JobSchedulers.get_date_description(Cron(*,3,4,1,1,1))
+    JobSchedulers.get_date_description(Cron(:none))
+    
     JobSchedulers.get_second_description([1,4,7]) 
     JobSchedulers.get_second_description([1,4]) 
+    JobSchedulers.get_second_description(Int[]) 
     JobSchedulers.get_second_description([1]) 
     JobSchedulers.get_minute_description([1,4,7])
     JobSchedulers.get_minute_description([1,4])
@@ -139,10 +150,15 @@
     JobSchedulers.get_hour_description([1,4])
     JobSchedulers.get_hour_description([1])
     JobSchedulers.get_date_description(c9)
+    JobSchedulers.get_date_description(Cron(:none))
     JobSchedulers.get_dow_description(c9)
+    JobSchedulers.get_dow_description(Cron(:none))
     JobSchedulers.get_month_description(c9)
+    JobSchedulers.get_month_description(Cron(:none))
     JobSchedulers.get_dom_description(c9)
-    JobSchedulers.get_monthday_description(c9)
+    JobSchedulers.get_monthday_description(Cron("*/10", *,*,*,*,*))
+    JobSchedulers.get_monthday_description(Cron("*/10", *,*,"1/2",*,*))
+    
 
     JobSchedulers.is_valid_day(now(), c9)
 end

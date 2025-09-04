@@ -10,7 +10,7 @@
 
 We may find different tasks or programs use different CPU and memory. Some can run simultaneously, but some have to run sequentially. JobScheduler is stable, useful and powerful for task queuing and workload management, inspired by Slurm/PBS and Crontab.
 
-## Package Features
+## Rich Features with Minimum Overhead (1~2 µs/job)
 
 - Job and task scheduler.
 - Local workload manager.

@@ -26,7 +26,7 @@ end
 		@test JobSchedulers.check_need_redirect("", nothing) == false
 		@test JobSchedulers.check_need_redirect("abc", nothing)
 		@test JobSchedulers.check_need_redirect(IOBuffer())
-		@test_broken JobSchedulers.check_need_redirect(5)
+		@test_throws Exception JobSchedulers.check_need_redirect(5)
 		@test !JobSchedulers.check_need_redirect(nothing)
 		@test JobSchedulers.convert_dependency_element(DONE => 1) == (DONE => 1)
 		@test JobSchedulers.convert_dependency_element(DONE => Int32(1)) == (DONE => Int64(1))
@@ -228,7 +228,7 @@ end
 			end
 		end; name="j: running3", wall_time=Second(1)) # will be cancelled
 
-		@test_broken fetch(j_running3)
+		@test_throws Exception fetch(j_running3)
 		@test ispast(j_running3)
 
 		scheduler_balance_check("job cancellation")
@@ -347,6 +347,9 @@ end
 		@test length(q_cancelled) == 1
 		@test length(q_done) == 1
 		@test length(q_failed) == 1
+
+		@test JobSchedulers.recover_backup(""; recover_settings=false, recover_queue=false) === nothing
+		@test_logs (:error,) JobSchedulers.recover_backup(""; recover_settings=false, recover_queue=true)
 		
 		
 		### set backup
@@ -531,8 +534,11 @@ end
 	scheduler_balance_check("terminal tests")
 
 	@testset "Recur" begin
+		JobSchedulers.PROGRESS_METER = true
 		include("recur.jl")
+		JobSchedulers.PROGRESS_METER = false
 	end
+
 
 	scheduler_balance_check("recur job tests")
 
@@ -543,18 +549,24 @@ end
 	scheduler_balance_check("macro @submit tests")
 
 	@testset "Scoped Values" begin
+		JobSchedulers.PROGRESS_METER = true
 		include("scoped_values.jl")
+		JobSchedulers.PROGRESS_METER = false
 	end
 
 	scheduler_balance_check("scoped value tests")
 	
-	default_mem()
 	default_ncpu()
 	set_scheduler_max_cpu(0.85)
+	@test_logs (:warn,) set_scheduler_max_cpu(9999)
+	@test_throws Exception set_scheduler_max_cpu(0)
+	@test_warn "between 0 and 1" set_scheduler_max_cpu(1.85)
+	
+	default_mem()
 	set_scheduler_max_mem(0.85)
 	@test_warn "90%" set_scheduler_max_mem(0.95)
-	@test_warn "between 0 and 1" set_scheduler_max_cpu(1.85)
 	@test_warn "between 0 and 1" set_scheduler_max_mem(1.85)
+	
 	@test set_scheduler_update_second(1) == 1.0
 	set_scheduler()
 
@@ -566,60 +578,61 @@ end
 	@test_warn "< 10" set_scheduler_max_job(5,99)
 
 	## unsafe_run!
-	@info "Following has lots of @error messages for code coverage."
-	ref_running = Ref(true)
-	j_running2 = submit!(@task begin
-		while ref_running[]
+	@test_warn "Error" begin
+		ref_running = Ref(true)
+		j_running2 = submit!(@task begin
+			while ref_running[]
+				sleep(0.1)
+			end
+		end; name="j: running2", ncpu=1) # will be cancelled
+		while j_running2.state !== RUNNING
 			sleep(0.1)
 		end
-	end; name="j: running2", ncpu=1) # will be cancelled
-	while j_running2.state !== RUNNING
-		sleep(0.1)
-	end
-	cancel!(j_running2)
-	while !ispast(j_running2)
-		sleep(0.1)
-	end
-	JobSchedulers.unsafe_run!(j_running2) # cancelled
-
-	j_running4 = Job() do 
-		nothing
-	end
-	schedule(j_running4.task)
-	while !istaskstarted(j_running4.task)
-		sleep(0.1)
-	end
-	JobSchedulers.unsafe_run!(j_running4) # done
-	JobSchedulers.unsafe_cancel!(j_running4) === DONE
-	j_running4.state = RUNNING
-	JobSchedulers.unsafe_cancel!(j_running4) === DONE
-
-	j_running4.task = nothing
-	j_running4.state = QUEUING
-	JobSchedulers.unsafe_run!(j_running4) == JobSchedulers.FAIL # no task
-	JobSchedulers.unsafe_cancel!(j_running4) === CANCELLED
-
-	j_running5 = Job() do 
-		while ref_running[]
+		cancel!(j_running2)
+		while !ispast(j_running2)
 			sleep(0.1)
 		end
-	end
-	schedule(j_running5.task)
-	while !istaskstarted(j_running5.task)
-		sleep(0.1)
-	end
-	JobSchedulers.unsafe_run!(j_running5) == JobSchedulers.FAIL  # running
-	ref_running[] = false
+		JobSchedulers.unsafe_run!(j_running2) # cancelled
 
-	j_running6 = Job() do 
-		error("intended error")
+		j_running4 = Job() do 
+			nothing
+		end
+		schedule(j_running4.task)
+		while !istaskstarted(j_running4.task)
+			sleep(0.1)
+		end
+		JobSchedulers.unsafe_run!(j_running4) # done
+		JobSchedulers.unsafe_cancel!(j_running4) === DONE
+		j_running4.state = RUNNING
+		JobSchedulers.unsafe_cancel!(j_running4) === DONE
+
+		j_running4.task = nothing
+		j_running4.state = QUEUING
+		JobSchedulers.unsafe_run!(j_running4) == JobSchedulers.FAIL # no task
+		JobSchedulers.unsafe_cancel!(j_running4) === CANCELLED
+
+		j_running5 = Job() do 
+			while ref_running[]
+				sleep(0.1)
+			end
+		end
+		schedule(j_running5.task)
+		while !istaskstarted(j_running5.task)
+			sleep(0.1)
+		end
+		JobSchedulers.unsafe_run!(j_running5) == JobSchedulers.FAIL  # running
+		ref_running[] = false
+
+		j_running6 = Job() do 
+			error("intended error")
+		end
+		schedule(j_running6.task)
+		while !istaskfailed(j_running6.task)
+			sleep(0.1)
+		end
+		JobSchedulers.unsafe_run!(j_running6) == JobSchedulers.FAIL  # failed
+		JobSchedulers.unsafe_cancel!(j_running6) == FAILED  # failed
 	end
-	schedule(j_running6.task)
-	while !istaskfailed(j_running6.task)
-		sleep(0.1)
-	end
-	JobSchedulers.unsafe_run!(j_running6) == JobSchedulers.FAIL  # failed
-	JobSchedulers.unsafe_cancel!(j_running6) == FAILED  # failed
 
 	j_ncpu_multi = Job(@task(1); ncpu=1.3)
 	@test_throws Exception Job(@task(1);ncpu=-1)

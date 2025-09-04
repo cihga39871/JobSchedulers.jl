@@ -1,7 +1,7 @@
 
 # Manual
 
-JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also be used to schedule small Julia tasks. 
+JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also be used to schedule small Julia tasks thanks to its very low overhead (1~2 µs/job). 
 
 !!! info "Multi-threading"
     It is recommended to [start Julia with multi-threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads) when using JobSchedulers.jl.
@@ -29,26 +29,31 @@ task_job = Job(
 )
 
 job_with_args = Job(
-    @task(begin println("job_with_args done"); "result" end); # Task to run
+    @task(println("job_with_args done")); # Task to run
     name = "job with args",     # Job name.
     user = "me",                # Job owner.
-    ncpu = 1,                   # Number of CPU required.
+    ncpu = 1,                   # Number of CPU required (Int/Float).
     mem = 1KB,                  # Number of memory required (unit: TB, GB, MB, KB, B).
     schedule_time = Second(3),  # Run after 3 seconds; can be ::DateTime or ::Period.
-    wall_time = Hour(1),        # The maximum time to run the job. (Cancel job after reaching wall time.)
+    wall_time = Hour(1),        # The maximum time to run the job.
     priority = 20,              # Lower number = higher priority.
+    cron = Cron(:none),         # Job recurring: Cron defines repeat date and time.
+    until = DateTime(9999,1,1), #                When to stop job recurring.
     dependency = [              # Defer job until some jobs reach some states.
         command_job,
         DONE => task_job
-    ]
+    ],
+    stdout = nothing,           # stdout redirection to file
+    stderr = nothing,           # stderr redirection to file
+    append = false              # whether append to existing files
 )
 # Job:
-#   id            → 8345846200460913
+#   id            → 9385239735019930
 #   name          → "job with args"
 #   user          → "me"
 #   ncpu          → 1.0
 #   mem           → 1.0 KB
-#   schedule_time → 22:18:45
+#   schedule_time → 11:58:15
 #   submit_time   → na
 #   start_time    → na
 #   stop_time     → na
@@ -58,9 +63,9 @@ job_with_args = Job(
 #   state         → :queuing
 #   priority      → 20
 #   dependency    → 2 jobs
-#   task          → Task
 #   stdout        → nothing
 #   stderr        → nothing
+#   task          → Task (runnable) @0x00007625b8d26720
 ```
 
 > `dependency` argument in [`Job`](@ref) controls when to start a job.

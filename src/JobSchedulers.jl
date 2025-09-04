@@ -76,7 +76,7 @@ function __init__()
 
     # init TIDS
     global TIDS
-    @static if VERSION >= v"1.9-"
+    @static if VERSION >= v"1.9-"  # COV_EXCL_LINE
         # default thread pool are not empty and after remove 1.
         # thread 1 is reserved for JobScheduler.
         for i in Threads.threadpooltids(:default)

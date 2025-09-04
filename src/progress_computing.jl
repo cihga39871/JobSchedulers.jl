@@ -131,7 +131,7 @@ function update_group_state!(job::Job)
         end
     end
 
-    nothing
+    nothing  # COV_EXCL_LINE
 end
 
 """
@@ -161,7 +161,7 @@ function init_group_state!()
         init_group_state!.(JOB_QUEUE.failed)
         init_group_state!.(JOB_QUEUE.cancelled)
     end
-    nothing
+    nothing  # COV_EXCL_LINE
 end
 
 function init_group_state!(job::Job)

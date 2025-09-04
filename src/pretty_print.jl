@@ -145,7 +145,7 @@ all_queue(id::Integer) = job_query(id)
 all_queue(state::Symbol) = queue(state)
 all_queue(needle::Union{AbstractString,AbstractPattern,AbstractChar}) = queue(:all, needle)
 
-const JOB_PUBLIC_NAMES = tuple(filter!(x -> string(x)[1] != '_' && x !== :task, collect(fieldnames(Job)))..., :task)
+const JOB_PUBLIC_NAMES = tuple(filter!(x -> string(x)[1] != '_' && x !== :task, collect(fieldnames(Job)))..., :task)  # COV_EXCL_LINE
 function Base.propertynames(j::Job, private::Bool=false)
     if private
         fieldnames(Job)

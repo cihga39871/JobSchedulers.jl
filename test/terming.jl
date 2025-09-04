@@ -101,15 +101,19 @@ queue(CANCELLED)
 js = queue(PAST)
 queue(" ", DONE)
 queue(j_stdout.id)
+@test_logs (:warn,) queue(:abc)
 all_queue()
 all_queue(j_stdout.id)
 all_queue(DONE)
+all_queue("1")
 
 Base.propertynames(j_stdout, true)
 Base.propertynames(j_stdout, false)
-@test JobSchedulers.trygetfield(2,3) == "#undef"
+@test JobSchedulers.trygetfield(j_stdout, :sym) == "#undef"
 show(stdout, MIME("text/plain"), j_stdout)
+show(stdout, MIME("text/plain"), Job(undef))
 show(stdout, j_stdout)
+show(stdout, Job(undef))
 j_stdout.task = nothing
 show(stdout, MIME("text/plain"), j_stdout)
 show(stdout, j_stdout)
@@ -126,7 +130,8 @@ show(stdout, MIME("text/plain"), js; allcols=false, allrows=false)
 @test JobSchedulers.simplify(DateTime(9999,1,2,3,4,5)) == "forever"
 @test JobSchedulers.simplify(DateTime(2023,1,2,3,4,5)) == "2023-01-02 03:04:05"
 
-@test JobSchedulers.simplify(Pair{Symbol,Union{Int, Job}}[]) == "[]"
+@test JobSchedulers.simplify(Pair{Symbol,Union{Int, Job}}[], false) == "[]"
+@test JobSchedulers.simplify(Pair{Symbol,Union{Int, Job}}[DONE => 123456]) == "[:done => 123456]"
 @test JobSchedulers.simplify(Pair{Symbol,Union{Int, Job}}[DONE => j_stdout])[1:10] == "[:done => "
 @test JobSchedulers.simplify(Pair{Symbol,Union{Int, Job}}[DONE => j_stdout, DONE => j_stderr]) == "2 jobs"
 
