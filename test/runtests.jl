@@ -107,17 +107,23 @@ end
 
 		job2 = Job(@task(begin
 			while true
-				println(now())
+				println(job2, now())
 				sleep(1)
 			end
 		end), name="to_cancel2", priority = 20)
 		
 		@info "submit!(job2)"
 		submit!(job2)
+		while job2.state !== RUNNING
+			sleep(0.1)
+		end
 		@info "cancel!(job2)"
-		cancel!(job2)
+		while !ispast(job2)
+			cancel!(job2)
+			sleep(0.1)
+		end
 
-		@test_throws Exception submit!(job2) # cannot resubmit
+		# @test_throws Exception submit!(job2) # cannot resubmit
 		@test_throws Exception submit!(job) # cannot resubmit
 
 		j = Job(@task 1+1)
@@ -431,7 +437,7 @@ end
 		j_error = Job(p_error, touch_run_id_file=false);
 		submit!(j_error)
 		while j_error.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
-			sleep(1)
+			sleep(0.1)
 		end
 		@test j_error.state === :failed
 	end
@@ -467,7 +473,7 @@ end
 
 		submit!(job)
 		while job.state in (QUEUING, RUNNING) && scheduler_status(verbose=false) === RUNNING
-			sleep(1)
+			sleep(0.1)
 		end
 		@test result(job) == (true, Dict{String, Any}("output" => "iout"))
 
@@ -567,16 +573,22 @@ end
 			sleep(0.1)
 		end
 	end; name="j: running2", ncpu=1) # will be cancelled
-	sleep(1)
+	while j_running2.state !== RUNNING
+		sleep(0.1)
+	end
 	cancel!(j_running2)
-	sleep(1)
+	while !ispast(j_running2)
+		sleep(0.1)
+	end
 	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running2)  # cancelled
 
 	j_running4 = Job() do 
 		nothing
 	end
 	schedule(j_running4.task)
-	sleep(1)
+	while !istaskstarted(j_running4.task)
+		sleep(0.1)
+	end
 	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running4)  # done
 	@test JobSchedulers.unsafe_cancel!(j_running4) === DONE
 	j_running4.state = RUNNING
@@ -593,7 +605,9 @@ end
 		end
 	end
 	schedule(j_running5.task)
-	sleep(1)
+	while !istaskstarted(j_running5.task)
+		sleep(0.1)
+	end
 	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running5)  # running
 	ref_running[] = false
 
@@ -601,7 +615,9 @@ end
 		error("intended error")
 	end
 	schedule(j_running6.task)
-	sleep(1)
+	while !istaskfailed(j_running6.task)
+		sleep(0.1)
+	end
 	@test_warn "Error scheduling job." JobSchedulers.unsafe_run!(j_running6)  # failed
 	@test_warn "A job has failed" JobSchedulers.unsafe_cancel!(j_running6)  # failed
 

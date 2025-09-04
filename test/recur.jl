@@ -149,24 +149,26 @@ end
 
 
 @testset "Recur jobs" begin
+    jname = "recur print date time: $(rand(UInt))"
     j = Job(
-        name = "recur print date time: $(rand(UInt))",
-        cron = Cron("*/1", *,*,*,*,*)
+        name = jname,
+        cron = Cron("*/1", *,*,*,*,*),
+        until = Second(3)
     ) do 
         println("--- Recur Job Start at $(now())")
-        return now()
     end
     submit!(j)
 
     sleep(3)
 
-    while true
-        jqs = queue(QUEUING, "recur print date time")
-        if length(jqs) == 1
-            cancel!(jqs[1])
+    n_retry = 10
+    while n_retry > 0
+        jqs = queue(QUEUING, jname)
+        if length(jqs) >= 1
+            cancel!.(jqs)
             sleep(0.1)
         else
-            break
+            n_retry -= 1
         end
     end
 
@@ -184,24 +186,33 @@ end
     jsdone = queue("recur print", DONE)
     wait(jsdone)
 
-    j2 = Job(
-        name = "recur print date time: $(rand(UInt))",
-        cron = Cron("*/1", *,*,*,*,*),
-        stdout = IOBuffer()
-    ) do 
-        println("--- Recur Job Start at $(now())")
-        return now()
-    end
-    submit!(j2)
-    sleep(2)
+    outfile = tempname()
+    open(outfile, "w+") do outio
+        j2name = "recur print date time: $(rand(UInt))"
+        j2 = Job(
+            name = j2name,
+            cron = Cron("*/1", *,*,*,*,*),
+            stdout = outio,
+            until = Second(3)
+        ) do 
+            @show stdout
+            println("--- Recur Job Start at $(now())")
+        end
+        submit!(j2)
+        sleep(2)
 
-    while true
-        jqs = queue(QUEUING, "recur print date time")
-        if length(jqs) == 1
-            cancel!(jqs[1])
-            sleep(0.1)
-        else
-            break
+        n_retry = 10
+        while n_retry > 0
+            jqs = queue(QUEUING, j2name)
+            if length(jqs) >= 1
+                cancel!.(jqs)
+                sleep(0.1)
+            else
+                n_retry -= 1
+            end
         end
     end
+    lines = readlines(outfile)
+    rm(outfile, force=true)
+    @test length(lines) >= 2
 end
