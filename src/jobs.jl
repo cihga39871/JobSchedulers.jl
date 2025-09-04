@@ -104,7 +104,7 @@ mutable struct Job
 end
 
 """
-    job = Job(...)
+    # define lots of variables first
     @gen_job_task scope_current::Bool ex::Expr
 
 Internal use only! If you use the macro, you are wrong.
@@ -124,7 +124,7 @@ macro gen_job_task(scope_current, ex)
 end
 
 """
-    job = Job(...)
+    # define lots of variables first
     @gen_job_task_try_block scope_current::Bool ex::Expr
 
 Internal use only! If you use the macro, you are wrong.
@@ -175,37 +175,7 @@ function Job(task::Task;
 
     job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, stdout, stderr, 0, task.code, need_redirect)
 
-    # if need_redirect
-    #     task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
-    #         try
-    #             res = ScopedValues.@with(CURRENT_JOB=>job, task.code())
-    #             unsafe_update_as_done!(job)
-    #             res
-    #         catch e
-    #             unsafe_update_as_failed!(job)
-    #             rethrow(e)
-    #         finally
-    #             scheduler_need_action()
-    #         end
-    #     end
-    # else
-    #     task2 = @task begin
-    #         try
-    #             res = ScopedValues.@with(CURRENT_JOB=>job, task.code())
-    #             unsafe_update_as_done!(job)
-    #             res
-    #         catch e
-    #             unsafe_update_as_failed!(job)
-    #             rethrow(e)
-    #         finally
-    #             scheduler_need_action()
-    #         end
-    #     end
-    # end
-    # job.task = task2
-
     job.task = @gen_job_task true task.code()
-
     job
 end
 
@@ -230,34 +200,6 @@ function Job(f::Function;
     
     job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, stdout, stderr, 0, f, need_redirect)
 
-    # if need_redirect
-    #     task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
-    #         try
-    #             res = ScopedValues.@with(CURRENT_JOB=>job, f())
-    #             unsafe_update_as_done!(job)
-    #             res
-    #         catch e
-    #             unsafe_update_as_failed!(job)
-    #             rethrow(e)
-    #         finally
-    #             scheduler_need_action()
-    #         end
-    #     end
-    # else
-    #     task2 = @task begin
-    #         try
-    #             res = ScopedValues.@with(CURRENT_JOB=>job, f())
-    #             unsafe_update_as_done!(job)
-    #             res
-    #         catch e
-    #             unsafe_update_as_failed!(job)
-    #             rethrow(e)
-    #         finally
-    #             scheduler_need_action()
-    #         end
-    #     end
-    # end
-    # job.task = task2
     job.task = @gen_job_task true f()
 
     job
@@ -282,34 +224,6 @@ function Job(command::Base.AbstractCmd;
 
     job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, stdout, stderr, 0, f, need_redirect)
 
-    # if need_redirect
-    #     task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
-    #         try
-    #             res = f()  # no need to use ScopedValues here, as run(command) does not change Job context.
-    #             unsafe_update_as_done!(job)
-    #             res
-    #         catch e
-    #             unsafe_update_as_failed!(job)
-    #             rethrow(e)
-    #         finally
-    #             scheduler_need_action()
-    #         end
-    #     end
-    # else
-    #     task2 = @task begin
-    #         try
-    #             res = f()  # no need to use ScopedValues here, as run(command) does not change Job context.
-    #             unsafe_update_as_done!(job)
-    #             res
-    #         catch e
-    #             unsafe_update_as_failed!(job)
-    #             rethrow(e)
-    #         finally
-    #             scheduler_need_action()
-    #         end
-    #     end
-    # end
-    # job.task = task2
     job.task = @gen_job_task false f()
     job
 end
@@ -486,34 +400,6 @@ function next_recur_job(j::Job)
 
     job = Job(generate_id(), j.name, j.user, j.ncpu, j.mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), j.wall_time, j.cron, j.until, QUEUING, j.priority, j.dependency, nothing, stdout, stderr, 0, j._func, need_redirect, j._group)
 
-    if job._need_redirect
-        task2 = @task Pipelines.redirect_to_files(stdout, stderr; mode = "a+") do
-            try
-                res = ScopedValues.@with(CURRENT_JOB=>job, Base.invokelatest(job._func))
-                unsafe_update_as_done!(job)
-                res
-            catch e
-                unsafe_update_as_failed!(job)
-                rethrow(e)
-            finally
-                scheduler_need_action()
-            end
-        end
-    else
-        task2 = @task begin
-            try
-                res = ScopedValues.@with(CURRENT_JOB=>job, Base.invokelatest(job._func))
-                unsafe_update_as_done!(job)
-                res
-            catch e
-                unsafe_update_as_failed!(job)
-                rethrow(e)
-            finally
-                scheduler_need_action()
-            end
-        end
-    end
-    job.task = task2
-    # job.task = @gen_job_task true Base.invokelatest(job._func)
+    job.task = @gen_job_task true Base.invokelatest(job._func)
     job
 end
