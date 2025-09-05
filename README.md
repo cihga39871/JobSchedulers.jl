@@ -19,7 +19,7 @@ We may find different tasks or programs use different CPU and memory. Some can r
 - Support running a job at specific time, or a period after creating (schedule).
 - Support recurring/repetitive jobs using **Cron**-like schedule expressions.
 - Support automatic backup and reload.
-- Minimum overhead: from creation to destory, a job only takes extra [1-2 µs](@ref overhead).
+- Minimum overhead: from creation to destory, a job only takes extra [1-2 µs](https://cihga39871.github.io/JobSchedulers.jl/dev/overhead/#Conclusions).
 - Fancy progress meter in terminal.
 
   ![progress meter](docs/src/assets/progress_meter.png)
