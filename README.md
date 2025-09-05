@@ -10,15 +10,16 @@
 
 We may find different tasks or programs use different CPU and memory. Some can run simultaneously, but some have to run sequentially. JobScheduler is stable, useful and powerful for task queuing and workload management, inspired by Slurm/PBS and Crontab.
 
-## Rich Features with Minimum Overhead (1~2 µs/job)
+## Rich Features
 
 - Job and task scheduler.
 - Local workload manager.
 - Support CPU, memory, run time management.
+- Support deferring a job until specific jobs reach specific states (dependency).
 - Support running a job at specific time, or a period after creating (schedule).
 - Support recurring/repetitive jobs using **Cron**-like schedule expressions.
-- Support deferring a job until specific jobs reach specific states (dependency).
 - Support automatic backup and reload.
+- Minimum overhead: from creation to destory, a job only takes extra [1-2 µs](@ref overhead).
 - Fancy progress meter in terminal.
 
   ![progress meter](docs/src/assets/progress_meter.png)

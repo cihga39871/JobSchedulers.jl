@@ -1,7 +1,7 @@
 
 # Manual
 
-JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also be used to schedule small Julia tasks thanks to its very low overhead (1~2 µs/job). 
+JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also be used to schedule small Julia tasks thanks to its very low overhead ([1~2 µs/job from creation to destory](@ref overhead)). 
 
 !!! info "Multi-threading"
     It is recommended to [start Julia with multi-threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads) when using JobSchedulers.jl.
@@ -121,7 +121,7 @@ end
 @assert fetch(job_block) == (5+1)^2
 ```
 
-!!! tip "Submitting child jobs with a parent job"
+!!! tip "Submitting child jobs within a parent job"
     If you have a parent job that creats child jobs, and the parent job relies on the results of the child jobs, you need to wrap your child jobs within [`@yield_current`](@ref). 
     
     `@yield_current` is used to prevent wasting threads and even blocking JobScheduler when submitting jobs within jobs.

@@ -1,4 +1,4 @@
-# Overhead Test of Scheduling Systems
+# [Overhead Test of Scheduling Systems](@id overhead)
 
 To test the overhead of scheduling systems, I compared `Base.Threads`, `Dagger`, and `JobSchedulers` using tiny tasks (`x::Int += y::Int`).
 
@@ -138,6 +138,6 @@ Table. Benchmark of average elapsed time to schedule 10,000 and 100,000 tasks us
 
 ## Conclusions
 
-- JobSchedulers.jl has a very little overhead (1~2 µs/job) and provides many great features than Base.Threads.
+- JobSchedulers.jl has a very little overhead (1~2 µs/job from creation to destroy) and provides many great features than Base.Threads.
 
 - The low overhead of JobSchedulers.jl makes it interchangable with Base.Threads.
