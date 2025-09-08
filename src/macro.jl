@@ -4,11 +4,13 @@
 
 Submit a job from `expr`. If a `Job` is **explicitly** shown in `expr`, `DONE => job` will be automatically added to the dependency list. 
 
-- `expr`: any type of `Expr`ession is supported. 
+- `expr`: any type of `Expr`ession. Eg: `1+2`, `length(ARGS)`, `begin ... end`
 
 - `option = value`: kwargs of [`Job`](@ref). If `expr` is parsed to be a `Pipelines.Program`, `option`s also include its inputs, outputs and run kwargs.
 
-See also [`Job`](@ref), [`submit!`](@ref)
+See also [`Job`](@ref), and [`submit!`](@ref) for detailed kwargs.
+
+If using `Pipelines`, see also `JuliaProgram`, `CmdProgram`, and `run` for their kwargs.
 
 ## Example
 
@@ -93,28 +95,37 @@ macro submit(args...)
     # if expr is only a Symbol: it could be a Program
     local expr_is_a_symbol = expr isa Symbol
 
-    return quote
-        local job
-        if $expr_is_a_symbol  # could be a program
+    if expr_is_a_symbol  # could be a program
+        return quote
             local evaluated = $(esc(expr))
             if evaluated isa Program
-                job = Job($(esc(params)), evaluated)
-                @goto submit
-            else
-                @goto normal
+                local job = Job($(esc(params)), evaluated)
+                return submit!(job)
             end
-        else
-            @label normal
+
+            # same as if not expr_is_a_symbol
             local deps = $(esc(dep_struct))
             filter!(isajob, deps)
-            job = Job($(esc(params)), () -> $(esc(expr)))
+            local job = Job($(esc(params)), () -> $(esc(expr)))
 
             if !isempty(deps)
                 for dep in deps
                     push!(job.dependency, :done => dep)
                 end
             end
-            @label submit
+            submit!(job)
+        end
+    else
+        return quote
+            local deps = $(esc(dep_struct))
+            filter!(isajob, deps)
+            local job = Job($(esc(params)), () -> $(esc(expr)))
+
+            if !isempty(deps)
+                for dep in deps
+                    push!(job.dependency, :done => dep)
+                end
+            end
             submit!(job)
         end
     end
@@ -168,7 +179,7 @@ To experience the blockage, you can start Julia with `julia -t 1,1`, and run the
 """
 macro yield_current(ex)
     return quote
-        local res
+        local res  # COV_EXCL_LINE
         local job = current_job()
         if job === nothing || job.ncpu == 0
             res = $(esc(ex))
@@ -196,10 +207,10 @@ See details at [`@yield_current`](@ref).
     @yield_current f()
 end
 
-@inline isajob(x::Job) = true
-@inline isajob(x) = false
-@inline isnotajob(x::Job) = false
-@inline isnotajob(x) = true
+@inline isajob(x::Job) = true      # COV_EXCL_LINE
+@inline isajob(x) = false          # COV_EXCL_LINE
+@inline isnotajob(x::Job) = false  # COV_EXCL_LINE
+@inline isnotajob(x) = true        # COV_EXCL_LINE
 
 function opt2parameters(opts::NTuple{N, Expr}) where N
     for opt in opts
@@ -237,7 +248,7 @@ function _sym_list!(v::Vector, just_defined::Set, expr::Expr)
     expr
 end
 _sym_list!(v::Vector, just_defined::Set, sym::Symbol) = push!(v, sym)
-_sym_list!(v::Vector, just_defined::Set, x) = nothing
+_sym_list!(v::Vector, just_defined::Set, x) = nothing  # COV_EXCL_LINE
 
 function _sym_list!(v::Vector, just_defined::Set, args::Vector)
     for arg in args

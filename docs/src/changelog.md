@@ -1,6 +1,11 @@
 # Changelog
 
-v0.11.11-dev
+v0.11.12
+
+- Optim: `@submit`: check `expr isa Symbol` during compilation.
+- Docs: `@submit`: add reference to more related functions.
+
+v0.11.11
 
 - Feat: `@yield_current expr` and `yield_current(f::Function)`: Allow submitting jobs within parent jobs without causing scheduler dead block. Within the block (expr or f), the parent job's ncpu is temporarily set to 0 and the child jobs can use its thread ID. Child jobs need to wait until finish within the block.
 - Feat: `current_job()`: Allow accessing to the job within its task. Return the `Job` that is running in the current scope, `nothing` if the current scope is not within a job.
