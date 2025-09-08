@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Manual · JobSchedulers.jl</title><meta name="title" content="Manual · JobSchedulers.jl"/><meta property="og:title" content="Manual · JobSchedulers.jl"/><meta property="twitter:title" content="Manual · JobSchedulers.jl"/><meta name="description" content="Documentation for JobSchedulers.jl."/><meta property="og:description" content="Documentation for JobSchedulers.jl."/><meta property="twitter:description" content="Documentation for JobSchedulers.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">JobSchedulers.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Manual</a><ul class="internal"><li><a class="tocitem" href="#Create-and-submit-a-Job"><span>Create and submit a Job</span></a></li><li><a class="tocitem" href="#Get-a-Job&#39;s-Result"><span>Get a Job&#39;s Result</span></a></li><li><a class="tocitem" href="#Cancel-a-Job"><span>Cancel a Job</span></a></li><li><a class="tocitem" href="#Recurring/repetitive-Job"><span>Recurring/repetitive Job</span></a></li><li><a class="tocitem" href="#Queue"><span>Queue</span></a></li><li><a class="tocitem" href="#Job-query"><span>Job query</span></a></li><li><a class="tocitem" href="#Wait-for-jobs-and-progress-meter"><span>Wait for jobs and progress meter</span></a></li><li><a class="tocitem" href="#Scheduler-control"><span>Scheduler control</span></a></li><li><a class="tocitem" href="#Compatibility-with-Pipelines.jl"><span>Compatibility with Pipelines.jl</span></a></li><li><a class="tocitem" href="#Scheduler-settings"><span>Scheduler settings</span></a></li><li><a class="tocitem" href="#Backup"><span>Backup</span></a></li></ul></li><li><a class="tocitem" href="../use_cases/">Use Cases</a></li><li><a class="tocitem" href="../overhead/">Overhead Benchmark</a></li><li><a class="tocitem" href="../best_practice/">Best Practice (Please Read)</a></li><li><a class="tocitem" href="../API/">API</a></li><li><a class="tocitem" href="../changelog/">Change Log</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Manual</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Manual</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/cihga39871/JobSchedulers.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/cihga39871/JobSchedulers.jl/blob/main/docs/src/manual.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Manual"><a class="docs-heading-anchor" href="#Manual">Manual</a><a id="Manual-1"></a><a class="docs-heading-anchor-permalink" href="#Manual" title="Permalink"></a></h1><p>JobSchedulers.jl can used to glue commands in a pipeline/workflow, and can also be used to schedule small Julia tasks thanks to its very low overhead (<a href="../overhead/#overhead">1~2 µs/job from creation to destory</a>). </p><div class="admonition is-info" id="Multi-threading-e49073c1b14e1139"><header class="admonition-header">Multi-threading<a class="admonition-anchor" href="#Multi-threading-e49073c1b14e1139" title="Permalink"></a></header><div class="admonition-body"><p>It is recommended to <a href="https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads">start Julia with multi-threads</a> when using JobSchedulers.jl.</p></div></div><pre><code class="language-julia hljs">using JobSchedulers</code></pre><h2 id="Create-and-submit-a-Job"><a class="docs-heading-anchor" href="#Create-and-submit-a-Job">Create and submit a Job</a><a id="Create-and-submit-a-Job-1"></a><a class="docs-heading-anchor-permalink" href="#Create-and-submit-a-Job" title="Permalink"></a></h2><p>A <a href="../API/#Job"><code>Job</code></a> is the wrapper of <code>AbstractCmd</code>, <code>Function</code> or <code>Task</code>.</p><p><em>The package schedules <code>Job</code>, as <code>Base.Threads</code> schedules <code>Task</code>.</em></p><pre><code class="language-julia hljs">command_job = Job(
+    `echo command job done`    # AbstractCmd to run
+)
+
+function_job = Job() do  # the function should have no arguments
+    println(&quot;function job done&quot;)
+end
+
+task_job = Job(
+    @task(println(&quot;task job done&quot;))  # Task to run
+)
+
+job_with_args = Job(
+    @task(println(&quot;job_with_args done&quot;)); # Task to run
+    name = &quot;job with args&quot;,     # Job name.
+    user = &quot;me&quot;,                # Job owner.
+    ncpu = 1,                   # Number of CPU required (Int/Float).
+    mem = 1KB,                  # Number of memory required (unit: TB, GB, MB, KB, B).
+    schedule_time = Second(3),  # Run after 3 seconds; can be ::DateTime or ::Period.
+    wall_time = Hour(1),        # The maximum time to run the job.
+    priority = 20,              # Lower number = higher priority.
+    cron = Cron(:none),         # Job recurring: Cron defines repeat date and time.
+    until = DateTime(9999,1,1), #                When to stop job recurring.
+    dependency = [              # Defer job until some jobs reach some states.
+        command_job,
+        DONE =&gt; task_job
+    ],
+    stdout = nothing,           # stdout redirection to file
+    stderr = nothing,           # stderr redirection to file
+    append = false              # whether append to existing files
+)
+# Job:
+#   id            → 9385239735019930
+#   name          → &quot;job with args&quot;
+#   user          → &quot;me&quot;
+#   ncpu          → 1.0
+#   mem           → 1.0 KB
+#   schedule_time → 11:58:15
+#   submit_time   → na
+#   start_time    → na
+#   stop_time     → na
+#   wall_time     → 1 hour
+#   cron          → Cron(:none)
+#   until         → forever
+#   state         → :queuing
+#   priority      → 20
+#   dependency    → 2 jobs
+#   stdout        → nothing
+#   stderr        → nothing
+#   task          → Task (runnable) @0x00007625b8d26720</code></pre><div class="admonition is-info" id="Dependency-29dc4a24d1daef93"><header class="admonition-header">Dependency<a class="admonition-anchor" href="#Dependency-29dc4a24d1daef93" title="Permalink"></a></header><div class="admonition-body"><p><code>dependency</code> argument in <a href="../API/#Job"><code>Job</code></a> controls when to start a job based on other jobs.</p><p>It is a <code>Vector</code> with element <code>STATE =&gt; job</code> or <code>STATE =&gt; job.id</code>.</p><p>STATE is one of <code>DONE</code>, <code>FAILED</code>, <code>CANCELLED</code>, <code>QUEUING</code>, <code>RUNNING</code>, <code>PAST</code>.   The first 5 states are real job states.   <code>PAST</code> is the super set of <code>DONE</code>, <code>FAILED</code>, <code>CANCELLED</code>, which means the job will not run in the future.</p><p>The writing styles below have the same meaning:</p><pre><code class="language-julia hljs">Job(...; dependency = [DONE =&gt; job1])
+Job(...; dependency = DONE =&gt; job1)
+Job(...; dependency = job1)</code></pre></div></div><p>Submit a job to queue using <a href="../API/#JobSchedulers.submit!"><code>submit!</code></a>:</p><pre><code class="language-julia hljs">submit!(command_job)
+submit!(task_job)
+submit!(job_with_args)</code></pre><p>Besides, <code>submit!(Job(...))</code> can be simplified to <code>submit!(...)</code>:</p><pre><code class="language-julia hljs">job = submit!(@task(println(&quot;job&quot;)), priority = 0)</code></pre><p>Macro <code>@submit [args...] expression</code> is another way to submit a job. It automatically adds <strong>explictly referred</strong> <code>Job</code> dependencies by walking through the symbols in the <code>expression</code>.</p><pre><code class="language-julia hljs">job = @submit ncpu=1 1+1
+
+job_auto_dependency = @submit 1 + result(job)
+# equivalent to submit!(() -&gt; 1 + result(job); dependency=job)</code></pre><p><a href="../API/#JobSchedulers.@submit"><code>@submit</code></a> supports any type of <code>Expr</code>ession, including a code block:</p><pre><code class="language-julia hljs">x = 5
+job_block = @submit begin
+    y = x + 1
+    y^2
+end
+@assert fetch(job_block) == (5+1)^2</code></pre><div class="admonition is-success" id="Submitting-child-jobs-within-a-parent-job-7871b3e200d3ce3a"><header class="admonition-header">Submitting child jobs within a parent job<a class="admonition-anchor" href="#Submitting-child-jobs-within-a-parent-job-7871b3e200d3ce3a" title="Permalink"></a></header><div class="admonition-body"><p>If you have a parent job that creats child jobs, and the parent job relies on the results of the child jobs, you need to wrap your child jobs within <a href="../API/#JobSchedulers.@yield_current"><code>@yield_current</code></a>. </p><p><code>@yield_current</code> is used to prevent wasting threads and even blocking JobScheduler when submitting jobs within jobs.</p><p>See details <a href="../best_practice/#submit-child-jobs">here</a>.</p></div></div><h2 id="Get-a-Job&#39;s-Result"><a class="docs-heading-anchor" href="#Get-a-Job&#39;s-Result">Get a Job&#39;s Result</a><a id="Get-a-Job&#39;s-Result-1"></a><a class="docs-heading-anchor-permalink" href="#Get-a-Job&#39;s-Result" title="Permalink"></a></h2><p>Get the returned <a href="../API/#JobSchedulers.result"><code>result</code></a> immediately and do not block threads. If job is not finished, show a warning message and return nothing:</p><pre><code class="language-julia hljs">result(job)
+# &quot;result&quot;</code></pre><p>You can also use <a href="../API/#Base.fetch-Tuple{Job}"><code>fetch</code></a> to wait for job to finish and return its result.</p><pre><code class="language-julia hljs">fetch(job)</code></pre><h2 id="Cancel-a-Job"><a class="docs-heading-anchor" href="#Cancel-a-Job">Cancel a Job</a><a id="Cancel-a-Job-1"></a><a class="docs-heading-anchor-permalink" href="#Cancel-a-Job" title="Permalink"></a></h2><p>Interrupt or <a href="../API/#JobSchedulers.cancel!"><code>cancel!</code></a> a job:</p><pre><code class="language-julia hljs">cancel!(job)</code></pre><h2 id="Recurring/repetitive-Job"><a class="docs-heading-anchor" href="#Recurring/repetitive-Job">Recurring/repetitive Job</a><a id="Recurring/repetitive-Job-1"></a><a class="docs-heading-anchor-permalink" href="#Recurring/repetitive-Job" title="Permalink"></a></h2><p>Recurring jobs can be defined using two arguments of <code>Job</code>: <code>Job(..., cron::Cron, until::Union{DateTime,Period})</code>.</p><ul><li><p><code>cron::Cron</code> use a similar syntax of Linux&#39;s <strong>Crontab</strong>. It accepts a <a href="../API/#JobSchedulers.Cron"><code>Cron</code></a> object. It extends Linux&#39;s crontab and allows repeat every XX seconds. You can use your favorate <code>*</code>, <code>-</code>, <code>,</code> syntax just like crontab. Other features please see <a href="../API/#JobSchedulers.Cron"><code>Cron</code></a>.</p></li><li><p><code>until::Union{DateTime,Period})</code>: stop job recurring until date and time.</p></li></ul><p>Construction:</p><pre><code class="language-julia hljs">Cron(second, minute, hour, day_of_month, month, day_of_week)</code></pre><p>Examples:</p><pre><code class="language-julia hljs">Cron()
+# Cron(every minute at 0 second past every hour everyday)
+
+Cron(0,0,0,1,1,0)
+Cron(:yearly)
+Cron(:annually)
+# Cron(at 00:00:00 on day-of-month 1 in Jan)
+
+Cron(0,0,0,1,*,*)
+Cron(:monthly)
+# Cron(at 00:00:00 on day-of-month 1)
+
+Cron(0,0,0,*,*,1)
+Cron(:weekly)
+# Cron(at 00:00:00 on Mon)
+
+Cron(0,0,0,*,&#39;*&#39;,&quot;*&quot;) # * is equivalent to &#39;*&#39;, and &quot;*&quot; in Cron.
+Cron(:daily)
+Cron(:midnight)
+# Cron(at 00:00:00 everyday)
+
+Cron(0,0,*,*,*,*)
+Cron(:hourly)
+# Cron(at 0 minute, 0 second past every hour everyday)
+
+Cron(0,0,0,0,0,0) # never repeat
+Cron(:none)       # never repeat
+# Cron(:none)
+
+Cron(0,0,0,*,*,&quot;*/2&quot;)
+# Cron(at 00:00:00 on Tue, Thu and Sat)
+
+Cron(0,0,0,*,*,&quot;1-7/2&quot;)
+# Cron(at 00:00:00 on Mon, Wed, Fri and Sun)
+
+Cron(0,0,0,1,&quot;1-12/3&quot;,*)
+# Cron(at 00:00:00 on day-of-month 1 in Jan, Apr, Jul and Oct)
+
+Cron(30,4,&quot;1,3-5&quot;,1,*,*)
+# Cron(at 4 minute, 30 second past 1, 3, 4 and 5 hours on day-of-month 1)
+
+# repeatly print time every 5 seconds, until current time plus 20 seconds
+recurring_job = submit!(cron = Cron(&quot;*/5&quot;, *, *, *, *, *), until = Second(20)) do
+    println(now())
+end
+# 2025-03-04T22:26:00.176
+# 2025-03-04T22:26:05.077
+# 2025-03-04T22:26:10.089
+# 2025-03-04T22:26:15.051</code></pre><p>Details: <a href="../API/#JobSchedulers.Cron"><code>Cron</code></a></p><h2 id="Queue"><a class="docs-heading-anchor" href="#Queue">Queue</a><a id="Queue-1"></a><a class="docs-heading-anchor-permalink" href="#Queue" title="Permalink"></a></h2><p>Show all jobs:</p><pre><code class="language-julia hljs">queue(:all)      # or:
+queue(all=true)  # or:
+all_queue()
+# 1-element Vector{Job}:
+# ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬─────────
+# │ Row │ state │               id │            name │ user │ ncpu │    mem ⋯
+# ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼─────────
+# │   1 │ :done │ 6407186212753787 │ &quot;job with args&quot; │ &quot;me&quot; │  1.0 │ 1.0 KB ⋯
+# └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴─────────
+#                                                           9 columns omitted</code></pre><div class="admonition is-compat" id="Behavior-of-Unnamed-Jobs-ec8b3f0684a5ad9f"><header class="admonition-header">Behavior of Unnamed Jobs<a class="admonition-anchor" href="#Behavior-of-Unnamed-Jobs-ec8b3f0684a5ad9f" title="Permalink"></a></header><div class="admonition-body"><p>Before v0.10, all jobs will be saved to queue. However, from v0.10, unnamed jobs (<code>job.name == &quot;&quot;</code>) will not be saved if they <strong>successfully</strong> ran. If you want to save unnamed jobs, you can set manually:</p><pre><code class="language-julia hljs">JobSchedulers.destroy_unnamed_jobs_when_done(false</code></pre></div></div><p>Show queue (running and queuing jobs only):</p><pre><code class="language-julia hljs">queue()
+# 0-element Vector{Job}:
+# ┌─────┬───────┬────┬──────┬──────┬──────┬─────┬──────────┬────────────┬────
+# │ Row │ state │ id │ name │ user │ ncpu │ mem │ priority │ dependency │ s ⋯
+# └─────┴───────┴────┴──────┴──────┴──────┴─────┴──────────┴────────────┴────
+#                                                           7 columns omitted</code></pre><p>Show queue using a job state (<code>QUEUING</code>, <code>RUNNING</code>, <code>DONE</code>, <code>FAILED</code>, <code>CANCELLED</code>, or <code>PAST</code>):</p><pre><code class="language-julia hljs">queue(DONE)
+# 1-element Vector{Job}:
+# ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬─────────
+# │ Row │ state │               id │            name │ user │ ncpu │    mem ⋯
+# ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼─────────
+# │   1 │ :done │ 6407186212753787 │ &quot;job with args&quot; │ &quot;me&quot; │  1.0 │ 1.0 KB ⋯
+# └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴─────────
+#                                                           9 columns omitted</code></pre><p>Show queue using a <code>String</code> or <code>Regex</code> to match job name or user:</p><pre><code class="language-julia hljs">queue(&quot;me&quot;)
+queue(&quot;with args&quot;)
+queue(r&quot;job.*&quot;)
+# 1-element Vector{Job}:
+# ┌─────┬───────┬──────────────────┬─────────────────┬──────┬──────┬─────────
+# │ Row │ state │               id │            name │ user │ ncpu │    mem ⋯
+# ├─────┼───────┼──────────────────┼─────────────────┼──────┼──────┼─────────
+# │   1 │ :done │ 6407186212753787 │ &quot;job with args&quot; │ &quot;me&quot; │  1.0 │ 1.0 KB ⋯
+# └─────┴───────┴──────────────────┴─────────────────┴──────┴──────┴─────────
+#                                                           9 columns omitted</code></pre><blockquote><p>See more at <a href="../API/#JobSchedulers.queue"><code>queue</code></a>, and <a href="../API/#JobSchedulers.all_queue"><code>all_queue</code></a>.</p></blockquote><h2 id="Job-query"><a class="docs-heading-anchor" href="#Job-query">Job query</a><a id="Job-query-1"></a><a class="docs-heading-anchor-permalink" href="#Job-query" title="Permalink"></a></h2><p>Get <code>Job</code> object by providing job ID, or access the index of queue:</p><pre><code class="language-julia hljs">job_query(6407186212753787)  # or:
+queue(6407186212753787)
+queue(:all)[1]
+# Job:
+#   id            → 6407186212753787
+#   name          → &quot;job with args&quot;
+#   user          → &quot;me&quot;
+#   ncpu          → 1.0
+#   mem           → 1.0 KB
+#   schedule_time → 13:11:45
+#   submit_time   → 13:12:46
+#   start_time    → 13:12:46
+#   stop_time     → 13:12:46
+#   wall_time     → 1 hour
+#   cron          → Cron(:none)
+#   until         → forever
+#   state         → :done
+#   priority      → 20
+#   dependency    → 2 jobs
+#   stdout        → nothing
+#   stderr        → nothing
+#   task          → Task</code></pre><blockquote><p>See more at <a href="../API/#JobSchedulers.job_query"><code>job_query</code></a>, and <a href="../API/#JobSchedulers.queue"><code>queue</code></a>.</p></blockquote><h2 id="Wait-for-jobs-and-progress-meter"><a class="docs-heading-anchor" href="#Wait-for-jobs-and-progress-meter">Wait for jobs and progress meter</a><a id="Wait-for-jobs-and-progress-meter-1"></a><a class="docs-heading-anchor-permalink" href="#Wait-for-jobs-and-progress-meter" title="Permalink"></a></h2><p><a href="../API/#Base.wait-Tuple{Job}"><code>wait</code></a> for a specific job(s):</p><pre><code class="language-julia hljs">wait(j::Job)
+wait(js::Vector{Job})</code></pre><p>Wait for jobs finished using <a href="../API/#JobSchedulers.wait_queue"><code>wait_queue</code></a>.</p><pre><code class="language-julia hljs">wait_queue()
+# no output
+
+# If `show_progress = true`, a fancy progress meter will display.
+wait_queue(show_progress = true)
+
+# stop waiting when &lt;= 2 jobs are queuing or running.
+wait_queue(show_progress = true, exit_num_jobs = 2)</code></pre><p><img src="../assets/progress_meter.png" alt="progress meter"/></p><h2 id="Scheduler-control"><a class="docs-heading-anchor" href="#Scheduler-control">Scheduler control</a><a id="Scheduler-control-1"></a><a class="docs-heading-anchor-permalink" href="#Scheduler-control" title="Permalink"></a></h2><p>Scheduler is automatically started after v0.7.11.</p><pre><code class="language-julia hljs">scheduler_stop()
+# [ Info: Scheduler task stops.
+# ┌ Warning: Scheduler reactivation task is not running.
+# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:92
+
+scheduler_start()
+# ┌ Warning: Scheduler task was interrupted or done. Restart.
+# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:61
+# ┌ Warning: Scheduler reactivation task was interrupted or done. Restart.
+# └ @ JobSchedulers ~/projects/JobSchedulers.jl/src/control.jl:61
+
+scheduler_status()
+# ┌ Info: Scheduler is running.
+# │   SCHEDULER_MAX_CPU = 23
+# │   SCHEDULER_MAX_MEM = &quot;169.7 GB&quot;
+# │   JOB_QUEUE.max_done = 10000
+# │   JOB_QUEUE.max_cancelled = 10000
+# │   SCHEDULER_TASK[] = Task (runnable) @0x00007d4160031dc0
+# └   SCHEDULER_REACTIVATION_TASK[] = Task (runnable) @0x00007d4160031f50
+# :running</code></pre><div class="admonition is-info" id="Experimental:-Number-of-CPU-Optimization-85a5c0ee6daae58c"><header class="admonition-header">Experimental: Number of CPU Optimization<a class="admonition-anchor" href="#Experimental:-Number-of-CPU-Optimization-85a5c0ee6daae58c" title="Permalink"></a></header><div class="admonition-body"><p>JobSchedulers.jl also provide a function to find optimized <code>ncpu</code> that a Job can use, based on current cpu usage. See more at <a href="../API/#JobSchedulers.solve_optimized_ncpu"><code>solve_optimized_ncpu</code></a>.</p></div></div><h2 id="Compatibility-with-Pipelines.jl"><a class="docs-heading-anchor" href="#Compatibility-with-Pipelines.jl">Compatibility with Pipelines.jl</a><a id="Compatibility-with-Pipelines.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Compatibility-with-Pipelines.jl" title="Permalink"></a></h2><p><a href="https://cihga39871.github.io/Pipelines.jl/dev/">Pipelines.jl</a> is a lightweight Julia package for computational pipelines and workflows. It can work seamlessly with JobSchedulers.</p><p>You can create a <code>Job</code> by using <code>Program</code> types from Pipelines.jl. <code>Program</code> is the abstract type of <code>JuliaProgram</code> and <code>CmdProgram</code>.</p><pre><code class="language-julia hljs">Job(p::Program; program_kwargs..., run_kwargs..., job_kwargs...)
+Job(p::Program, inputs; run_kwargs..., job_kwargs...)
+Job(p::Program, inputs, outputs; run_kwargs..., job_kwargs...)</code></pre><ul><li><code>program_kwargs...</code> is input and output arguments defined in <code>p::Program</code>.</li><li><code>run_kwargs...</code> is keyword arguments of <code>run(::Program; ...)</code></li><li><code>job_kwargs...</code> is keyword arguments of <code>Job(::Union{Base.AbstractCmd,Task}; ...)</code></li></ul><p>Details can be found by typing</p><pre><code class="language-julia hljs">julia&gt; using Pipelines, JobSchedulers
+julia&gt; ?JuliaProgram
+julia&gt; ?CmdProgram
+julia&gt; ?run
+julia&gt; ?Job</code></pre><h3 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Pipelines, JobSchedulers
+
+p = CmdProgram(
+    inputs = [&quot;IN1&quot;, &quot;IN2&quot;],
+    outputs = &quot;OUT&quot;,
+    cmd = pipeline(`echo inputs are: IN1 and IN2` &amp; `echo outputs are: OUT`)
+)
+# CmdProgram:
+#   name             → Command Program
+#   id_file          → 
+#   info_before      → auto
+#   info_after       → auto
+#   cmd_dependencies → &lt;empty&gt;
+#   arg_inputs       → IN1 :: Any (required)
+#                      IN2 :: Any (required)
+#   validate_inputs  → do_nothing
+#   prerequisites    → do_nothing
+#   cmd              → `echo inputs are: IN1 and IN2` &amp; `echo outputs are: OUT`
+#   infer_outputs    → do_nothing
+#   arg_outputs      → OUT :: Any (required)
+#   validate_outputs → do_nothing
+#   wrap_up          → do_nothing
+#   arg_forward      → &lt;empty&gt;
+
+### native Pipelines.jl method to run the program
+run(p, IN1 = `in1`, IN2 = 2, OUT = &quot;out&quot;, touch_run_id_file = false) 
+# touch_run_id_file = false means do not create a file which indicates 
+# the job is done and avoids re-run.
+
+# ┌ Info: 2025-03-04 22:31:11 Started: Command Program
+# │   command_template = `echo inputs are: IN1 and IN2` &amp; `echo outputs are: OUT`
+# │   run_id = Base.UUID(&quot;c30eed71-69ff-544b-a175-b6077dcd0931&quot;)
+# │   inputs =
+# │    Dict{String, Any} with 2 entries:
+# │      &quot;IN2&quot; =&gt; 2
+# │      &quot;IN1&quot; =&gt; `in1`
+# │   outputs =
+# │    Dict{String, Any} with 1 entry:
+# └      &quot;OUT&quot; =&gt; &quot;out&quot;
+# inputs are: in1 and 2
+# outputs are: out
+# ┌ Info: 2025-03-04 22:31:12 Finished: Command Program
+# │   command_running = `echo inputs are: in1 and 2` &amp; `echo outputs are: out`
+# │   run_id = Base.UUID(&quot;c30eed71-69ff-544b-a175-b6077dcd0931&quot;)
+# │   inputs =
+# │    Dict{String, Any} with 2 entries:
+# │      &quot;IN2&quot; =&gt; 2
+# │      &quot;IN1&quot; =&gt; `in1`
+# │   outputs =
+# │    Dict{String, Any} with 1 entry:
+# └      &quot;OUT&quot; =&gt; &quot;out&quot;
+# (true, Dict{String, Any}(&quot;OUT&quot; =&gt; &quot;out&quot;))
+
+### run the program by submitting to JobSchedulers.jl
+program_job = submit!(p, IN1=`in1`, IN2=2, OUT=&quot;out&quot;, touch_run_id_fil =false)
+# same results as `run`
+
+### Or run the program using macro @submit
+program_job = @submit IN1=`in1` IN2=2 OUT=&quot;out&quot; touch_run_id_file=false p
+
+# get the returned result
+result(program_job)
+# (true, Dict{String, Any}(&quot;OUT&quot; =&gt; &quot;out&quot;))</code></pre><h2 id="Scheduler-settings"><a class="docs-heading-anchor" href="#Scheduler-settings">Scheduler settings</a><a id="Scheduler-settings-1"></a><a class="docs-heading-anchor-permalink" href="#Scheduler-settings" title="Permalink"></a></h2><p>Check the current status of scheduler:</p><pre><code class="language-julia hljs">scheduler_status()
+# ┌ Info: Scheduler is running.
+# │   SCHEDULER_MAX_CPU = 32
+# │   SCHEDULER_MAX_MEM = &quot;169.6 GB&quot;
+# │   JOB_QUEUE.max_done = 10000
+# │   JOB_QUEUE.max_cancelled = 10000
+# │   SCHEDULER_TASK[] = Task (runnable) @0x00007fe205052e60
+# └   SCHEDULER_REACTIVATION_TASK[] = Task (runnable) @0x00007d4160031f50
+# :running</code></pre><p>Set the <strong>maximum CPU</strong> that the scheduler can use. If starting Julia with multi-threads, the maximum CPU is the number of default thread pool, excluding thread ID 1.</p><pre><code class="language-julia hljs">set_scheduler_max_cpu()     # use all available CPUs
+# 32
+set_scheduler_max_cpu(4)    # use 4 CPUs
+# 4
+set_scheduler_max_cpu(0.5)  # use 50% of CPUs
+# 16</code></pre><p>Set the <strong>maximum RAM</strong> the scheduler can use:</p><pre><code class="language-julia hljs">set_scheduler_max_mem()             # use 80% of total memory
+# 107792089088
+
+set_scheduler_max_mem(4GB)          # use 4GB memory
+set_scheduler_max_mem(4096MB)
+set_scheduler_max_mem(4194304KB)
+set_scheduler_max_mem(4294967296B)
+# 4294967296
+
+set_scheduler_max_mem(0.5)          # use 50% of total memory
+# 101166391296</code></pre><p>Set the maximum number of finished jobs:</p><pre><code class="language-julia hljs">set_scheduler_max_job(max_done::Int = 10000, max_cancelled::Int = max_done)
+
+set_scheduler_max_job(10000)  # If number of finished jobs &gt; 10000, 
+                              #    the oldest ones will be removed.
+# 10000                       # It does not affect queuing, running, or failed jobs.</code></pre><p>Set the previous setting in one function:</p><pre><code class="language-julia hljs">set_scheduler(;
+    max_cpu = JobSchedulers.SCHEDULER_MAX_CPU,
+    max_mem = JobSchedulers.SCHEDULER_MAX_MEM,
+    max_job = JobSchedulers.JOB_QUEUE.max_done,
+    max_cancelled_job = JobSchedulers.JOB_QUEUE.max_cancelled_job,
+    update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND
+)
+# ┌ Info: Scheduler is running.
+# │   SCHEDULER_MAX_CPU = 32
+# │   SCHEDULER_MAX_MEM = &quot;169.6 GB&quot;
+# │   JOB_QUEUE.max_done = 10000
+# │   JOB_QUEUE.max_cancelled = 10000
+# │   SCHEDULER_TASK[] = Task (runnable) @0x00007fe205052e60
+# └   SCHEDULER_REACTIVATION_TASK[] = Task (runnable) @0x00007d4160031f50
+# :running</code></pre><h2 id="Backup"><a class="docs-heading-anchor" href="#Backup">Backup</a><a id="Backup-1"></a><a class="docs-heading-anchor-permalink" href="#Backup" title="Permalink"></a></h2><p>Set backup file:</p><pre><code class="language-julia hljs">set_scheduler_backup(&quot;/path/to/backup/file&quot;)</code></pre><blockquote><p>JobSchedulers writes to the backup file at exit. If the file exists, scheduler settings and job queue will be recovered from it automatically. Recovered jobs are just for query, not run-able.</p></blockquote><p>Stop backup and <code>delete_old</code> backup:</p><pre><code class="language-julia hljs">set_scheduler_backup(delete_old=true)</code></pre><p>Backup immediately:</p><pre><code class="language-julia hljs">backup()</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../use_cases/">Use Cases »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Monday 8 September 2025 23:16">Monday 8 September 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
