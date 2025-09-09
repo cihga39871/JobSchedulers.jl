@@ -5,7 +5,7 @@
         const queuing::SortedDict{Int,LinkedJobList,Base.Order.ForwardOrdering}  # priority => Job List
         const queuing_0cpu::LinkedJobList              # ncpu = 0, can run immediately
         const future::LinkedJobList                    # all jobs with schedule_time > now()
-        const running::LinkedJobList        const running::Vector{Job}
+        const running::LinkedJobList
         const done::Vector{Job}
         const failed::Vector{Job}
         const cancelled::Vector{Job}

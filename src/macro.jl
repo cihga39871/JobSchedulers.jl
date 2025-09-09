@@ -176,6 +176,9 @@ If not using `@yield_current`, the thread taken by the current job is wasted whe
 In an extreme condition, the JobScheduler can be **blocked** if all threads are taken by parent jobs, and if their child jobs do not have any threads to run.
 
 To experience the blockage, you can start Julia with `julia -t 1,1`, and run the example code without `@yield_current`. You may kill the julia session by pressing Ctrl+C 10 times.
+
+!!! compat
+    `@yield_current` is available from v0.11.11.
 """
 macro yield_current(ex)
     return quote
@@ -200,6 +203,9 @@ end
 The function version of [`@yield_current`](@ref). 
 
 Prevent wasting threads and even blocking JobScheduler when submitting jobs within jobs.
+
+!!! compat
+    `yield_current` is available from v0.11.11.
 
 See details at [`@yield_current`](@ref).
 """
