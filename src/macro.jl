@@ -32,8 +32,6 @@ wait(j2)
 
 # you can also manually add dependencies not in the `expr`:
 j3 = @submit dependency = [PAST => j] println("j3 finished. result of j2 = ", result(j2))
-
-# Note: j3.dependency might be empty after submit, because JobScheduler will remove jobs that reached their states in the dependency list.
 ```
 
 
@@ -135,12 +133,14 @@ end
     @yield_current expr
 
 Used to prevent wasting threads and even blocking JobScheduler when submitting jobs within jobs.
-    
-If `@yield_current` is called within a `Job`'s scope, this `Job` is considered as the [`current_job`](@ref). If not called within a job's scope, `expr` will be evaluated as it is.
 
-Within the `expr` block, the current job's `ncpu` is temporarily set to `0`, and the thread of the current job can be occupied by any child jobs (including **grand-child** jobs). 
+If `@yield_current` is not called within a job's scope, `expr` will be evaluated as it is.
 
-Once leaving the `expr` block, the current job's `ncpu` is resumed, and its thread is not able to occupied.
+If `@yield_current` is called within a `Job`'s scope, this `Job` is considered as the [`current_job`](@ref).
+
+And within the `expr` block, the current job's `ncpu` is temporarily set to `0`, and the thread of the current job can be occupied by any child jobs (including **grand-child** jobs). 
+
+Once leaving the `expr` block, the current job's `ncpu` is resumed, and its thread is not able to be occupied.
 
 Therefore, the child jobs need to be submitted and **waited** within the `expr` block. 
 

@@ -1,4 +1,4 @@
-# Best Practice (Please Read)
+# Best Practice
 
 In the following sections, we briefly go through a few techniques that can help you understand tricks when using JobSchedulers.
 
@@ -37,40 +37,45 @@ If you submit a job assigning `ncpu > 0`,
 
 If you set `ncpu = 0` to your job,
 
-- the job is migratable and does not take any tid from `JobSchedulers.THREAD_POOL[]`.
-
-  !!! tip
-      Use `ncpu = 0` only when a job is very small, or a job that spawns and waits for other jobs:
-      ```julia
-      using JobSchedulers
-
-      small_job = Job(ncpu = 0) do
-          # within the small job,
-          # submit 100 big jobs
-          big_jobs = map(1:100) do _
-              @submit ncpu=1 sum(rand(9999999))
-          end
-          # post-process of big jobs
-          total = 0.0
-          for j in big_jobs
-              total += fetch(j)
-          end
-          total
-      end
-      submit!(small_job)
-      total = fetch(small_job)
-      # 4.999998913757924e8
-      ```
+- the job is migratable and does not take any tid from `JobSchedulers.THREAD_POOL[]`;
+- please make sure this job is very small, and does not take much CPU resources. 
 
 #### [Submitting child jobs within a parent job](@id submit-child-jobs)
 
 Submitting jobs within jobs is allowed in JobSchedulers, but it might waste threads and even block the scheduler.
 
-To prevent the side effects, it is always recommended to use [`@yield_current`](@ref) to wrap the code that creats and waits for child jobs.
+##### Method 1: `ncpu = 0`
 
-Why and when do the side effects happen?
+One way is to add `ncpu = 0` to the parent job, so the parent job does not take any threads and can be migratable to free threads. Use this method only when the parent job is very small.
 
-Each job with `ncpu > 0` takes a unique thread ID when started, and if a parent job submits and waits for a child job during its execution, the thread taken by the parent is wasted when waiting. In a worse senario, if there is no Available thread, the child job won't start, resulting a scheduler blockage. 
+```julia
+using JobSchedulers
+
+small_job = Job(ncpu = 0) do
+    # within the small job,
+    # submit 100 big jobs
+    big_jobs = map(1:100) do _
+        @submit ncpu=1 sum(rand(9999999))
+    end
+    # post-process of big jobs
+    total = 0.0
+    for j in big_jobs
+        total += fetch(j)
+    end
+    total
+end
+submit!(small_job)
+total = fetch(small_job)
+# 4.999998913757924e8
+```
+
+##### Method 2: `@yield_current`
+
+If the parent job is computationally intensive, the first method does not work well. In this situation, we can use [`@yield_current`](@ref) to wrap the code that creats and waits for child jobs.
+
+If not using the macro, we might waste threads or block the scheduler.
+
+Why and how? Each job with `ncpu > 0` takes a unique thread ID when started, and if a parent job submits and waits for a child job during its execution, the thread taken by the parent is wasted when waiting. In a worse senario, if there is no available thread, the child job won't start, resulting a scheduler blockage. 
 
 !!! details "An example to demonstrate the blockage"
     Start Julia with 1 interactive and 1 default thread: `julia -t 1,1`, and run the following code:
@@ -155,7 +160,7 @@ end; name="parent");
 fetch(parent_job)
 ```
 
-With [`@yield_current`](@ref), the child jobs run successfully with the same thread as its parent, because the parent was yielding to the children.
+Within [`@yield_current`](@ref), the child jobs run successfully with the same thread as its parent, because the parent was yielding to the children.
 
 More details in [`@yield_current`](@ref).
 
