@@ -228,18 +228,41 @@ function Base.show(io::IO, ::MIME"text/plain", job_queue::T;
         mat[i, 15] = JobSchedulers.simplify(trygetfield(j, :until))
     end
 
-    if allcols && allrows
-        crop = :none
-    elseif allcols
-        crop = :vertical
-    elseif allrows
-        crop = :horizontal
-    else
-        crop = :both
-    end
+
     lock(io)
     println(io, "$(length(job_queue))-element $(T):")
-    JobSchedulers.pretty_table(io, mat; header = field_order, crop = crop, maximum_columns_width = 20, vcrop_mode = :middle, show_row_number = true)
+
+    try
+        # PrettyTables v3
+        pretty_table(io, mat; 
+            column_labels                     = field_order,
+            fit_table_in_display_horizontally = !allcols,
+            fit_table_in_display_vertically   = !allrows,
+            maximum_data_column_widths        = Int[20 for _ in 1:15],
+            vertical_crop_mode                = :middle,
+            show_row_number_column            = true)
+    catch e
+        if e isa MethodError
+            # PrettyTables v0.12 or v2
+            if allcols && allrows
+                crop = :none
+            elseif allcols
+                crop = :vertical
+            elseif allrows
+                crop = :horizontal
+            else
+                crop = :both
+            end
+            pretty_table(io, mat; 
+                header = field_order, 
+                crop = crop, 
+                maximum_columns_width = 20, 
+                vcrop_mode = :middle, 
+                show_row_number = true)
+        else
+            rethrow(e)
+        end
+    end
     unlock(io)
 end
 

@@ -213,7 +213,7 @@ function update_running!(current::DateTime)
                 @goto move_out
             end
 
-            if istaskfailed2(job.task)
+            if istaskfailed(job.task)
                 unsafe_update_as_failed!(job, current)
                 deleteat!(JOB_QUEUE.running, job)
                 free_thread(job)

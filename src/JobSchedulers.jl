@@ -13,6 +13,7 @@ using Pipelines
 using DataStructures
 using ScopedValues  # from v1.11, Base.ScopedValues exists, but I do not want the behavior to change with older Julia versions.
 using PrecompileTools
+using ScopedStreams
 
 include("bit.jl")
 include("job_recur.jl")
@@ -54,13 +55,11 @@ default_ncpu,
 default_mem,
 wait_queue
 
-
 include("backup.jl")
 export set_scheduler_backup, backup
 
 include("compat_pipelines.jl")
 export close_in_future
-
 
 include("progress_computing.jl")
 include("progress_view.jl")
@@ -68,6 +67,8 @@ export queue_progress
 
 include("macro.jl")
 export @submit, @yield_current, yield_current
+
+ScopedStreams.@gen_scoped_stream_methods
 
 function __init__()
     # Fixing precompilation hangs due to open tasks or IO

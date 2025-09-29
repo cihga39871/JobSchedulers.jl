@@ -84,7 +84,7 @@ end
 """
 function queue_progress(;remove_tmp_files::Bool = true, kwargs...)
 
-    is_in_terminal = Pipelines.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
+    is_in_terminal = ScopedStreams.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
     if !is_in_terminal
         # Not in terminal == stdout is a file
         # We do not want to contaminate stdout with non-readable chars
@@ -119,7 +119,7 @@ end
 function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
     wait_second_for_new_jobs::Integer = 1, loop::Bool = true, exit_num_jobs::Integer = 0)
 
-    is_in_terminal = Pipelines.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
+    is_in_terminal = ScopedStreams.stdout_origin isa Base.TTY  # does not care about stderr, since progress meter use stdout. 
     if !is_in_terminal
         # Not in terminal == stdout is a file
         # We do not want to contaminate stdout with non-readable chars
@@ -226,15 +226,14 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
         h, w = T.displaysize()
         reset_term(row, h)
 
-
         old_stdout != Base.stdout && redirect_stdout(old_stdout)
         old_stderr != Base.stderr && redirect_stderr(old_stderr)
 
         isopen(stdout_tmp) && Base.flush(stdout_tmp)
         isopen(stderr_tmp) && Base.flush(stderr_tmp)
 
-        print_rest_lines(Pipelines.stdout_origin, stdout_tmp, start_pos_stdout_tmp)
-        print_rest_lines(Pipelines.stderr_origin, stderr_tmp, start_pos_stderr_tmp)
+        print_rest_lines(ScopedStreams.stdout_origin, stdout_tmp, start_pos_stdout_tmp)
+        print_rest_lines(ScopedStreams.stderr_origin, stderr_tmp, start_pos_stderr_tmp)
     end
     # COV_EXCL_STOP
 end
@@ -505,7 +504,7 @@ function init_term(h::Integer)
         T.cshow(false)
     catch
     end
-    print(Pipelines.stdout_origin, "\n" ^ h)
+    print(ScopedStreams.stdout_origin, "\n" ^ h)
     # T.clear()
 end
 

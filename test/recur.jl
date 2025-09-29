@@ -141,14 +141,16 @@
     
     JobSchedulers.get_second_description([1,4,7]) 
     JobSchedulers.get_second_description([1,4]) 
-    JobSchedulers.get_second_description(Int[]) 
     JobSchedulers.get_second_description([1]) 
+    JobSchedulers.get_second_description(Int[])
     JobSchedulers.get_minute_description([1,4,7])
     JobSchedulers.get_minute_description([1,4])
     JobSchedulers.get_minute_description([1])
+    JobSchedulers.get_minute_description(Int[])
     JobSchedulers.get_hour_description([1,4,7])
     JobSchedulers.get_hour_description([1,4])
     JobSchedulers.get_hour_description([1])
+    JobSchedulers.get_hour_description(Int[])
     JobSchedulers.get_date_description(c9)
     JobSchedulers.get_date_description(Cron(:none))
     JobSchedulers.get_dow_description(c9)
@@ -158,7 +160,8 @@
     JobSchedulers.get_dom_description(c9)
     JobSchedulers.get_monthday_description(Cron("*/10", *,*,*,*,*))
     JobSchedulers.get_monthday_description(Cron("*/10", *,*,"1/2",*,*))
-    
+    JobSchedulers.get_monthday_description(Cron("*/10", *,*,"1/2","3,5",*))
+    JobSchedulers.get_monthday_description(Cron("*/10", *,*,*,"3,5",*))
 
     JobSchedulers.is_valid_day(now(), c9)
 end

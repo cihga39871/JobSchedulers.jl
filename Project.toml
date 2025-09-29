@@ -1,7 +1,7 @@
 name = "JobSchedulers"
 uuid = "eeff360b-c02d-44d3-ab26-4013c616a17e"
 authors = ["Jiacheng Chuan <jiacheng_chuan@outlook.com>"]
-version = "0.11.12"
+version = "0.12.0-dev"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -14,20 +14,27 @@ PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+ScopedStreams = "ae12ab41-8e94-49b1-b3b7-5c73acb71980"
 ScopedValues = "7e506255-f358-4e82-b7e4-beb19740aa63"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 Terming = "5a1048b7-9ca6-4e8a-8e2e-1f932e78ac4e"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 DataStructures = "0.18, 0.19"
 JLD2 = "0.4, 0.5, 0.6"
 JSON = "0.21"
-Pipelines = "0.9, 0.10, 0.11, 1"
+Pipelines = "0.12, 1"
 PrecompileTools = "1"
-PrettyTables = "0.12, 2"
+PrettyTables = "0.12, 2, 3"
 Reexport = "^1"
+ScopedStreams = "^0.3.5"
 ScopedValues = "1"
 Term = "^2"
 Terming = "^0.2.6"
 julia = "^1.8"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

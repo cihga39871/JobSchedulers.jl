@@ -138,7 +138,7 @@ Caution: it is unsafe and should only be called within lock.
 function unsafe_update_state!(job::Job)
     if job.state === RUNNING
         task_state = job.task.state
-        if istaskfailed2(job.task)
+        if istaskfailed(job.task)
             unsafe_update_as_failed!(job)
         elseif task_state === DONE
             unsafe_update_as_done!(job)

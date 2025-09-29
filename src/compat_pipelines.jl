@@ -78,28 +78,10 @@ function Job(p::Program;
     )
     job = Job(generate_id(), name, user, ncpu, mem, schedule_time, DateTime(0), DateTime(0), DateTime(0), wall_time, cron, until, QUEUING, priority, dependency, nothing, stdout, stderr, 0, f, false)
 
-    task = @task begin
-        try
-            res = @with CURRENT_JOB=>job f()
-            if res isa Pipelines.StackTraceVector
-                unsafe_update_as_failed!(job)
-            else
-                unsafe_update_as_done!(job)
-            end
-            res
-        catch e
-            if e isa InterruptException
-                unsafe_update_as_cancelled!(job)
-            else
-                unsafe_update_as_failed!(job)
-            end
-            rethrow(e)
-        finally
-            scheduler_need_action()
-        end
+    job.task = @task begin
+        @gen_job_task_try_block true f()
     end
 
-    job.task = task
     job
 end
 
@@ -116,14 +98,7 @@ program_close_io = JuliaProgram(
     id_file = ".close-julia-io",
     inputs = "io" => IO,
     main = (inputs, outputs) -> begin
-        io = inputs["io"]
-        close(io)
-        if io == Base.stdout
-            Pipelines.restore_stdout()
-        end
-        if io == Base.stderr
-            Pipelines.restore_stderr()
-        end
+        close(inputs["io"])
         outputs
     end
 )

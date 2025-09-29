@@ -43,14 +43,10 @@ end
 - `cron::Cron = Cron(:none)`: job recurring at specfic date and time. See more at [`Cron`](@ref).
 - `until::Union{DateTime,Period} = DateTime(9999,1,1)`: stop job recurring `until` date and time.
 
-# Experimental Keyword Arguments - Output Redirection:
-
-- `stdout=nothing`: redirect stdout to the file.
-- `stderr=nothing`: redirect stderr to the file.
-- `append::Bool=false`: append the stdout or stderr or not.
-
-!!! note
-    Redirecting in Julia are not thread safe, so unexpected redirection might be happen if you are running programs in different `Tasks` simultaneously (multi-threading).
+!!! info "Thread-safe redirection is supported from v0.12.0"
+    - `stdout=nothing`: redirect stdout to the file.
+    - `stderr=nothing`: redirect stderr to the file.
+    - `append::Bool=false`: append the stdout or stderr or not.
 
 See also [`submit!`](@ref), [`@submit`](@ref), [`Cron`](@ref)
 """
@@ -112,7 +108,7 @@ Internal use only! If you use the macro, you are wrong.
 macro gen_job_task(scope_current, ex)
     return esc(:(
         if need_redirect
-            @task Pipelines.redirect_to_files(stdout, stderr; mode = append ? "a+" : "w+") do
+            @task ScopedStreams.redirect_stream(stdout, stderr; mode = append ? "a+" : "w+") do
                 @gen_job_task_try_block $scope_current $ex
             end
         else
