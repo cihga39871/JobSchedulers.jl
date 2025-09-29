@@ -45,8 +45,8 @@ job_with_args = Job(
         command_job,
         DONE => task_job
     ],
-    stdout = nothing,           # stdout redirection to file
-    stderr = nothing,           # stderr redirection to file
+    stdout = nothing,           # thread-safe stdout redirection to file
+    stderr = nothing,           # thread-safe stderr redirection to file
     append = false              # whether append to existing files
 )
 # Job:

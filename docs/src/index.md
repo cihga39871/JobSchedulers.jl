@@ -8,11 +8,12 @@ We may find different tasks or programs use different CPU and memory. Some can r
 
 - Job and task scheduler.
 - Local workload manager.
-- Support CPU, memory, run time management.
-- Support deferring a job until specific jobs reach specific states (dependency).
-- Support running a job at specific time, or a period after creating (schedule).
-- Support recurring/repetitive jobs using **Cron**-like schedule expressions.
-- Support automatic backup and reload.
+- CPU, memory and run time management.
+- Deferring a job until specific jobs reach specific states (dependency).
+- Running a job at specific time, or a period after creating (schedule).
+- Job-dependent stdout and stderr. Yes, global stdout and stderr are thread-safe with this package!
+- Recurring/repetitive jobs using **Cron**-like schedule expressions.
+- Automatic backup and reload.
 - Minimum overhead: from creation to destory, a job only takes extra [1-2 µs](@ref overhead).
 - Fancy progress meter in terminal.
 

@@ -1,6 +1,6 @@
 # Changelog
 
-v0.12.0-dev
+v0.12.0
 
 - Compat: ScopedStreams v0.3.6: Allow job-dependent stdout and stderr.
 - Compat: Pipelines v0.12: `StackTraceVector` is no longer available, so `istaskfailed2` is not needed.

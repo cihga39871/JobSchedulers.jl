@@ -161,7 +161,6 @@ Base.deleteat!(::LinkedJobList, ::Job)
 ```@docs
 JobSchedulers.JobQueue
 JobSchedulers.scheduler()
-JobSchedulers.istaskfailed2
 JobSchedulers.unsafe_run!
 JobSchedulers.unsafe_cancel!
 JobSchedulers.unsafe_update_state!
