@@ -16,5 +16,6 @@ makedocs(
         "Overhead Benchmark" => "overhead.md",
         "API" => "API.md",
         "Change Log" => "changelog.md"
-    ]
+    ],
+    format = Documenter.HTML(sidebar_sitename=false)
 )

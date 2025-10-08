@@ -1,4 +1,4 @@
-![logo](docs/src/assets/logo.png)
+![logo](docs/src/assets/logo.svg)
 
 # JobSchedulers.jl
 
