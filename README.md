@@ -1,3 +1,5 @@
+![logo](docs/src/assets/logo.png)
+
 # JobSchedulers.jl
 
 *A Julia-based job scheduler and workload manager inspired by Slurm/PBS and Crontab.*
