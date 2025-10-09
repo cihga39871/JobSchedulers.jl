@@ -145,7 +145,7 @@ t = @task 1+1
 @test JobSchedulers.simplify_memory(parse(Int64, "15995116277765")) == "14.5 TB"
 
 @test Base.Dict(j_stdout) isa Dict{Symbol, Any}
-@test JobSchedulers.JSON.Writer.json(j_stdout) isa String
+@test JobSchedulers.JSON.json(j_stdout) isa String
 @test JobSchedulers.json_queue(all=true) isa String 
 
 @test set_scheduler_update_second(1) == 1.0

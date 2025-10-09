@@ -1,7 +1,7 @@
 name = "JobSchedulers"
 uuid = "eeff360b-c02d-44d3-ab26-4013c616a17e"
 authors = ["Jiacheng Chuan <jiacheng_chuan@outlook.com>"]
-version = "0.12.1"
+version = "0.12.2"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -22,7 +22,7 @@ Terming = "5a1048b7-9ca6-4e8a-8e2e-1f932e78ac4e"
 [compat]
 DataStructures = "0.18, 0.19"
 JLD2 = "0.4, 0.5, 0.6"
-JSON = "0.21"
+JSON = "0.21, 1"
 Pipelines = "0.12, 1"
 PrecompileTools = "1"
 PrettyTables = "0.12, 2, 3"

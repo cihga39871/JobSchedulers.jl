@@ -352,7 +352,7 @@ end
 end
 
 #TODO: update new fields. Check compatibility with existing programs
-function JSON.Writer.json(job::Job)
+function JSON.json(job::Job)
     """
     {"id":$(job.id),"state":"$(job.state)","name":"$(job.name)","user":"$(job.user)","ncpu":$(job.ncpu),"submit_time":"$(job.submit_time)","start_time":"$(job.start_time)","stop_time":"$(job.stop_time)","wall_time":"$(job.wall_time)","priority":$(job.priority),"stdout":"$(job.stdout)","stdout":"$(job.stdout)"}"""
 end
@@ -361,7 +361,7 @@ function json_queue(;all=false)
     q = queue(all=all)
     res = "["
     if !isempty(q)
-        res *= join(json.(q), ",")
+        res *= join(JSON.json.(q), ",")
     end
     res *= "]"
     return res

@@ -1,5 +1,9 @@
 # Changelog
 
+v0.12.2
+
+- Compat: JSON v1.
+
 v0.12.1
 
 - Feat: add a logo.
