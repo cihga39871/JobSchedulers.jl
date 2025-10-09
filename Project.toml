@@ -1,7 +1,7 @@
 name = "JobSchedulers"
 uuid = "eeff360b-c02d-44d3-ab26-4013c616a17e"
 authors = ["Jiacheng Chuan <jiacheng_chuan@outlook.com>"]
-version = "0.12.0"
+version = "0.12.1"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"

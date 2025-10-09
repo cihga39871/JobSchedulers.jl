@@ -1,5 +1,9 @@
 # Changelog
 
+v0.12.1
+
+- Feat: add a logo.
+
 v0.12.0
 
 - Compat: ScopedStreams v0.3.6: Allow job-dependent stdout and stderr.
