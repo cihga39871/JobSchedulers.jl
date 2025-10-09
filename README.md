@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="docs/src/assets/logo.svg" alt="Pipelines.jl Logo" width="400" height="auto" >
+    <img src="docs/src/assets/logo.svg" alt="JobSchedulers.jl Logo" width="400" height="auto" >
 </p>
 
 # JobSchedulers.jl
