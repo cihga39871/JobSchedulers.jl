@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="48"
+   height="48"
+   viewBox="0 0 12.7 12.7"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer1">
+    <g
+       id="g2"
+       transform="matrix(0.64635164,0,0,0.64635164,1.5564795,1.5424974)">
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.76051px;font-family:'Noto Sans CJK KR';-inkscape-font-specification:'Noto Sans CJK KR';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#263a40;fill-opacity:1;stroke-width:0.730038"
+         x="0.79947019"
+         y="10.191755"
+         id="text3"
+         transform="scale(0.9693613,1.0316071)"><tspan
+           id="tspan3"
+           x="0.79947019"
+           y="10.191755"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Noto Sans CJK KR';-inkscape-font-specification:'Noto Sans CJK KR';fill:#263a40;fill-opacity:1;stroke-width:0.730038"><tspan
+             style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.730038"
+             id="tspan5">Job</tspan></tspan></text>
+      <circle
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.557064"
+         id="path6"
+         cx="0.4027662"
+         cy="3.5964496"
+         r="0.66145831" />
+      <circle
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.557064"
+         id="path6-7"
+         cx="4.8820524"
+         cy="12.875098"
+         r="0.66145831" />
+      <circle
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.557064"
+         id="path6-7-4"
+         cx="9.713603"
+         cy="11.154433"
+         r="0.66145831" />
+      <circle
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.557064"
+         id="path6-7-1"
+         cx="4.8820524"
+         cy="15.4794"
+         r="0.66145831" />
+      <circle
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.557064"
+         id="path6-0"
+         cx="4.0618391"
+         cy="1.9735324"
+         r="0.66145831" />
+      <circle
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.557064"
+         id="path6-0-4"
+         cx="7.17274"
+         cy="1.9735324"
+         r="0.66145831" />
+      <circle
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.557064"
+         id="path6-5"
+         cx="4.0618391"
+         cy="-0.67230338"
+         r="0.66145831" />
+      <circle
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.557064"
+         id="path6-9"
+         cx="7.17274"
+         cy="-0.67230338"
+         r="0.66145831" />
+      <circle
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.557064"
+         id="path6-03"
+         cx="9.6619749"
+         cy="-0.67230338"
+         r="0.66145831" />
+      <rect
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.264583"
+         id="rect6"
+         width="2.3494186"
+         height="0.79224581"
+         x="7.1880293"
+         y="-1.0609982" />
+      <rect
+         style="fill:#6bc4c8;fill-opacity:1;stroke-width:0.264583"
+         id="rect6-7"
+         width="2.3494186"
+         height="0.79224581"
+         x="4.4509687"
+         y="1.5620258" />
+      <path
+         id="rect6-3"
+         style="fill:#6bc4c8;stroke-width:0.382249"
+         d="m 4.9606112,12.541616 c 0,0 2.002395,0.003 2.855752,0 0.695842,-0.002 1.132824,-0.49185 1.48111,-1.35228 0.111111,-0.2745 0.7845908,0.0855 0.7171188,0.34148 -0.3118928,1.18345 -1.2178248,1.74165 -2.2050588,1.74158 -0.949641,-7e-5 -2.848922,0 -2.848922,0 z" />
+    </g>
+  </g>
+</svg>
