@@ -96,7 +96,7 @@ end
 		@test_throws Exception submit!(job) # cannot resubmit
 
 		for i in 1:15
-			local job = Job(@task(begin; sleep(0.5); println(i); end), name="batch: $i", priority = 20+i)
+			local job = Job(@task(begin; sleep(0.5); println("check priority: $i"); end), name="batch: $i", priority = 20+i)
 			submit!(job)
 		end
 

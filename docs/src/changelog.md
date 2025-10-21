@@ -1,5 +1,9 @@
 # Changelog
 
+v0.12.3
+
+- Compat: `queue_progress` now uses `ScopedStreams.jl` API rather than Base `redirect_stdxxx`.
+
 v0.12.2
 
 - Compat: JSON v1.

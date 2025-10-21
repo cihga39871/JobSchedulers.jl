@@ -127,115 +127,104 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
         return
     end
 
-    # COV_EXCL_START
-    is_interactive = isinteractive() && Base.stdin isa Base.TTY
+    stdout_tmp = ScopedStreams.deref(stdout_tmp)
+    stderr_tmp = ScopedStreams.deref(stderr_tmp)
 
-    old_stdout = Base.stdout
-    old_stderr = Base.stderr
-    # old_stdlog = global_logger()
+    redirect_stream(stdout_tmp, stderr_tmp) do 
+            
+        start_pos_stdout_tmp = position(stdout_tmp)
+        start_pos_stderr_tmp = position(stderr_tmp)
 
-    start_pos_stdout_tmp = position(stdout_tmp)
-    start_pos_stderr_tmp = position(stderr_tmp)
-    # start_pos_stdlog_tmp = position(stdlog_tmp.stream)
-
-    # if !exit_with_key
-    #     auto_exit = true
-    # end
-    row = 1 # the current row of cursor
-
-    groups_shown = JobGroup[]
-    
-    init_group_state!()
-    global PROGRESS_METER = true
-
-    try
-        h_old, w_old = 0, 0
+        # COV_EXCL_START
+        is_interactive = isinteractive() && ScopedStreams.deref(Base.stdin) isa Base.TTY
         
-        term_init = true
-        while true
+        # if !exit_with_key
+        #     auto_exit = true
+        # end
+        row = 1 # the current row of cursor
 
-            if Base.stdout isa Base.TTY
-                old_stdout = Base.stdout
-                redirect_stdout(stdout_tmp)
-            end
+        groups_shown = JobGroup[]
+        
+        init_group_state!()
+        global PROGRESS_METER = true
 
-            if Base.stderr isa Base.TTY
-                old_stderr = Base.stderr
-                redirect_stderr(stderr_tmp)
-            end
-
-            Base.flush(stdout_tmp)
-            Base.flush(stderr_tmp)
-
-            queue_update = if isready(SCHEDULER_PROGRESS_ACTION[])
-                take!(SCHEDULER_PROGRESS_ACTION[])
-                true
-            else
-                false
-            end
-
-            h, w = T.displaysize()
-
-            if h == h_old && w == w_old
-                display_size_update = false
-            else
-                display_size_update = true
-                h_old, w_old = h, w
-            end
+        try
+            h_old, w_old = 0, 0
             
-            if queue_update || display_size_update
-                if term_init
-                    init_term(h)
-                    term_init = false
+            term_init = true
+            while true
+
+                Base.flush(stdout_tmp)
+                Base.flush(stderr_tmp)
+
+                queue_update = if isready(SCHEDULER_PROGRESS_ACTION[])
+                    take!(SCHEDULER_PROGRESS_ACTION[])
+                    true
+                else
+                    false
                 end
-                row = view_update(h, w; row = 1, groups_shown = groups_shown, is_in_terminal = is_in_terminal, is_interactive = is_interactive)
-            end
 
-            # # handle keyboard event
-            # if is_interactive
-            #     event = handle_keyboard_event()
-            #     if event === :quit
-            #         break
-            #     end
-            # end
+                h, w = T.displaysize()
 
-            # handle auto exit
-            if !loop
-                break
-            end
+                if h == h_old && w == w_old
+                    display_size_update = false
+                else
+                    display_size_update = true
+                    h_old, w_old = h, w
+                end
+                
+                if queue_update || display_size_update
+                    if term_init
+                        init_term(h)
+                        term_init = false
+                    end
+                    row = view_update(h, w; row = 1, groups_shown = groups_shown, is_in_terminal = is_in_terminal, is_interactive = is_interactive)
+                end
 
-            if scheduler_status(verbose=false) != RUNNING
-                @error "Scheduler was not running. Jump out from the progress bar."
-                scheduler_status()
-                break
-            end
-            if !are_remaining_jobs_more_than(exit_num_jobs)
-                sleep(wait_second_for_new_jobs)
-                if !are_remaining_jobs_more_than(exit_num_jobs)
+                # # handle keyboard event
+                # if is_interactive
+                #     event = handle_keyboard_event()
+                #     if event === :quit
+                #         break
+                #     end
+                # end
+
+                # handle auto exit
+                if !loop
                     break
-                    # T.alt_screen(false)
                 end
+
+                if scheduler_status(verbose=false) != RUNNING
+                    @error "Scheduler was not running. Jump out from the progress bar."
+                    scheduler_status()
+                    break
+                end
+                if !are_remaining_jobs_more_than(exit_num_jobs)
+                    sleep(wait_second_for_new_jobs)
+                    if !are_remaining_jobs_more_than(exit_num_jobs)
+                        break
+                        # T.alt_screen(false)
+                    end
+                end
+                
+                sleep(0.1)
             end
-            
-            sleep(0.1)
+        catch
+            rethrow()
+        finally
+            global PROGRESS_METER = false
+            h, w = T.displaysize()
+            reset_term(row, h)
+
+            isopen(stdout_tmp) && Base.flush(stdout_tmp)
+            isopen(stderr_tmp) && Base.flush(stderr_tmp)
+
+            print_rest_lines(ScopedStreams.stdout_origin, stdout_tmp, start_pos_stdout_tmp)
+            print_rest_lines(ScopedStreams.stderr_origin, stderr_tmp, start_pos_stderr_tmp)
         end
-    catch
-        rethrow()
-    finally
-        global PROGRESS_METER = false
-        h, w = T.displaysize()
-        reset_term(row, h)
-
-        old_stdout != Base.stdout && redirect_stdout(old_stdout)
-        old_stderr != Base.stderr && redirect_stderr(old_stderr)
-
-        isopen(stdout_tmp) && Base.flush(stdout_tmp)
-        isopen(stderr_tmp) && Base.flush(stderr_tmp)
-
-        print_rest_lines(ScopedStreams.stdout_origin, stdout_tmp, start_pos_stdout_tmp)
-        print_rest_lines(ScopedStreams.stderr_origin, stderr_tmp, start_pos_stderr_tmp)
+        # COV_EXCL_STOP
     end
-    # COV_EXCL_STOP
+
 end
 
 function print_rest_lines(io_to::IO, io_from::IO, io_from_position::Integer; with_log_style::Bool = true)
