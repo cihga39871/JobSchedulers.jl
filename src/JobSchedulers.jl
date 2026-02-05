@@ -92,7 +92,7 @@ function __init__()
         end
     end
 
-    SINGLE_THREAD_MODE[] = isempty(TIDS)
+    SINGLE_THREAD_MODE[] = length(TIDS) <= 1  # 1 or 0
 
     # initiating THREAD_POOL
     c = Channel{Int}(length(TIDS))

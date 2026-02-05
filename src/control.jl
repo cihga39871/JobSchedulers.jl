@@ -14,10 +14,10 @@ function new_scheduler_task()
                 SCHEDULER_TASK[].sticky = true
             else
                 SCHEDULER_TASK[].sticky = false
-            end    
-            ccall(:jl_set_task_tid, Cvoid, (Any, Cint), SCHEDULER_TASK[], 0)
+            end
         end
     end
+    ccall(:jl_set_task_tid, Cvoid, (Any, Cint), SCHEDULER_TASK[], 0)
     SCHEDULER_TASK[]
 end
 function new_scheduler_reactivation_task()
@@ -31,10 +31,10 @@ function new_scheduler_reactivation_task()
                 SCHEDULER_REACTIVATION_TASK[].sticky = true
             else
                 SCHEDULER_REACTIVATION_TASK[].sticky = false
-            end    
-            ccall(:jl_set_task_tid, Cvoid, (Any, Cint), SCHEDULER_REACTIVATION_TASK[], 0)
+            end
         end
     end
+    ccall(:jl_set_task_tid, Cvoid, (Any, Cint), SCHEDULER_REACTIVATION_TASK[], 0)
     SCHEDULER_REACTIVATION_TASK[]
 end
 
@@ -295,9 +295,9 @@ function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
                 else
                     progress_task.sticky = false
                 end    
-                ccall(:jl_set_task_tid, Cvoid, (Any, Cint), progress_task, 0)
             end
         end
+        ccall(:jl_set_task_tid, Cvoid, (Any, Cint), progress_task, 0)
         schedule(progress_task)
         wait(progress_task)
     else

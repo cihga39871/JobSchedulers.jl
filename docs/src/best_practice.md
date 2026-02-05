@@ -8,7 +8,7 @@ It is recommended to use JobSchedulers in multi-threaded Julia sessions.
 
 `Job`s are controlled using a main scheduler task (`JobSchedulers.SCHEDULER_TASK[]`). This task always binds to thread ID (tid) 1 and does not migrate to other threads. During initiation, JobSchedulers checks available tids in the **default** thread pool. 
 
-If the default thread pool is empty after excluding tid 1, JobSchedulers will use a single-thread mode (`JobSchedulers.SINGLE_THREAD_MODE[]::Bool`). Otherwise, JobSchedulers will use a multi-thread mode.
+If the default thread pool has <= 1 thread after excluding tid 1, JobSchedulers will use a single-thread mode (`JobSchedulers.SINGLE_THREAD_MODE[]::Bool`). Otherwise, JobSchedulers will use a multi-thread mode.
 
 ### Single-thread Mode
 

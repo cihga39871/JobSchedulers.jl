@@ -1,5 +1,9 @@
 # Changelog
 
+v0.12.4
+
+- Compat: compat julia > 1.12: If the default thread pool has <= 1 thread after excluding tid 1, JobSchedulers will use a single-thread mode (`JobSchedulers.SINGLE_THREAD_MODE[]::Bool`). This fixes issue of `set_scheduler_max_cpu(5)` when running `julia +1.12`.
+
 v0.12.3
 
 - Compat: `queue_progress` now uses `ScopedStreams.jl` API rather than Base `redirect_stdxxx`.
