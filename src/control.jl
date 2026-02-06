@@ -294,7 +294,7 @@ function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
                     progress_task.sticky = true
                 else
                     progress_task.sticky = false
-                end    
+                end
             end
         end
         ccall(:jl_set_task_tid, Cvoid, (Any, Cint), progress_task, 0)
