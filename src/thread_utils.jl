@@ -144,7 +144,6 @@ function schedule_thread(j::Job) :: UInt8
                     # no free thread, skip this time
                     return SKIP
                 end
-                
             end
         end
     # else  # ncpu == 0

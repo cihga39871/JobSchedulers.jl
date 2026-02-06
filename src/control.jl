@@ -182,6 +182,9 @@ end
 function set_scheduler_max_cpu(percent::Float64)
     if 0.0 < percent <= 1.0
         ncpu = round(Int, default_ncpu() * percent)
+        if ncpu < 1
+            ncpu = 1
+        end
         set_scheduler_max_cpu(ncpu)
     else
         @error "Percent::Float64 should be between 0 and 1. Are you looking for set_scheduler_max_cpu(ncpu::Int) ?"

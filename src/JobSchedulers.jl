@@ -92,6 +92,7 @@ function __init__()
         end
     end
 
+    length(TIDS) == 1 && empty!(TIDS)
     SINGLE_THREAD_MODE[] = isempty(TIDS)
 
     # initiating THREAD_POOL
