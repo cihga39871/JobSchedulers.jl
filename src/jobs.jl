@@ -71,7 +71,7 @@ mutable struct Job
     stderr::Union{IO,AbstractString,Nothing}
     _thread_id::Int
     _func::Union{Function,Nothing}
-    _need_redirect::Bool
+    _flags::UInt8  # details in _flags(j::Job)
     _group::String
     _group_state::Symbol
     _dep_check_id::Int
@@ -91,7 +91,14 @@ mutable struct Job
         dep = convert_dependency(dependency)
         check_dep(dep)
         _parent = current_job() # the job is submitted by _parent job, or nothing
-        j = new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, dep, task, stdout, stderr, _thread_id, _func, _need_redirect, _group, :nothing, 1, nothing, nothing, _parent)
+
+        # flags
+        _flags = 0x00
+        if _need_redirect
+            _flags |= 0x01  # set _need_redirect flag
+        end
+
+        j = new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, dep, task, stdout, stderr, _thread_id, _func, _flags, _group, :nothing, 1, nothing, nothing, _parent)
 
         j._prev = j
         j._next = j
@@ -100,7 +107,48 @@ mutable struct Job
 end
 
 """
-    # define lots of variables first
+    const _flags = (:_need_redirect, :_recyclable,)
+
+Description of flags of the job.
+
+See also: getter `get\$(flag)` and setter `set\$(flag)!`.
+"""
+const _flags = (:_need_redirect, :_recyclable,)
+
+# generate getter and setter for each flag
+for (ibit, internal_func) in enumerate(_flags)
+    getter = Symbol("get", internal_func)
+    setter = Symbol("set", internal_func, "!")
+
+    @eval function $(getter)(j::Job)
+        return (j._flags & $(0x01 << (ibit-1))) != 0
+    end
+
+    getter_help = """
+        $getter(j::Job) :: Bool
+    
+    Get the `$(internal_func)` flag of the job. This flag is stored in `j._flags` at bit position $ibit.
+    """
+    @eval @doc $getter_help $getter
+
+    @eval function $(setter)(j::Job, val::Bool) 
+        if val
+            j._flags |= $(0x01 << (ibit-1))
+        else
+            j._flags &= $(~(0x01 << (ibit-1)))
+        end
+    end
+
+    setter_help = """
+        $setter(j::Job, val::Bool)
+
+    Set the `$(internal_func)` flag of the job. This flag is stored in `j._flags` at bit position $ibit.
+    """
+    @eval @doc $setter_help $setter
+end
+
+"""
+    # define lots of local variables first
     @gen_job_task scope_current::Bool ex::Expr
 
 Internal use only! If you use the macro, you are wrong.
@@ -120,7 +168,7 @@ macro gen_job_task(scope_current, ex)
 end
 
 """
-    # define lots of variables first
+    # define lots of local variables first
     @gen_job_task_try_block scope_current::Bool ex::Expr
 
 Internal use only! If you use the macro, you are wrong.
@@ -389,7 +437,7 @@ function next_recur_job(j::Job)
         return nothing
     end
     # @gen_job_task needs arguments as follows
-    need_redirect = j._need_redirect
+    need_redirect = get_need_redirect(j)
     stdout = j.stdout
     stderr = j.stderr
     append = true

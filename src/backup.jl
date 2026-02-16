@@ -197,7 +197,9 @@ function Base.convert(::Type{Job}, s::JobSerialization)
     j.stderr = nothing
     j._thread_id = 0
     j._func = nothing
-    j._need_redirect = false
+    j._flags = 0x00
+    # set_need_redirect!(j, false)
+    # set_recyclable!(j, false)
     j._group = ""
     j._group_state = :nothing
     j._dep_check_id = 1
