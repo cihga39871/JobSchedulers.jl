@@ -1,5 +1,9 @@
 # Changelog
 
+v0.12.5
+
+- Compat: `wait` adds a `throw` keyword arg for julia > v1.12.
+
 v0.12.4
 
 - Compat: compat julia > 1.12: If the default thread pool has <= 1 thread after excluding tid 1, JobSchedulers will use a single-thread mode (`JobSchedulers.SINGLE_THREAD_MODE[]::Bool`). This fixes issue of `set_scheduler_max_cpu(5)` when running julia v1.12.

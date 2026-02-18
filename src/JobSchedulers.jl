@@ -75,6 +75,8 @@ function __init__()
     # https://docs.julialang.org/en/v1/devdocs/precompile_hang/
     ccall(:jl_generating_output, Cint, ()) == 1 && return nothing
 
+    global JOB_CEMETERY[] = Channel{Job}(2000)  # a channel to store recyclable jobs, with a buffer size of 2000.
+
     # init TIDS
     global TIDS
     @static if VERSION >= v"1.9-"  # COV_EXCL_LINE
