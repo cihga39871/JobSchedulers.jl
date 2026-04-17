@@ -318,36 +318,30 @@ function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
     nothing
 end
 
-@static if VERSION < v"1.12"
-    """
-        wait(j::Job)
-        wait(js::Vector{Job})
-    
-    Wait for the job(s) to be finished.
-    """
-    function Base.wait(j::Job)
+"""
+    wait(j::Job; throw::Bool=true)
+    wait(js::Vector{Job}; throw::Bool=true)
+
+Wait for the job(s) to be finished.
+
+- `throw::Bool=true` (default): it will be passed to `wait(j.task; throw=throw)`. Compat: julia 1.12+ only.
+"""
+function Base.wait(j::Job; throw::Bool=true)
+    @static if VERSION < v"1.12"
+        @warn "wait(j::Job; throw): The `throw` argument will be ignored. It is not supported in Julia version < 1.12." maxlog=1
         wait(j.task)
+    else
+        wait(j.task; throw=throw)
     end
-    
-    function Base.wait(js::Vector{Job})
+end
+
+function Base.wait(js::Vector{Job}; throw::Bool=true)
+    @static if VERSION < v"1.12"
+        @warn "wait(js::Vector{Job}; throw): The `throw` argument will be ignored. It is not supported in Julia version < 1.12." maxlog=1
         for j in js
             wait(j.task)
         end
-    end
-else
-    """
-        wait(j::Job; throw::Bool=true)
-        wait(js::Vector{Job}; throw::Bool=true)
-    
-    Wait for the job(s) to be finished.
-    
-    - `throw::Bool=true` (default): it will be passed to `wait(j.task; throw=throw)`. Compat: julia 1.12+ only.
-    """
-    function Base.wait(j::Job; throw::Bool=true)
-        wait(j.task; throw=throw)
-    end
-    
-    function Base.wait(js::Vector{Job}; throw::Bool=true)
+    else
         for j in js
             wait(j.task; throw=throw)
         end

@@ -322,7 +322,7 @@ queue(:all)[1]
 
 ## Wait for jobs and progress meter
 
-[`wait`](@ref) for a specific job(s):
+`wait` for a specific job(s):
 
 ```julia
 wait(j::Job)

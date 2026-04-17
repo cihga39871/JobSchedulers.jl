@@ -23,6 +23,7 @@ const SCHEDULER_REACTIVATION_TASK = Base.RefValue{Task}()
 ```
 
 ## Job
+
 ```@docs
 Job
 submit!
@@ -39,6 +40,7 @@ ispast
 ```
 
 ## Submit Job within Job
+
 ```@docs
 @yield_current
 yield_current
@@ -46,6 +48,7 @@ current_job
 ```
 
 ## Cron: Job Recur/Repeat
+
 ```@docs
 Cron
 JobSchedulers.cron_value_parse
@@ -53,6 +56,7 @@ Dates.tonext(::DateTime, ::Cron)
 ```
 
 ## Queue
+
 ```@docs
 queue
 all_queue
@@ -61,12 +65,14 @@ job_query_by_id
 ```
 
 ## Wait For Jobs
+
 ```@docs
 wait_queue
-wait(::Job)
+wait(j::Job; throw::Bool=true)
 ```
 
 ## Scheduler Settings
+
 ```@docs
 set_scheduler
 set_scheduler_max_cpu
