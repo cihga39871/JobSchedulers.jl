@@ -75,7 +75,7 @@ function __init__()
     # https://docs.julialang.org/en/v1/devdocs/precompile_hang/
     ccall(:jl_generating_output, Cint, ()) == 1 && return nothing
 
-    global JOB_CEMETERY[] = Channel{Job}(2000)  # a channel to store recyclable jobs, with a buffer size of 2000.
+    # global JOB_CEMETERY[] = Channel{Job}(2000)  # a channel to store recyclable jobs, with a buffer size of 2000.
 
     # init TIDS
     global TIDS
@@ -109,7 +109,8 @@ function __init__()
     global SCHEDULER_PROGRESS_ACTION[] = Channel{Int}(1)
 
     # initiating JOB ID
-    global JOB_ID[] = (now().instant.periods.value - 63749462400000) << 16
+    global JOB_ID
+    Threads.atomic_add!(JOB_ID, (now().instant.periods.value - 63749462400000) << 16)
 
     # SCHEDULER_MAX_CPU must be the same as THREAD_POOL (if nthreads > 1), or the scheduler will stop.
     global SCHEDULER_MAX_CPU = default_ncpu()

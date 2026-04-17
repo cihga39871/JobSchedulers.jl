@@ -1,6 +1,5 @@
 
-const JOB_ID = Ref{Int64}()
-const JOB_ID_INCREMENT_LOCK = ReentrantLock()
+const JOB_ID = Threads.Atomic{Int64}(0)
 
 """
     generate_id() :: Int64
@@ -8,9 +7,8 @@ const JOB_ID_INCREMENT_LOCK = ReentrantLock()
 Generate an unique ID.
 """
 function generate_id()
-    lock(JOB_ID_INCREMENT_LOCK) do
-        JOB_ID[] += rand(20000:40000)  # hard to predict ID using rand increment, in case some apps may allow users query job ID. In addition, the best practice for app developers is not directly expose job IDs, or use additional methods to constrain queries.
-    end
+    global JOB_ID
+    Threads.atomic_add!(JOB_ID, rand(20000:40000))  # hard to predict ID using rand increment, in case some apps may allow users query job ID. In addition, the best practice for app developers is not directly expose job IDs, or use additional methods to constrain queries.
 end
 
 """

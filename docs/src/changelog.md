@@ -3,6 +3,7 @@
 v0.12.5
 
 - Compat: `wait` adds a `throw` keyword arg for julia > v1.12.
+- Change: `JOB_ID` is now atomic rather than using lock.
 
 v0.12.4
 
