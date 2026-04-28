@@ -284,6 +284,8 @@ function simplify(x::DateTime, detail::Bool = false)
         Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS")
     end
 end
+simplify(::Nothing, detail::Bool = false) = "nothing"
+
 function simplify(deps::Vector{Pair{Symbol,Union{Int, Job}}}, detail::Bool = false)
     n_dep = length(deps)
     if n_dep == 0

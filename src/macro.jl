@@ -107,6 +107,9 @@ macro submit(args...)
             local job = Job($(esc(params)), () -> $(esc(expr)))
 
             if !isempty(deps)
+                if isnothing(job.dependency)
+                    job.dependency = Pair{Symbol,Union{Int64, Job}}[]
+                end
                 for dep in deps
                     push!(job.dependency, :done => dep)
                 end
@@ -120,6 +123,9 @@ macro submit(args...)
             local job = Job($(esc(params)), () -> $(esc(expr)))
 
             if !isempty(deps)
+                if isnothing(job.dependency)
+                    job.dependency = Pair{Symbol,Union{Int64, Job}}[]
+                end
                 for dep in deps
                     push!(job.dependency, :done => dep)
                 end

@@ -67,7 +67,8 @@ function submit!(job::Job)
     end
 
     @debug "submit!(job::Job) id=$(job.id) name=$(job.name) lock_queuing"
-    lock(JOB_QUEUE.lock_queuing) do 
+    lock(JOB_QUEUE.lock_queuing)
+    try
         if job.schedule_time > current  # run in future
             push!(JOB_QUEUE.future, job)
         elseif job.ncpu == 0
@@ -81,6 +82,8 @@ function submit!(job::Job)
         if PROGRESS_METER
             update_group_state!(job)
         end
+    finally
+        unlock(JOB_QUEUE.lock_queuing)
     end
     @debug "submit!(job::Job) id=$(job.id) name=$(job.name) lock_queuing ok"
     scheduler_need_action()

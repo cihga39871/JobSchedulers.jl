@@ -70,6 +70,7 @@ function push_queuing!(queue::SortedDict{Int,LinkedJobList}, job::Job)
     return
 end
 function push_running!(job::Job)
+    queue_state_changed!()
     # @debug "push_running! lock_running"
     lock(JOB_QUEUE.lock_running) do 
         push!(JOB_QUEUE.running, job)
@@ -77,6 +78,7 @@ function push_running!(job::Job)
     # @debug "push_running! lock_running ok"
 end
 function push_failed!(job::Job)
+    queue_state_changed!()
     # @debug "push_failed! lock_past"
     lock(JOB_QUEUE.lock_past) do 
         push!(JOB_QUEUE.failed, job)
@@ -84,24 +86,39 @@ function push_failed!(job::Job)
     # @debug "push_failed! lock_past ok"
 end
 function push_done!(job::Job)
+    queue_state_changed!()
     global DESTROY_UNNAMED_JOBS_WHEN_DONE
     if DESTROY_UNNAMED_JOBS_WHEN_DONE && isempty(job.name)
-        #no push
+        # no push
     else
-        # @debug "push_done! lock_past"
         lock(JOB_QUEUE.lock_past) do 
             push!(JOB_QUEUE.done, job)
         end
-        # @debug "push_done! lock_past ok"
     end
     try_submit_next_recur!(job)
 end
 function push_cancelled!(job::Job)
+    queue_state_changed!()
     # @debug "push_cancelled! lock_past"
     lock(JOB_QUEUE.lock_past) do 
         push!(JOB_QUEUE.cancelled, job)
     end
     # @debug "push_cancelled! lock_past ok"
+end
+
+@inline function finalize_removed_job!(job::Job)
+    if job.state === CANCELLED
+        push_cancelled!(job)
+    elseif job.state === DONE
+        push_done!(job)
+    elseif job.state === FAILED
+        push_failed!(job)
+    # else # running: not submitted normally. Abort.
+    end
+    free_thread(job)
+    @atomic RESOURCE.njob -= 1
+    PROGRESS_METER && update_group_state!(job)
+    return nothing
 end
 
 
@@ -160,6 +177,8 @@ function are_remaining_jobs_more_than(x::Integer) :: Bool
 end
 
 const priority_delete = Int[]
+const removed_jobs = Job[]
+const running_jobs = Job[]
 
 function update_queue!()
     # @debug "update_queue! start"
@@ -184,8 +203,8 @@ function update_queue!()
     free_mem = SCHEDULER_MAX_MEM - used_mem
     run_queuing!(current, free_ncpu, free_mem)
 
-    if (PROGRESS_METER || PROGRESS_WAIT) && !isready(SCHEDULER_PROGRESS_ACTION[]) 
-        put!(SCHEDULER_PROGRESS_ACTION[], 1)
+    if (PROGRESS_METER || PROGRESS_WAIT) && !isready(SCHEDULER_PROGRESS_ACTION) 
+        tryput!(SCHEDULER_PROGRESS_ACTION, 1)
     end
 
     # clean done and cancelled queue if exceed max_done and max_cancelled
@@ -202,6 +221,7 @@ Return `(used_ncpu::Float64, used_mem::Int64)`
 """
 function update_running!(current::DateTime)
     isempty(JOB_QUEUE.running) && return (0.0, Int64(0))
+    empty!(removed_jobs)
     
     # @debug "update_running! lock_running"
     used_ncpu, used_mem = lock(JOB_QUEUE.lock_running) do
@@ -210,45 +230,29 @@ function update_running!(current::DateTime)
         for job in JOB_QUEUE.running
             state = job.state
             if state !== RUNNING
-                @goto move_out
+                deleteat!(JOB_QUEUE.running, job)
+                push!(removed_jobs, job)
+                continue
             end
 
             if istaskfailed(job.task)
                 unsafe_update_as_failed!(job, current)
                 deleteat!(JOB_QUEUE.running, job)
-                free_thread(job)
-                push_failed!(job)
-                @atomic RESOURCE.njob -= 1
-                PROGRESS_METER && update_group_state!(job)
+                push!(removed_jobs, job)
                 continue
             elseif istaskdone(job.task)
                 unsafe_update_as_done!(job, current)
                 deleteat!(JOB_QUEUE.running, job)
-                free_thread(job)
-                push_done!(job)
-                @atomic RESOURCE.njob -= 1
-                PROGRESS_METER && update_group_state!(job)
+                push!(removed_jobs, job)
                 continue
             end
 
             if state === RUNNING
                 # still running: check reaching wall time
                 if job.start_time + job.wall_time < current
-                    state = unsafe_cancel!(job, current)
-                    @label move_out  # COV_EXCL_LINE
+                    unsafe_cancel!(job, current)
                     deleteat!(JOB_QUEUE.running, job)
-                    free_thread(job)
-                    if state === CANCELLED
-                        push_cancelled!(job)
-                    elseif state === DONE
-                        push_done!(job)
-                    elseif state === FAILED
-                        push_failed!(job)
-                    # else
-                        # does not make sense, drop only.
-                    end
-                    @atomic RESOURCE.njob -= 1
-                    PROGRESS_METER && update_group_state!(job)
+                    push!(removed_jobs, job)
                     continue
                 end
             end
@@ -260,29 +264,25 @@ function update_running!(current::DateTime)
         used_ncpu, used_mem
     end
     # @debug "update_running! lock_running ok"
+
+    for job in removed_jobs
+        finalize_removed_job!(job)
+    end
+
     used_ncpu, used_mem
 end
 
 
 function move_future_to_queuing(current::DateTime)
     isempty(JOB_QUEUE.future) && return
+    empty!(removed_jobs)
     
     # @debug "move_future_to_queuing lock_queuing"
     lock(JOB_QUEUE.lock_queuing) do
         for job in JOB_QUEUE.future
             if job.state !== QUEUING
                 deleteat!(JOB_QUEUE.future, job)
-                if job.state === CANCELLED
-                    push_cancelled!(job)
-                elseif job.state === DONE
-                    push_done!(job)
-                elseif job.state === FAILED
-                    push_failed!(job)
-                # else # running: not submitted normally. Abort.
-                end
-                free_thread(job)
-                @atomic RESOURCE.njob -= 1
-                PROGRESS_METER && update_group_state!(job)
+                push!(removed_jobs, job)
                 continue
             end
             
@@ -298,10 +298,16 @@ function move_future_to_queuing(current::DateTime)
         end
     end
     # @debug "move_future_to_queuing lock_queuing ok"
+
+    for job in removed_jobs
+        finalize_removed_job!(job)
+    end
 end
 
 function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
     global priority_delete
+    empty!(removed_jobs)
+    empty!(running_jobs)
     # @debug "run_queuing! lock_queuing"
     lock(JOB_QUEUE.lock_queuing)
     try
@@ -312,41 +318,32 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
             for job in JOB_QUEUE.queuing_0cpu
                 if job.state !== QUEUING
                     deleteat!(JOB_QUEUE.queuing_0cpu, job)
-                    if job.state === CANCELLED
-                        push_cancelled!(job)
-                    elseif job.state === DONE
-                        push_done!(job)
-                    elseif job.state === FAILED
-                        push_failed!(job)
-                    # else # running: not submitted normally. Abort.
-                    end
-                    free_thread(job)
-                    @atomic RESOURCE.njob -= 1
-                    PROGRESS_METER && update_group_state!(job)
+                    push!(removed_jobs, job)
                     continue
                 end
 
-                if job.mem <= free_mem && is_dependency_ok(job)
-                    ret = unsafe_run!(job, current)
-
-                    if ret == OK
-                        free_mem  -= job.mem
-                        deleteat!(JOB_QUEUE.queuing_0cpu, job)
-                        push_running!(job)
-                    elseif ret == FAIL
-                        deleteat!(JOB_QUEUE.queuing_0cpu, job)
-                        if job.state === CANCELLED
-                            push_cancelled!(job)
-                        elseif job.state === DONE
-                            push_done!(job)
-                        elseif job.state === FAILED
-                            push_failed!(job)
-                        end
-                        free_thread(job)
-                        @atomic RESOURCE.njob -= 1
-                    # else  # SKIP
+                if job.mem <= free_mem
+                    # Skip dep check if nothing has changed since last unsuccessful check
+                    dep = job.dependency
+                    if !isnothing(dep) && length(dep) >= job._dep_check_id && job._dep_generation == QUEUE_STATE_GENERATION[]
+                        continue
                     end
-                    PROGRESS_METER && update_group_state!(job)
+                    if is_dependency_ok(job)
+                        ret = unsafe_run!(job, current)
+
+                        if ret == OK
+                            free_mem  -= job.mem
+                            deleteat!(JOB_QUEUE.queuing_0cpu, job)
+                            push!(running_jobs, job)
+                        elseif ret == FAIL
+                            deleteat!(JOB_QUEUE.queuing_0cpu, job)
+                            push!(removed_jobs, job)
+                        # else  # SKIP
+                        end
+                    elseif job.state === QUEUING
+                        # dep still active; cache result until generation advances
+                        job._dep_generation = QUEUE_STATE_GENERATION[]
+                    end
                 end
             end
         end
@@ -376,49 +373,37 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
             for job in jobs
                 if job.state !== QUEUING
                     deleteat!(jobs, job)
-                    if job.state === CANCELLED
-                        push_cancelled!(job)
-                    elseif job.state === DONE
-                        push_done!(job)
-                    elseif job.state === FAILED
-                        push_failed!(job)
-                    # else # running: not submitted normally. Abort.
-                    end
-                    free_thread(job)
-                    @atomic RESOURCE.njob -= 1
-                    PROGRESS_METER && update_group_state!(job)
+                    push!(removed_jobs, job)
                     continue
                 end
 
-                if job.ncpu <= free_ncpu + 0.001 && job.mem <= free_mem && is_dependency_ok(job)
-                    # @debug "run_queuing! lock_queuing - scan priority = $priority - try run $(job.id) $(job.name)"
-                    ret = unsafe_run!(job, current)
-                    
-                    if ret == OK
-                        free_ncpu -= job.ncpu
-                        free_mem  -= job.mem
-                        deleteat!(jobs, job)
-                        push_running!(job)
-                        PROGRESS_METER && update_group_state!(job)
-                        free_ncpu < 0.999 && (@goto done_run_queuing)
-                    elseif ret == SKIP
-                        # no free thread, skip this job. Other jobs may be able to run using their parent job's thread.
+                if job.ncpu <= free_ncpu + 0.001 && job.mem <= free_mem
+                    # Skip dep check if nothing has changed since last unsuccessful check
+                    dep = job.dependency
+                    if !isnothing(dep) && length(dep) >= job._dep_check_id && job._dep_generation == QUEUE_STATE_GENERATION[]
                         continue
-                    else  # FAIL
-                        deleteat!(jobs, job)
-                        if job.state === CANCELLED
-                            push_cancelled!(job)
-                        elseif job.state === DONE
-                            push_done!(job)
-                        elseif job.state === FAILED
-                            push_failed!(job)
-                        end
-                        free_thread(job)
-                        @atomic RESOURCE.njob -= 1
-                        PROGRESS_METER && update_group_state!(job)
                     end
-                # else
-                    # TODO: save if the next job's condition is the same, so we can skip.
+                    # @debug "run_queuing! lock_queuing - scan priority = $priority - try run $(job.id) $(job.name)"
+                    if is_dependency_ok(job)
+                        ret = unsafe_run!(job, current)
+                        
+                        if ret == OK
+                            free_ncpu -= job.ncpu
+                            free_mem  -= job.mem
+                            deleteat!(jobs, job)
+                            push!(running_jobs, job)
+                            free_ncpu < 0.999 && (@goto done_run_queuing)
+                        elseif ret == SKIP
+                            # no free thread, skip this job. Other jobs may be able to run using their parent job's thread.
+                            continue
+                        else  # FAIL
+                            deleteat!(jobs, job)
+                            push!(removed_jobs, job)
+                        end
+                    elseif job.state === QUEUING
+                        # dep still active; cache result until generation advances
+                        job._dep_generation = QUEUE_STATE_GENERATION[]
+                    end
                 end
             end
             # @debug "run_queuing! lock_queuing - scan priority = $priority - delete running jobs"
@@ -437,6 +422,15 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
     finally
         unlock(JOB_QUEUE.lock_queuing)
         # @debug "run_queuing! lock_queuing ok"
+    end
+
+    for job in running_jobs
+        push_running!(job)
+        PROGRESS_METER && update_group_state!(job)
+    end
+
+    for job in removed_jobs
+        finalize_removed_job!(job)
     end
 end
 

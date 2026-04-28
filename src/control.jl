@@ -311,7 +311,7 @@ function wait_queue(;show_progress::Bool = false, exit_num_jobs::Int = 0)
                 @error "Scheduler was not running. Jump out from wait_queue()"
                 break
             end
-            take!(SCHEDULER_PROGRESS_ACTION[])  # wait until further action
+            take!(SCHEDULER_PROGRESS_ACTION)  # wait until further action
         end
         PROGRESS_WAIT = false
     end

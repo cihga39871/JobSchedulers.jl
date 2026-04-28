@@ -203,6 +203,7 @@ function Base.convert(::Type{Job}, s::JobSerialization)
     j._group = ""
     j._group_state = :nothing
     j._dep_check_id = 1
+    j._dep_generation = UInt64(0)
     return j
 end
 

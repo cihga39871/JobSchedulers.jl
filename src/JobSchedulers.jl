@@ -5,6 +5,7 @@ module JobSchedulers
 
 using Reexport
 using Base.Threads
+using AtomicChannels
 @reexport using Dates
 using JSON
 using PrettyTables
@@ -98,15 +99,15 @@ function __init__()
     SINGLE_THREAD_MODE[] = isempty(TIDS)
 
     # initiating THREAD_POOL
-    c = Channel{Int}(length(TIDS))
+    c = AtomicChannel{Int}(SINGLE_THREAD_MODE[] ? 1 : length(TIDS))
     global THREAD_POOL[] = c
     for i in TIDS
         put!(c, i)
     end
 
     # initiating scheduler action Channel.
-    global SCHEDULER_ACTION[] = Channel{Int}(1)
-    global SCHEDULER_PROGRESS_ACTION[] = Channel{Int}(1)
+    # global SCHEDULER_ACTION = AtomicChannel{Int}(1)
+    # global SCHEDULER_PROGRESS_ACTION = AtomicChannel{Int}(1)
 
     # initiating JOB ID
     global JOB_ID

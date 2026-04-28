@@ -14,7 +14,7 @@ SCHEDULER_WHILE_LOOP::Bool = true
 "Bool. Showing progress meter? Related to progress computation and display. true when wait_queue(show_progress=true)"
 PROGRESS_METER::Bool = false
 
-"Bool. Should only be used when PROGRESS_METER == false because both PROGRESS_METER and PROGRESS_WAIT compete SCHEDULER_PROGRESS_ACTION[]. true when wait_queue(show_progress=false)"
+"Bool. Should only be used when PROGRESS_METER == false because both PROGRESS_METER and PROGRESS_WAIT compete SCHEDULER_PROGRESS_ACTION. true when wait_queue(show_progress=false)"
 PROGRESS_WAIT::Bool = false
 
 """
@@ -28,21 +28,34 @@ end
 
 SLEEP_HANDELED_TIME::Int = 10
 
-const SCHEDULER_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
-const SCHEDULER_PROGRESS_ACTION = Base.RefValue{Channel{Int}}()  # defined in __init__()
+const SCHEDULER_ACTION = AtomicChannel{Int}(1)
+const SCHEDULER_PROGRESS_ACTION = AtomicChannel{Int}(1)
+
+"""
+Generation counter incremented each time any job changes state (running, done, failed, or
+cancelled). Used by `run_queuing!` to skip dependency re-checks when nothing has changed
+since the last unsuccessful check.
+"""
+const QUEUE_STATE_GENERATION = Threads.Atomic{UInt64}(UInt64(1))
+
+@inline function queue_state_changed!()
+    Threads.atomic_add!(QUEUE_STATE_GENERATION, UInt64(1))
+end
 
 function scheduler_need_action()
     global SCHEDULER_ACTION
 
-    isready(SCHEDULER_ACTION[]) && return  # isready means already ready for action
+    # isready(SCHEDULER_ACTION) && return  # isready means already ready for action
 
-    if !isready(SCHEDULER_ACTION[]) # will take action, no need to repeat
-        put!(SCHEDULER_ACTION[], 1)
-    end
+    tryput!(SCHEDULER_ACTION, 1)
+
+    # if !isready(SCHEDULER_ACTION) # will take action, no need to repeat
+        # put!(SCHEDULER_ACTION, 1)
+    # end
 
     # 
-    # if (PROGRESS_METER || PROGRESS_WAIT) && !isready(SCHEDULER_PROGRESS_ACTION[]) 
-    #     put!(SCHEDULER_PROGRESS_ACTION[], 1)
+    # if (PROGRESS_METER || PROGRESS_WAIT) && !isready(SCHEDULER_PROGRESS_ACTION) 
+    #     put!(SCHEDULER_PROGRESS_ACTION, 1)
     # end
 
     nothing
@@ -64,7 +77,7 @@ function scheduler_reactivation()
                     set_scheduler_while_loop(false)
                     rethrow(ex)
                 else
-                    @warn "JobScheduler.scheduler() catched a InterruptException during wait. Max time to catch: $SLEEP_HANDELED_TIME. To stop the scheduler, please use JobSchedulers.set_scheduler_while_loop(false), or send InterruptException $SLEEP_HANDELED_TIME more times." exception=ex
+                    @warn "JobSchedulers.scheduler() catched a InterruptException during wait. Max time to catch: $SLEEP_HANDELED_TIME. To stop the scheduler, please use JobSchedulers.set_scheduler_while_loop(false), or send InterruptException $SLEEP_HANDELED_TIME more times." exception=ex
                 end
             else
                 set_scheduler_while_loop(false)
@@ -90,10 +103,10 @@ function scheduler()
     while SCHEDULER_WHILE_LOOP
         @debug "scheduler() new loop"
         try
-            wait(SCHEDULER_ACTION[])
-            take!(SCHEDULER_ACTION[])
+            # wait(SCHEDULER_ACTION)
+            take!(SCHEDULER_ACTION)
 
-            update_queue!()  # put!(SCHEDULER_PROGRESS_ACTION[], 1) is in this function.
+            update_queue!()  # put!(SCHEDULER_PROGRESS_ACTION, 1) is in this function.
         catch ex
             # COV_EXCL_START
             if isa(ex, InterruptException) && isinteractive()  # if someone sends ctrl + C to sleep, scheduler wont stop in interactive mode
@@ -101,7 +114,7 @@ function scheduler()
                 if SLEEP_HANDELED_TIME < 0
                     rethrow(ex)
                 else
-                    @warn "JobScheduler.scheduler() catched a InterruptException during wait. Max time to catch: $SLEEP_HANDELED_TIME. To stop the scheduler, please use JobSchedulers.set_scheduler_while_loop(false), or send InterruptException $SLEEP_HANDELED_TIME more times." exception=ex
+                    @warn "JobSchedulers.scheduler() catched a InterruptException during wait. Max time to catch: $SLEEP_HANDELED_TIME. To stop the scheduler, please use JobSchedulers.set_scheduler_while_loop(false), or send InterruptException $SLEEP_HANDELED_TIME more times." exception=ex
                 end
             else
                 @error "JobScheduler.scheduler() stopped because of an internal error." exception=(ex, catch_backtrace())  # display the error. throw(ex) will not display the error.
@@ -158,15 +171,20 @@ Algorithm: Break while loop when found dep not ok, and change `job._dep_check_id
 If dep is provided as Integer, query Integer for job and then replace Integer with the job.
 """
 function is_dependency_ok(job::Job)
-    if length(job.dependency) < job._dep_check_id
+    deps = job.dependency
+    if isnothing(deps)
+        return true
+    end
+
+    if length(deps) < job._dep_check_id
         return true
     end
     # break while loop when found dep not ok, and change _dep_check_id to the current id
 
     # _dep_check_id = 1 when init Job
-    n = length(job.dependency)
+    n = length(deps)
     while job._dep_check_id <= n
-        dep = job.dependency[job._dep_check_id]
+        dep = deps[job._dep_check_id]
         state = dep.first
         if dep.second isa Integer
             dep_job = job_query_by_id_no_lock(dep.second)
@@ -176,7 +194,7 @@ function is_dependency_ok(job::Job)
                 job._dep_check_id += 1
                 continue
             end
-            job.dependency[job._dep_check_id] = state => dep_job
+            deps[job._dep_check_id] = state => dep_job
         else
             dep_job = dep.second
         end

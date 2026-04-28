@@ -1,5 +1,16 @@
 # Changelog
 
+v0.12.6
+
+- Optim/Compat: replace internal `Channel` usage with `AtomicChannels.jl` for `THREAD_POOL`, `SCHEDULER_ACTION`, and `SCHEDULER_PROGRESS_ACTION`.
+- Optim: reduce scheduler overhead by shortening lock hold time in queue update loops. Job state transitions, `free_thread`, and progress updates are now finalized after releasing queue locks.
+- Optim: stop full rescans of dependency-blocked jobs on every scheduler wakeup. A queue state generation counter is used to skip repeated dependency checks until relevant job state changes happen.
+- Optim: reduce allocation for jobs without explicit dependencies by allowing `job.dependency === nothing` until dependencies are actually needed.
+- Optim: reuse internal buffers in queue update loops to avoid repeated temporary vector allocation.
+- Optim: `submit!(job)` now uses explicit `lock` / `unlock` rather than a `do`-block closure in the hot path.
+- Cleanup: remove obsolete recyclable-job internals (`:_recyclable` flag and `job_recycle.jl`).
+- Tests/Benchmark: update tests and benchmark script for the new `AtomicChannel` internals and current scheduler overhead measurements.
+
 v0.12.5
 
 - Compat: `wait` adds a `throw` keyword arg for julia > v1.12.

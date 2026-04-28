@@ -9,8 +9,14 @@ scheduler_balance_check(title::String) = @testset "Balance check after $title" b
 	@test scheduler_status() === RUNNING
 	
 	@test JobSchedulers.RESOURCE.njob == 0
-	@test length(JobSchedulers.THREAD_POOL[].data) == length(JobSchedulers.TIDS)
-	@test Set(JobSchedulers.THREAD_POOL[].data) == Set(JobSchedulers.TIDS)
+	@test JobSchedulers.THREAD_POOL[].n_filled[] == length(JobSchedulers.TIDS)
+	thread_pool_set = Set{Int}()
+	for cell in JobSchedulers.THREAD_POOL[].cells
+		if cell.state[] == 1
+			push!(thread_pool_set, cell.value[])
+		end
+	end
+	@test thread_pool_set == Set(JobSchedulers.TIDS)
 end
 
 @testset "JobSchedulers" begin
@@ -253,6 +259,8 @@ end
 			println("job with dep1 and dep2 ok")
 		end), name="dep: job_with_dep", priority = 20,
 		dependency = [DONE => dep1.id, DONE => dep2])
+		@test job_with_dep.dependency[1] == (DONE => dep1.id)
+		@test job_with_dep.dependency[2] == (DONE => dep2)
 
 		job_with_dep2 = Job(@task(begin
 			println("job with dep2 ok")

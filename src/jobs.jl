@@ -63,7 +63,7 @@ mutable struct Job
     until::DateTime
     state::Symbol
     priority::Int
-    dependency::Vector{Pair{Symbol,Union{Int64, Job}}}
+    dependency::Union{Vector{Pair{Symbol,Union{Int64, Job}}},Nothing}
     task::Union{Task,Nothing}
     stdout::Union{IO,AbstractString,Nothing}
     stderr::Union{IO,AbstractString,Nothing}
@@ -73,6 +73,7 @@ mutable struct Job
     _group::String
     _group_state::Symbol
     _dep_check_id::Int
+    _dep_generation::UInt64              # QUEUE_STATE_GENERATION when dep was last found not-ready; 0 = unchecked
     _prev::Union{Job,Nothing}            # one-by-one mutable linked list
     _next::Union{Job,Nothing}            # one-by-one mutable linked list
     _parent::Union{Job,Nothing}          # the job is submitted by _parent job
@@ -96,7 +97,7 @@ mutable struct Job
             _flags |= 0x01  # set _need_redirect flag
         end
 
-        j = new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, dep, task, stdout, stderr, _thread_id, _func, _flags, _group, :nothing, 1, nothing, nothing, _parent)
+        j = new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, dep, task, stdout, stderr, _thread_id, _func, _flags, _group, :nothing, 1, UInt64(0), nothing, nothing, _parent)
 
         j._prev = j
         j._next = j
@@ -105,13 +106,13 @@ mutable struct Job
 end
 
 """
-    const _flags = (:_need_redirect, :_recyclable,)
+    const _flags = (:_need_redirect,)
 
 Description of flags of the job.
 
 See also: getter `get\$(flag)` and setter `set\$(flag)!`.
 """
-const _flags = (:_need_redirect, :_recyclable,)
+const _flags = (:_need_redirect,)
 
 # generate getter and setter for each flag
 for (ibit, internal_func) in enumerate(_flags)
@@ -206,7 +207,7 @@ function Job(task::Task;
     cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Union{Int64, Job}}}(),
+    dependency = nothing,
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
@@ -231,7 +232,7 @@ function Job(f::Function;
     cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Union{Int64, Job}}}(),
+    dependency = nothing,
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     if ncpu > 1.001
@@ -257,7 +258,7 @@ function Job(command::Base.AbstractCmd;
     cron::Cron = cron_none,
     until::Union{DateTime,Period} = DateTime(9999),
     priority::Int = 20,
-    dependency = Vector{Pair{Symbol,Union{Int64, Job}}}(),
+    dependency = nothing,
     stdout=nothing, stderr=nothing, append::Bool=false
 )
     f() = run(command)
@@ -302,6 +303,8 @@ function check_priority(priority::Int)
     end
 end
 
+check_dep(::Nothing) = nothing
+
 function check_dep(dependency::Vector{Pair{Symbol,Union{Int64, Job}}})
     length(dependency) == 0 && (return)
     for p in dependency
@@ -319,8 +322,9 @@ check_need_redirect(io::IO) = true
 check_need_redirect(x::Nothing) = false
 check_need_redirect(x::Any) = error("$x is not valid for redirecting IO: not IO, file_path::AbstractString, or nothing.")
 
-convert_dependency(dependency::Vector{Pair{Symbol,Union{Int64, Job}}}) = dependency
-convert_dependency(dependency::Vector) = Pair{Symbol,Union{Int64, Job}}[convert_dependency_element(d) for d in dependency]
+convert_dependency(::Nothing) = nothing
+convert_dependency(dependency::Vector{Pair{Symbol,Union{Int64, Job}}}) = isempty(dependency) ? nothing : dependency
+convert_dependency(dependency::Vector) = isempty(dependency) ? nothing : Pair{Symbol,Union{Int64, Job}}[convert_dependency_element(d) for d in dependency]
 convert_dependency(dependency) = Pair{Symbol,Union{Int64, Job}}[convert_dependency_element(dependency)]
 
 convert_dependency_element(p::Pair{Symbol,Job}) = p
