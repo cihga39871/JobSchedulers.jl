@@ -109,17 +109,22 @@ function scheduler()
             update_queue!()  # put!(SCHEDULER_PROGRESS_ACTION, 1) is in this function.
         catch ex
             # COV_EXCL_START
-            if isa(ex, InterruptException) && isinteractive()  # if someone sends ctrl + C to sleep, scheduler wont stop in interactive mode
-                SLEEP_HANDELED_TIME -= 1
-                if SLEEP_HANDELED_TIME < 0
-                    rethrow(ex)
+            if isa(ex, InterruptException)
+                if isinteractive() # if someone sends ctrl + C to sleep, scheduler wont stop in interactive mode
+                    SLEEP_HANDELED_TIME -= 1
+                    if SLEEP_HANDELED_TIME < 0
+                        rethrow(ex)
+                    else
+                        @warn "JobSchedulers.scheduler() catched a InterruptException during wait. Max time to catch: $SLEEP_HANDELED_TIME. To stop the scheduler, please use JobSchedulers.set_scheduler_while_loop(false), or send InterruptException $SLEEP_HANDELED_TIME more times." exception=ex
+                    end
                 else
-                    @warn "JobSchedulers.scheduler() catched a InterruptException during wait. Max time to catch: $SLEEP_HANDELED_TIME. To stop the scheduler, please use JobSchedulers.set_scheduler_while_loop(false), or send InterruptException $SLEEP_HANDELED_TIME more times." exception=ex
+                    set_scheduler_while_loop(false)
+                    rethrow()
                 end
             else
                 @error "JobScheduler.scheduler() stopped because of an internal error." exception=(ex, catch_backtrace())  # display the error. throw(ex) will not display the error.
                 set_scheduler_while_loop(false)
-                throw(ex)
+                rethrow()
             end
             # COV_EXCL_STOP
         end
@@ -128,15 +133,15 @@ function scheduler()
     nothing
 end
 
-function unsafe_update_as_failed!(job::Job, current::DateTime = now())
+@inline function unsafe_update_as_failed!(job::Job, current::DateTime = now())
     job.stop_time = current
     job.state = FAILED
 end
-function unsafe_update_as_cancelled!(job::Job, current::DateTime = now())
+@inline function unsafe_update_as_cancelled!(job::Job, current::DateTime = now())
     job.stop_time = current
     job.state = CANCELLED
 end
-function unsafe_update_as_done!(job::Job, current::DateTime = now())
+@inline function unsafe_update_as_done!(job::Job, current::DateTime = now())
     job.stop_time = current
     job.state = DONE
 end
@@ -148,7 +153,7 @@ Update the state of `job` from `job.task` when `job.state === :running`.
 
 Caution: it is unsafe and should only be called within lock.
 """
-function unsafe_update_state!(job::Job)
+@inline function unsafe_update_state!(job::Job)
     if job.state === RUNNING
         task_state = job.task.state
         if istaskfailed(job.task)
@@ -182,8 +187,7 @@ function is_dependency_ok(job::Job)
     # break while loop when found dep not ok, and change _dep_check_id to the current id
 
     # _dep_check_id = 1 when init Job
-    n = length(deps)
-    while job._dep_check_id <= n
+    while job._dep_check_id <= length(deps)
         dep = deps[job._dep_check_id]
         state = dep.first
         if dep.second isa Integer
@@ -222,5 +226,5 @@ function is_dependency_ok(job::Job)
         break
     end
 
-    return n < job._dep_check_id
+    return length(deps) < job._dep_check_id
 end
