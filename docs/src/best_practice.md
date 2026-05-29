@@ -71,7 +71,7 @@ total = fetch(small_job)
 
 ##### Method 2: `@yield_current`
 
-If the parent job is computationally intensive, the first method does not work well. In this situation, we can use [`@yield_current`](@ref) to wrap the code that creats and waits for child jobs.
+If the parent job is computationally intensive, the first method does not work well. In this situation, we can use [`@yield_current`](@ref) to wrap the code that creates and waits for child jobs.
 
 If not using the macro, we might waste threads or block the scheduler.
 

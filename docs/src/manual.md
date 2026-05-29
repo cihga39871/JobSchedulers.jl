@@ -122,7 +122,7 @@ end
 ```
 
 !!! tip "Submitting child jobs within a parent job"
-    If you have a parent job that creats child jobs, and the parent job relies on the results of the child jobs, you need to wrap your child jobs within [`@yield_current`](@ref). 
+    If you have a parent job that creates child jobs, and the parent job relies on the results of the child jobs, you need to wrap your child jobs within [`@yield_current`](@ref). 
     
     `@yield_current` is used to prevent wasting threads and even blocking JobScheduler when submitting jobs within jobs.
 
@@ -244,7 +244,7 @@ all_queue()
     Before v0.10, all jobs will be saved to queue. However, from v0.10, unnamed jobs (`job.name == ""`) will not be saved if they **successfully** ran. If you want to save unnamed jobs, you can set manually:
     
     ```julia
-    JobSchedulers.destroy_unnamed_jobs_when_done(false
+    JobSchedulers.destroy_unnamed_jobs_when_done(false)
     ```
 
 Show queue (running and queuing jobs only):
@@ -529,7 +529,6 @@ set_scheduler(;
     max_mem = JobSchedulers.SCHEDULER_MAX_MEM,
     max_job = JobSchedulers.JOB_QUEUE.max_done,
     max_cancelled_job = JobSchedulers.JOB_QUEUE.max_cancelled_job,
-    update_second = JobSchedulers.SCHEDULER_UPDATE_SECOND
 )
 # ┌ Info: Scheduler is running.
 # │   SCHEDULER_MAX_CPU = 32
