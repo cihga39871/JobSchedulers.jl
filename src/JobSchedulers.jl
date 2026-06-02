@@ -118,6 +118,14 @@ function __init__()
     global SCHEDULER_MAX_MEM = round(Int64, Sys.total_memory() * 0.9)
     # global SCHEDULER_UPDATE_SECOND = Float64(ifelse(SINGLE_THREAD_MODE[], 0.05, 0.01))
     scheduler_start(verbose=false)
+
+    # Ensure background scheduler tasks are stopped during process exit.
+    atexit() do
+        try
+            scheduler_stop(verbose=false)
+        catch
+        end
+    end
 end
 
 if Base.VERSION >= v"1.8-"

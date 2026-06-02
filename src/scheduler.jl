@@ -53,10 +53,9 @@ function scheduler_need_action()
         # put!(SCHEDULER_ACTION, 1)
     # end
 
-    # 
-    # if (PROGRESS_METER || PROGRESS_WAIT) && !isready(SCHEDULER_PROGRESS_ACTION) 
-    #     put!(SCHEDULER_PROGRESS_ACTION, 1)
-    # end
+    if (PROGRESS_METER || PROGRESS_WAIT)
+        tryput!(SCHEDULER_PROGRESS_ACTION, 1)
+    end
 
     nothing
 end
