@@ -112,6 +112,31 @@ end
 		submit!(jobx)
 		cancel!(jobx)
 
+		if JobSchedulers.default_ncpu() > 1
+			j_hold = Job(@task(begin
+				sleep(1.5)
+			end), name="hold_all_cpu", ncpu=JobSchedulers.default_ncpu())
+			j_cancel_queued = Job(@task(begin
+				sleep(5)
+			end), name="cancel_queued_under_full_cpu", ncpu=1)
+
+			submit!(j_hold)
+			while j_hold.state !== RUNNING
+				sleep(0.05)
+			end
+
+			submit!(j_cancel_queued)
+			cancel!(j_cancel_queued)
+
+			@test j_cancel_queued.state === CANCELLED
+			@test job_query_by_id(j_cancel_queued.id) === j_cancel_queued
+			@test JobSchedulers.RESOURCE.njob == 1
+
+			wait(j_hold)
+			wait_queue()
+			@test JobSchedulers.RESOURCE.njob == 0
+		end
+
 		job2 = Job(@task(begin
 			while true
 				println(job2, now())

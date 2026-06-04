@@ -11,6 +11,8 @@ function generate_id()
     Threads.atomic_add!(JOB_ID, rand(20000:40000))  # hard to predict ID using rand increment, in case some apps may allow users query job ID. In addition, the best practice for app developers is not directly expose job IDs, or use additional methods to constrain queries.
 end
 
+abstract type AbstractLinkedJobList end  # has to be defined before Job, since Job has _queue field using LinkedJobList
+
 """
     Job(command::Base.AbstractCmd; stdout=nothing, stderr=nothing, append::Bool=false, kwargs...)
     Job(f::Function; kwargs...)
@@ -74,6 +76,7 @@ mutable struct Job
     _group_state::Symbol
     _dep_check_id::Int
     _dep_generation::UInt64              # QUEUE_STATE_GENERATION when dep was last found not-ready; 0 = unchecked
+    _queue::Union{AbstractLinkedJobList,Nothing} # the queue the job is in, or nothing if not in any queue
     _prev::Union{Job,Nothing}            # one-by-one mutable linked list
     _next::Union{Job,Nothing}            # one-by-one mutable linked list
     _parent::Union{Job,Nothing}          # the job is submitted by _parent job
@@ -82,6 +85,7 @@ mutable struct Job
         j = new()
         j._prev = j
         j._next = j
+        j._queue = nothing
         return j
     end
     function Job(id::Integer, name::String, user::String, ncpu::Real, mem::Integer, schedule_time::ST, submit_time::DateTime, start_time::DateTime, stop_time::DateTime, wall_time::Period, cron::Cron, until::ST2, state::Symbol, priority::Int, dependency, task::Union{Task,Nothing}, stdout::Union{IO,AbstractString,Nothing}, stderr::Union{IO,AbstractString,Nothing}, _thread_id::Int, _func::Union{Function,Nothing}, _need_redirect::Bool = check_need_redirect(stdout, stderr), _group::AbstractString = "") where {ST<:Union{DateTime,Period}, ST2<:Union{DateTime,Period}}
@@ -97,7 +101,7 @@ mutable struct Job
             _flags |= 0x01  # set _need_redirect flag
         end
 
-        j = new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, dep, task, stdout, stderr, _thread_id, _func, _flags, _group, :nothing, 1, UInt64(0), nothing, nothing, _parent)
+        j = new(Int64(id), name, user, Float64(ncpu), Int64(mem), period2datetime(schedule_time), submit_time, start_time, stop_time, wall_time, cron, period2datetime(until), state, priority, dep, task, stdout, stderr, _thread_id, _func, _flags, _group, :nothing, 1, UInt64(0), nothing, nothing, nothing, _parent)
 
         j._prev = j
         j._next = j

@@ -304,10 +304,21 @@ function move_future_to_queuing(current::DateTime)
     end
 end
 
+function unsafe_remove_from_queues!(job::Job)
+    queue = job._queue
+    if queue isa LinkedJobList
+        deleteat!(queue, job)
+        return true
+    end
+
+    return false
+end
+
 function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
     global priority_delete
     empty!(removed_jobs)
     empty!(running_jobs)
+    caught_exception = nothing
     # @debug "run_queuing! lock_queuing"
     lock(JOB_QUEUE.lock_queuing)
     try
@@ -392,7 +403,7 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                             free_mem  -= job.mem
                             deleteat!(jobs, job)
                             push!(running_jobs, job)
-                            free_ncpu < 0.999 && (@goto done_run_queuing)
+                            free_ncpu < 0.999 && break
                         elseif ret == SKIP
                             # no free thread, skip this job. Other jobs may be able to run using their parent job's thread.
                             continue
@@ -411,17 +422,20 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
             free_ncpu < 0.999 && break
             free_mem <= 0 && break
         end
-        @label done_run_queuing  # COV_EXCL_LINE
         if need_clean_empty_priority
             for priority in priority_delete
                 delete!(JOB_QUEUE.queuing, priority)
             end
         end
-    catch
-        rethrow()
+    catch ex
+        caught_exception = ex
     finally
         unlock(JOB_QUEUE.lock_queuing)
         # @debug "run_queuing! lock_queuing ok"
+    end
+
+    for job in removed_jobs
+        finalize_removed_job!(job)
     end
 
     for job in running_jobs
@@ -429,8 +443,8 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
         PROGRESS_METER && update_group_state!(job)
     end
 
-    for job in removed_jobs
-        finalize_removed_job!(job)
+    if !isnothing(caught_exception)
+        throw(caught_exception)
     end
 end
 

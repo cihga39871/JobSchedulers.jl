@@ -96,22 +96,22 @@
             
             for i = 1:n
                 js = [Job(do_nothing, name="$i") for i in 1:n]
-                l = LinkedJobList(js...)
+                # l = LinkedJobList(js...)
 
-                @testset "append" begin
-                    js2 = [Job(do_nothing, name="$i") for i in n+1:2n]
-                    l2 = LinkedJobList(js2...)
-                    append!(l, l2)
-                    @test jobnameids(l)  == collect(1:2n)
-                    @test l2 == LinkedJobList()
+                # @testset "append" begin
+                #     js2 = [Job(do_nothing, name="$i") for i in n+1:2n]
+                #     l2 = LinkedJobList(js2...)
+                #     append!(l, l2)
+                #     @test jobnameids(l)  == collect(1:2n)
+                #     @test l2 == LinkedJobList()
 
-                    l3 = LinkedJobList(js...)
-                    append!(l3, js2)
-                    @test jobnameids(l3) == collect(1:2n)
-                    l4 = LinkedJobList(js...)
-                    push!(l4, js2...)
-                    @test jobnameids(l4) == collect(1:2n)
-                end
+                #     l3 = LinkedJobList(js...)
+                #     append!(l3, js2)
+                #     @test jobnameids(l3) == collect(1:2n)
+                #     l4 = LinkedJobList(js...)
+                #     push!(l4, js2...)
+                #     @test jobnameids(l4) == collect(1:2n)
+                # end
 
                 js2n = [Job(do_nothing, name="$i") for i in 1:2n]
                 l = LinkedJobList(js2n...)

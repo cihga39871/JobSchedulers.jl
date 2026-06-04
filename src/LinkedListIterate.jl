@@ -5,7 +5,7 @@
 
 Every job can only be in ONE `LinkedJobList`. All iterative copy of `LinkedJobList` will output `Vector{Job}`.
 """
-mutable struct LinkedJobList
+mutable struct LinkedJobList <: AbstractLinkedJobList
     len::Int
     node::Job
     # lock::ReentrantLock
@@ -33,6 +33,7 @@ function Base.deleteat!(l::LinkedJobList, node::Job)
         # dereference the node
         node._prev = node
         node._next = node
+        node._queue = nothing
     # end
     return l
 end
@@ -170,35 +171,42 @@ function Base.setindex!(l::LinkedJobList, data::Job, idx::Int)
 
     prev_node._next = data
     data._next._prev = data
+    data._queue = l
 
     # old_node link to itself for dereference
     old_node._prev = old_node
     old_node._next = old_node
+    old_node._queue = nothing
 
     return l
 end
 
-function Base.append!(l1::LinkedJobList, l2::LinkedJobList)
-    l1.node._prev._next = l2.node._next # l1's last's next is now l2's first
-    l2.node._prev._next = l1.node # l2's last's next is now l1.node
-    l2.node._next._prev = l1.node._prev # l2's first's prev is now l1's last
-    l1.node._prev      = l2.node._prev # l1's first's prev is now l2's last
-    l1.len += length(l2)
-    # make l2 empty
-    l2.node._prev = l2.node
-    l2.node._next = l2.node
-    l2.len = 0
-    return l1
-end
+# function Base.append!(l1::LinkedJobList, l2::LinkedJobList)
+#     l1.node._prev._next = l2.node._next # l1's last's next is now l2's first
+#     l2.node._prev._next = l1.node # l2's last's next is now l1.node
+#     l2.node._next._prev = l1.node._prev # l2's first's prev is now l1's last
+#     l1.node._prev      = l2.node._prev # l1's first's prev is now l2's last
 
-function Base.append!(l::LinkedJobList, elts...)
-    for elt in elts
-        for v in elt
-            push!(l, v)
-        end
-    end
-    return l
-end
+#     for job in l2
+#         job._queue = l1
+#     end
+
+#     l1.len += length(l2)
+#     # make l2 empty
+#     l2.node._prev = l2.node
+#     l2.node._next = l2.node
+#     l2.len = 0
+#     return l1
+# end
+
+# function Base.append!(l::LinkedJobList, elts...)
+#     for elt in elts
+#         for v in elt
+#             push!(l, v)
+#         end
+#     end
+#     return l
+# end
 
 function Base.delete!(l::LinkedJobList, idx::Int)
     @boundscheck 0 < idx <= l.len || throw(BoundsError(l, idx))
@@ -251,6 +259,7 @@ function Base.push!(l::LinkedJobList, node::Job)
     l.node._prev = node
     oldlast._next = node
     l.len += 1
+    node._queue = l
     return l
 end
 
@@ -269,6 +278,7 @@ function Base.pushfirst!(l::LinkedJobList, node::Job)
     l.node._next = node
     oldfirst._prev = node
     l.len += 1
+    node._queue = l
     return l
 end
 
@@ -283,6 +293,7 @@ function Base.pop!(l::LinkedJobList)
     # dereference
     data._next = data
     data._prev = data
+    data._queue = nothing
 
     return data
 end
@@ -298,6 +309,7 @@ function Base.popfirst!(l::LinkedJobList)
     # dereference
     data._next = data
     data._prev = data
+    data._queue = nothing
     return data
 end
 

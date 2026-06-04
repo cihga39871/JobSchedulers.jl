@@ -154,13 +154,19 @@ Cancel `job`, stop queuing or running.
 """
 function cancel!(job::Job)
     @debug "cancel!(job::Job) id=$(job.id) name=$(job.name) lock_queuing"
+    removed = false
     lock(JOB_QUEUE.lock_queuing) do
     #     @debug "cancel!(job::Job) id=$(job.id) name=$(job.name) lock_running"
     #     lock(JOB_QUEUE.lock_running) do
             unsafe_cancel!(job)
+            if job.state !== RUNNING
+                removed = unsafe_remove_from_queues!(job)
+            end
     #     end
     #     @debug "cancel!(job::Job) id=$(job.id) name=$(job.name) lock_running ok"
     end
+
+    removed && finalize_removed_job!(job)
     @debug "cancel!(job::Job) id=$(job.id) name=$(job.name) lock_queuing ok"
 end
 

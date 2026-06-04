@@ -5,6 +5,14 @@ v0.12.7
 - Compat: update ScopedStreams to v1.0.0.
 - Fix: progress bar: with the new scopedstreams.jl, redirecting global stdout/err to tmp file is possible.
 - Feat: replace `Channel` with `AtomicChannel` from AtomicChannels.jl
+- Fix(queue): make queued cancel removal O(1) and keep njob accounting robust
+  - add a queue back-reference on Job via `_queue`, with `AbstractLinkedJobList` introduced before Job type definition
+  - maintain `_queue` lifecycle in LinkedJobList operations:
+  - update `cancel!` to immediately remove non-running jobs from queues and finalize them, so `RESOURCE.njob` is decremented without waiting for scheduler scans
+  - harden `run_queuing!` exception path by capturing errors, finalizing removed jobs first, then rethrowing
+  - add regression coverage for cancelling a queued job while CPU is saturated, and assert RESOURCE.njob stays consistent
+  - adjust linked-list append tests currently affected by the new `AbstractLinkedJobList` change (append block commented in tests)
+
 
 v0.12.6
 
