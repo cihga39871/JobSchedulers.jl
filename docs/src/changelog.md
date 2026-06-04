@@ -1,5 +1,10 @@
 # Changelog
 
+v0.12.7
+
+- Compat: update ScopedStreams to v1.0.0.
+- Fix: progress bar: with the new scopedstreams.jl, redirecting global stdout/err to tmp file is possible.
+
 v0.12.6
 
 - Optim/Compat: replace internal `Channel` usage with `AtomicChannels.jl` for `THREAD_POOL`, `SCHEDULER_ACTION`, and `SCHEDULER_PROGRESS_ACTION`.
