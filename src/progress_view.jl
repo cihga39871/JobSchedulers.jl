@@ -149,79 +149,82 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
     init_group_state!()
     global PROGRESS_METER = true
 
-    redirect_stream(ScopedStreams.stdout_origin[], ScopedStreams.stderr_origin[]) do
-        try
-            h_old, w_old = 0, 0
-            
-            term_init = true
-            while true
+    terming_out = ScopedStreams.stdout_origin[]
+    terming_err = ScopedStreams.stderr_origin[]
+    Core.eval(Terming, :(out_stream = $terming_out))
+    Core.eval(Terming, :(err_stream = $terming_err))
 
-                Base.flush(stdout_tmp)
-                Base.flush(stderr_tmp)
+    try
+        h_old, w_old = 0, 0
+        
+        term_init = true
+        while true
 
-                queue_update = trytake!(SCHEDULER_PROGRESS_ACTION) !== nothing
+            Base.flush(stdout_tmp)
+            Base.flush(stderr_tmp)
 
-                h, w = T.displaysize()
+            queue_update = trytake!(SCHEDULER_PROGRESS_ACTION) !== nothing
 
-                if h == h_old && w == w_old
-                    display_size_update = false
-                else
-                    display_size_update = true
-                    h_old, w_old = h, w
-                end
-                
-                if queue_update || display_size_update
-                    if term_init
-                        init_term(h)
-                        term_init = false
-                    end
-                    row = view_update(h, w; row = 1, groups_shown = groups_shown, is_in_terminal = is_in_terminal)
-                end
-
-                # # handle keyboard event
-                # if is_interactive
-                #     event = handle_keyboard_event()
-                #     if event === :quit
-                #         break
-                #     end
-                # end
-
-                # handle auto exit
-                if !loop
-                    break
-                end
-
-                if scheduler_status(verbose=false) != RUNNING
-                    @error "Scheduler was not running. Jump out from the progress bar."
-                    scheduler_status()
-                    break
-                end
-                if !are_remaining_jobs_more_than(exit_num_jobs)
-                    sleep(wait_second_for_new_jobs)
-                    if !are_remaining_jobs_more_than(exit_num_jobs)
-                        break
-                        # T.alt_screen(false)
-                    end
-                end
-                
-                sleep(0.1)
-            end
-        catch
-            rethrow()
-        finally
-            global PROGRESS_METER = false
             h, w = T.displaysize()
-            reset_term(row, h)
 
-            isopen(stdout_tmp) && Base.flush(stdout_tmp)
-            isopen(stderr_tmp) && Base.flush(stderr_tmp)
+            if h == h_old && w == w_old
+                display_size_update = false
+            else
+                display_size_update = true
+                h_old, w_old = h, w
+            end
+            
+            if queue_update || display_size_update
+                if term_init
+                    init_term(h)
+                    term_init = false
+                end
+                row = view_update(h, w; row = 1, groups_shown = groups_shown, is_in_terminal = is_in_terminal)
+            end
 
-            ScopedStreams.reset_default_stdout()
-            ScopedStreams.reset_default_stderr()
+            # # handle keyboard event
+            # if is_interactive
+            #     event = handle_keyboard_event()
+            #     if event === :quit
+            #         break
+            #     end
+            # end
 
-            print_rest_lines(ScopedStreams.stdout_origin[], stdout_tmp, start_pos_stdout_tmp)
-            print_rest_lines(ScopedStreams.stderr_origin[], stderr_tmp, start_pos_stderr_tmp)
+            # handle auto exit
+            if !loop
+                break
+            end
+
+            if scheduler_status(verbose=false) != RUNNING
+                @error "Scheduler was not running. Jump out from the progress bar."
+                scheduler_status()
+                break
+            end
+            if !are_remaining_jobs_more_than(exit_num_jobs)
+                sleep(wait_second_for_new_jobs)
+                if !are_remaining_jobs_more_than(exit_num_jobs)
+                    break
+                    # T.alt_screen(false)
+                end
+            end
+            
+            sleep(0.1)
         end
+    catch
+        rethrow()
+    finally
+        global PROGRESS_METER = false
+        h, w = T.displaysize()
+        reset_term(row, h)
+
+        isopen(stdout_tmp) && Base.flush(stdout_tmp)
+        isopen(stderr_tmp) && Base.flush(stderr_tmp)
+
+        ScopedStreams.reset_default_stdout()
+        ScopedStreams.reset_default_stderr()
+
+        print_rest_lines(ScopedStreams.stdout_origin[], stdout_tmp, start_pos_stdout_tmp)
+        print_rest_lines(ScopedStreams.stderr_origin[], stderr_tmp, start_pos_stderr_tmp)
     end
     # COV_EXCL_STOP
 
