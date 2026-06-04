@@ -28,8 +28,8 @@ end
 
 SLEEP_HANDELED_TIME::Int = 10
 
-const SCHEDULER_ACTION = AtomicChannel{Int}(1)
-const SCHEDULER_PROGRESS_ACTION = AtomicChannel{Int}(1)
+const SCHEDULER_ACTION = AtomicChannel{Int, true}(1)
+const SCHEDULER_PROGRESS_ACTION = AtomicChannel{Int, true}(1)
 
 """
 Generation counter incremented each time any job changes state (running, done, failed, or

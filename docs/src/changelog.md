@@ -4,6 +4,7 @@ v0.12.7
 
 - Compat: update ScopedStreams to v1.0.0.
 - Fix: progress bar: with the new scopedstreams.jl, redirecting global stdout/err to tmp file is possible.
+- Feat: replace `Channel` with `AtomicChannel` from AtomicChannels.jl
 
 v0.12.6
 

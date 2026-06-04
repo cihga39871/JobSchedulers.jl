@@ -1,6 +1,6 @@
 
 """
-    const THREAD_POOL = Base.RefValue{AtomicChannel{Int}}()
+    const THREAD_POOL = Base.RefValue{AtomicChannel{Int,true}}()
 
 Defined in `__init__()`.
 
@@ -8,7 +8,7 @@ If version > 1.9, `THREAD_POOL` contains only tids in `Threads.threadpooltids(:d
 
 Also, the thread 1 is reserved for JobScheduler.
 """
-const THREAD_POOL = Base.RefValue{AtomicChannel{Int}}()
+const THREAD_POOL = Base.RefValue{AtomicChannel{Int,true}}()
 
 """
     const SINGLE_THREAD_MODE = Base.RefValue{Bool}()
