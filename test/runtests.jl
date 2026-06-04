@@ -65,6 +65,7 @@ end
 		display(job)
 		submit!(job)
 		fetch(job)
+		sleep(0.5)
 
 		@test !isqueuing(job)
 		@test !isrunning(job)
