@@ -64,7 +64,14 @@ finally
     rm(tmp_file; force=true)
 end
 wait_queue(show_progress = true)
+
+@test JobSchedulers.PROGRESS_METER == false
+@test JobSchedulers.PROGRESS_WAIT == false
+
 JobSchedulers.normal_print_queue_progress()
+
+@test JobSchedulers.PROGRESS_METER == false
+@test JobSchedulers.PROGRESS_WAIT == false
 
 queue(:all)
 queue()
@@ -88,7 +95,7 @@ JobSchedulers.style_line("│ x = 5", :debug)
 JobSchedulers.style_line("│ x = 5", :warning)
 @test JobSchedulers.style_line("└ end", :warning)[2] == :nothing
 
-@test_nowarn JobSchedulers.init_group_state!()
+@test_nowarn JobSchedulers.init_group_state!(; enable_progress_meter=false)
 
 @test_nowarn JobSchedulers.compute_other_job_group!([JobSchedulers.JOB_GROUPS["terming"]])
 @test JobSchedulers.get_group(j_stdlog) == "terming"
@@ -149,3 +156,6 @@ t = @task 1+1
 @test JobSchedulers.json_queue(all=true) isa String 
 
 @test set_scheduler_update_second(1) == 1.0
+
+@test JobSchedulers.PROGRESS_METER == false
+@test JobSchedulers.PROGRESS_WAIT == false

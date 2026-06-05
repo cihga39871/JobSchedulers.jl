@@ -451,13 +451,13 @@ function view_update_job_group(h::Integer, w::Integer; row::Integer = 2, job_gro
         if !is_in_terminal
             T.print(group_name)
         elseif highlight
-            if running > 0
+            if job_group.running > 0
                 T.print(@bold @cyan group_name)
             else
                 T.print(@bold @cyan @dim group_name)
             end
         else
-            if running > 0
+            if job_group.running > 0
                 T.print(@bold group_name)
             else
                 T.print(@bold @dim group_name)
