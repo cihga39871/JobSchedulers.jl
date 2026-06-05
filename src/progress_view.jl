@@ -152,6 +152,8 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
     terming_err = ScopedStreams.stderr_origin[]
     Core.eval(Terming, :(out_stream = $terming_out))
     Core.eval(Terming, :(err_stream = $terming_err))
+    Core.eval(Terming, :(term.out_stream = $terming_out))
+    Core.eval(Terming, :(term.err_stream = $terming_err))
 
     try
         h_old, w_old = 0, 0
@@ -164,7 +166,7 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
 
             queue_update = trytake!(SCHEDULER_PROGRESS_ACTION) !== nothing
 
-            h, w = T.displaysize()
+            h, w = Terming.displaysize()
 
             if h == h_old && w == w_old
                 display_size_update = false
