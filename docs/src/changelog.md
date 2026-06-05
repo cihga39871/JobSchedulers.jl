@@ -1,12 +1,13 @@
 # Changelog
 
-v0.12.7
+v1.0.0
 
-- Change: `JobSchedulers.init_group_state!()` now changed to `JobSchedulers.init_group_state!(; enable_progress_meter=true)`, which by default sets `JobSchedulers.PROGRESS_METER = true`.
+- Breaking: replace `Channel` with `AtomicChannel` from AtomicChannels.jl
+- Breaking: `JobSchedulers.init_group_state!()` now changed to `JobSchedulers.init_group_state!(; enable_progress_meter=true)`, which by default sets `JobSchedulers.PROGRESS_METER = true`.
+
 - Feat: progress bar: sort by running and total counts; dim group name if `running == 0`.
 - Compat: update ScopedStreams to v1.0.0.
 - Fix: progress bar: with the new scopedstreams.jl, redirecting global stdout/err to tmp file is possible.
-- Feat: replace `Channel` with `AtomicChannel` from AtomicChannels.jl
 - Fix(queue): make queued cancel removal O(1) and keep njob accounting robust
   - add a queue back-reference on Job via `_queue`, with `AbstractLinkedJobList` introduced before Job type definition
   - maintain `_queue` lifecycle in LinkedJobList operations:
@@ -15,10 +16,6 @@ v0.12.7
   - add regression coverage for cancelling a queued job while CPU is saturated, and assert RESOURCE.njob stays consistent
   - adjust linked-list append tests currently affected by the new `AbstractLinkedJobList` change (append block commented in tests)
 - Fix: atomic JobGroup snapshot initialization: block job transition from queuing to other states.
-
-
-v0.12.6
-
 - Optim/Compat: replace internal `Channel` usage with `AtomicChannels.jl` for `THREAD_POOL`, `SCHEDULER_ACTION`, and `SCHEDULER_PROGRESS_ACTION`.
 - Optim: reduce scheduler overhead by shortening lock hold time in queue update loops. Job state transitions, `free_thread`, and progress updates are now finalized after releasing queue locks.
 - Optim: stop full rescans of dependency-blocked jobs on every scheduler wakeup. A queue state generation counter is used to skip repeated dependency checks until relevant job state changes happen.
