@@ -451,9 +451,17 @@ function view_update_job_group(h::Integer, w::Integer; row::Integer = 2, job_gro
         if !is_in_terminal
             T.print(group_name)
         elseif highlight
-            T.print(@bold @cyan group_name)
+            if running > 0
+                T.print(@bold @cyan group_name)
+            else
+                T.print(@bold @cyan @dim group_name)
+            end
         else
-            T.print(@bold group_name)
+            if running > 0
+                T.print(@bold group_name)
+            else
+                T.print(@bold @dim group_name)
+            end
         end
     end
     if show_job && length(job_name) > 0
@@ -552,6 +560,9 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
 
     # specific job groups
     lock(JOB_GROUPS_LOCK) do
+        # sort by running desc, then total desc, so that groups with more running jobs and more total jobs are shown first.
+        sort!(JOB_GROUPS, by = x -> begin g=JOB_GROUPS[x]; (g.running, g.total) end, rev=true)
+
         for job_group in values(JOB_GROUPS)
             job_group.total < 2 && continue
             if row >= h - 1
@@ -568,6 +579,7 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
         row = view_update_job_group(h, w; row = row, job_group = OTHER_JOB_GROUP, highlight = true, is_in_terminal = is_in_terminal, group_seperator_at_begining = group_seperator_at_begining)
     end
 
+    @label ret
     if is_in_terminal
         # clear rest lines
         for r in row:h
@@ -575,7 +587,6 @@ function view_update(h, w; row = 1, groups_shown::Vector{JobGroup} = JobGroup[],
             T.print(erase_current_line)
         end
     end
-    @label ret
     # if is_interactive
     #     T.cmove_line_last()
     #     T.cmove_left()

@@ -2,6 +2,7 @@
 
 v0.12.7
 
+- Feat: progress bar: sort by running and total counts; dim group name if `running == 0`.
 - Compat: update ScopedStreams to v1.0.0.
 - Fix: progress bar: with the new scopedstreams.jl, redirecting global stdout/err to tmp file is possible.
 - Feat: replace `Channel` with `AtomicChannel` from AtomicChannels.jl
