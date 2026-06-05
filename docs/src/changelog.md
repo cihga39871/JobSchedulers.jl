@@ -12,6 +12,7 @@ v0.12.7
   - harden `run_queuing!` exception path by capturing errors, finalizing removed jobs first, then rethrowing
   - add regression coverage for cancelling a queued job while CPU is saturated, and assert RESOURCE.njob stays consistent
   - adjust linked-list append tests currently affected by the new `AbstractLinkedJobList` change (append block commented in tests)
+- Fix: atomic JobGroup snapshot initialization: block job transition from queuing to other states.
 
 
 v0.12.6

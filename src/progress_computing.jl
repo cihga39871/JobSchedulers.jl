@@ -154,13 +154,13 @@ function unsafe_init_group_state_no_queue_lock!()
 end
 
 """
-    init_group_state!(; enable_progress_meter::Bool = false)
+    init_group_state!(; enable_progress_meter::Bool = true)
 
 Prepare group state for existing jobs. While the snapshot is being built, queue,
 running, and past-job mutations are paused so jobs cannot move between lists and
 be double-counted or left behind in an old state.
 """
-function init_group_state!(; enable_progress_meter::Bool = false)
+function init_group_state!(; enable_progress_meter::Bool = true)
     lock(JOB_QUEUE.lock_queuing)
     lock(JOB_QUEUE.lock_running)
     lock(JOB_QUEUE.lock_past)

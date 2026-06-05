@@ -359,8 +359,8 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
             end
         end
 
-        free_ncpu < 0.999 && return
-        free_mem <= 0 && return
+        free_ncpu < 0.999 && (@goto finalize_jobs)
+        free_mem <= 0 && (@goto finalize_jobs)
 
         # check normal queue: SortedDict{Int,LinkedJobList}
 
@@ -427,6 +427,8 @@ function run_queuing!(current::DateTime, free_ncpu::Real, free_mem::Int64)
                 delete!(JOB_QUEUE.queuing, priority)
             end
         end
+
+        @label finalize_jobs
     catch ex
         caught_exception = ex
     finally
