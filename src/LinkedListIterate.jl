@@ -222,6 +222,7 @@ function Base.delete!(l::LinkedJobList, idx::Int)
     # dereference the node
     node._prev = node
     node._next = node
+    node._queue = nothing
 
     l.len -= 1
     return l
@@ -241,6 +242,7 @@ function Base.delete!(l::LinkedJobList, r::UnitRange)
         # dereference the node
         node_to_deref._prev = node_to_deref
         node_to_deref._next = node_to_deref
+        node_to_deref._queue = nothing
         node_to_deref = node
     end
     next = node

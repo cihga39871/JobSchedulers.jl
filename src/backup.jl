@@ -312,6 +312,10 @@ function recover_backup(filepath::AbstractString; recover_settings::Bool = true,
             pushfirst!(JOB_QUEUE.done, data["q_done"]...)
             pushfirst!(JOB_QUEUE.failed, data["q_failed"]...)
         end
+
+        if PROGRESS_METER
+            init_group_state!()
+        end
     end
     return
 end

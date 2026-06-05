@@ -146,8 +146,7 @@ function queue_progress(stdout_tmp::IO, stderr_tmp::IO;
 
     groups_shown = JobGroup[]
     
-    init_group_state!()
-    global PROGRESS_METER = true
+    init_group_state!(enable_progress_meter = true)
 
     terming_out = ScopedStreams.stdout_origin[]
     terming_err = ScopedStreams.stderr_origin[]

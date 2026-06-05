@@ -134,33 +134,47 @@ function update_group_state!(job::Job)
     nothing  # COV_EXCL_LINE
 end
 
-"""
-    init_group_state!()
-
-Prepare group state for existing jobs 
-"""
-function init_group_state!()
+function unsafe_init_group_state_no_queue_lock!()
     clear_job_group!(ALL_JOB_GROUP)
     lock(JOB_GROUPS_LOCK) do
         empty!(JOB_GROUPS)
     end
     # clear_job_group!(OTHER_JOB_GROUP)  # no need to init, will compute later anyway
 
-    lock(JOB_QUEUE.lock_queuing) do 
-        init_group_state!.(JOB_QUEUE.future)
-        init_group_state!.(JOB_QUEUE.queuing_0cpu)
-        for jobs in values(JOB_QUEUE.queuing)
-            init_group_state!.(jobs)
+    init_group_state!.(JOB_QUEUE.future)
+    init_group_state!.(JOB_QUEUE.queuing_0cpu)
+    for jobs in values(JOB_QUEUE.queuing)
+        init_group_state!.(jobs)
+    end
+    init_group_state!.(JOB_QUEUE.running)
+    init_group_state!.(JOB_QUEUE.done)
+    init_group_state!.(JOB_QUEUE.failed)
+    init_group_state!.(JOB_QUEUE.cancelled)
+    nothing
+end
+
+"""
+    init_group_state!(; enable_progress_meter::Bool = false)
+
+Prepare group state for existing jobs. While the snapshot is being built, queue,
+running, and past-job mutations are paused so jobs cannot move between lists and
+be double-counted or left behind in an old state.
+"""
+function init_group_state!(; enable_progress_meter::Bool = false)
+    lock(JOB_QUEUE.lock_queuing)
+    lock(JOB_QUEUE.lock_running)
+    lock(JOB_QUEUE.lock_past)
+    try
+        unsafe_init_group_state_no_queue_lock!()
+        if enable_progress_meter
+            global PROGRESS_METER = true
         end
+    finally
+        unlock(JOB_QUEUE.lock_past)
+        unlock(JOB_QUEUE.lock_running)
+        unlock(JOB_QUEUE.lock_queuing)
     end
-    lock(JOB_QUEUE.lock_running) do 
-        init_group_state!.(JOB_QUEUE.running)
-    end
-    lock(JOB_QUEUE.lock_past) do 
-        init_group_state!.(JOB_QUEUE.done)
-        init_group_state!.(JOB_QUEUE.failed)
-        init_group_state!.(JOB_QUEUE.cancelled)
-    end
+
     nothing  # COV_EXCL_LINE
 end
 
