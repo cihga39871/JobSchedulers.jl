@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="241.92"
+   height="77.760002"
+   viewBox="0 0 241.92 77.760002"
+   sodipodi:docname="logo.svg"
+   inkscape:version="1.4.2 (2aeb623e1d, 2025-05-12)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="4.84251"
+     inkscape:cx="102.32297"
+     inkscape:cy="27.361844"
+     inkscape:window-width="2490"
+     inkscape:window-height="1016"
+     inkscape:window-x="70"
+     inkscape:window-y="611"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer1"
+     inkscape:label="word">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:33.1106px;font-family:'Noto Sans CJK KR';-inkscape-font-specification:'Noto Sans CJK KR';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#263a40;fill-opacity:1;stroke-width:2.7592"
+       x="11.530478"
+       y="50.36282"
+       id="text3"
+       transform="scale(0.96936131,1.0316071)"><tspan
+         sodipodi:role="line"
+         id="tspan3"
+         x="11.530478"
+         y="50.36282"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Noto Sans CJK KR';-inkscape-font-specification:'Noto Sans CJK KR';fill:#263a40;fill-opacity:1;stroke-width:2.7592"><tspan
+   style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.7592"
+   id="tspan5">Job</tspan>Schedulers</tspan></text>
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="decroation">
+    <circle
+       style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.10544"
+       id="path6"
+       cx="9.7704258"
+       cy="25.809954"
+       r="2.5" />
+    <circle
+       style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.10544"
+       id="path6-7"
+       cx="26.700001"
+       cy="60.878899"
+       r="2.5" />
+    <circle
+       style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.10544"
+       id="path6-7-4"
+       cx="44.960999"
+       cy="54.375595"
+       r="2.5" />
+    <circle
+       style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.10544"
+       id="path6-7-1"
+       cx="26.700001"
+       cy="70.721939"
+       r="2.5" />
+    <circle
+       style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.10544"
+       id="path6-0"
+       cx="23.6"
+       cy="19.676125"
+       r="2.5" />
+    <circle
+       style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.10544"
+       id="path6-0-4"
+       cx="35.357719"
+       cy="19.676125"
+       r="2.5" />
+    <circle
+       style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.10544"
+       id="path6-5"
+       cx="23.6"
+       cy="9.6761255"
+       r="2.5" />
+    <circle
+       style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.10544"
+       id="path6-9"
+       cx="35.357719"
+       cy="9.6761255"
+       r="2.5" />
+    <circle
+       style="fill:#6bc4c8;fill-opacity:1;stroke-width:2.10544"
+       id="path6-03"
+       cx="44.765865"
+       cy="9.6761255"
+       r="2.5" />
+    <rect
+       style="fill:#6bc4c8;fill-opacity:1"
+       id="rect6"
+       width="8.879693"
+       height="2.9943149"
+       x="35.41552"
+       y="8.2070341" />
+    <rect
+       style="fill:#6bc4c8;fill-opacity:1"
+       id="rect6-7"
+       width="8.879693"
+       height="2.9943149"
+       x="25.070728"
+       y="18.120838" />
+    <path
+       id="rect6-3"
+       style="fill:#6bc4c8;stroke-width:1.44472"
+       d="m 26.996927,59.618492 c 0,0 7.568107,0.0099 10.793393,0 2.629955,-0.0081 4.281542,-1.858949 5.597898,-5.110986 0.419946,-1.037471 2.965384,0.32303 2.710371,1.290651 -1.17881,4.472882 -4.602805,6.582592 -8.334082,6.58233 -3.589193,-2.52e-4 -10.76758,0 -10.76758,0 z"
+       sodipodi:nodetypes="csssscc" />
+  </g>
+</svg>
